@@ -245,6 +245,19 @@ export class TwitterInteractionClient {
           },
         });
 
+        // We create the descriptions here.
+        // And then agent has them in attachments provider.
+        const descriptions = [];
+        if (tweet.photos && tweet.photos.length > 0) {
+          for (const photo of tweet.photos) {
+            const { description, title } = await this.runtime.useModel(
+              ModelType.IMAGE_DESCRIPTION,
+              photo.url
+            );
+            descriptions.push({ description, title });
+          }
+        }
+
         // Create standardized message memory
         const memory: Memory = {
           id: tweetId,
@@ -252,7 +265,15 @@ export class TwitterInteractionClient {
           content: {
             text: tweet.text,
             url: tweet.permanentUrl,
-            imageUrls: tweet.photos?.map((photo) => photo.url) || [],
+            attachments:
+              tweet.photos?.map((photo, index) => ({
+                id: photo.id,
+                url: photo.url,
+                title: descriptions[index].title,
+                source: 'twitter',
+                description: descriptions[index].description,
+                text: descriptions[index].description,
+              })) || [],
             inReplyTo: tweet.inReplyToStatusId
               ? createUniqueUuid(this.runtime, tweet.inReplyToStatusId)
               : undefined,
@@ -489,37 +510,6 @@ export class TwitterInteractionClient {
     if (!message.content.text) {
       logger.log('Skipping Tweet with no text', tweet.id);
       return { text: '', actions: ['IGNORE'] };
-    }
-
-    logger.log('Processing Tweet: ', tweet.id);
-    const formatTweet = (tweet: ClientTweet) => {
-      return `  ID: ${tweet.id}
-  From: ${tweet.name} (@${tweet.username})
-  Text: ${tweet.text}`;
-    };
-    const currentPost = formatTweet(tweet);
-
-    const formattedConversation = thread
-      .map(
-        (tweet) => `@${tweet.username} (${new Date(tweet.timestamp * 1000).toLocaleString('en-US', {
-          hour: '2-digit',
-          minute: '2-digit',
-          month: 'short',
-          day: 'numeric',
-        })}):
-        ${tweet.text}`
-      )
-      .join('\n\n');
-
-    const imageDescriptionsArray = [];
-    try {
-      for (const photo of tweet.photos) {
-        const description = await this.runtime.useModel(ModelType.IMAGE_DESCRIPTION, photo.url);
-        imageDescriptionsArray.push(description);
-      }
-    } catch (error) {
-      // Handle the error
-      logger.error('Error Occured during describing image: ', error);
     }
 
     // Create a callback for handling the response
