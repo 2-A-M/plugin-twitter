@@ -56,7 +56,7 @@ export class TwitterClientInstance implements ITwitterClient {
     }
 
     // Mentions and interactions
-    if (runtime.getSetting('TWITTER_INTERACTION_ENABLE') === true) {
+    if (runtime.getSetting('TWITTER_INTERACTION_ENABLE') !== false) {
       this.interaction = new TwitterInteractionClient(this.client, runtime, state);
     }
 
