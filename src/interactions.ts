@@ -1,6 +1,7 @@
 import {
   ChannelType,
   type Content,
+  ContentType,
   EventType,
   type HandlerCallback,
   type IAgentRuntime,
@@ -245,19 +246,6 @@ export class TwitterInteractionClient {
           },
         });
 
-        // We create the descriptions here.
-        // And then agent has them in attachments provider.
-        const descriptions = [];
-        if (tweet.photos && tweet.photos.length > 0) {
-          for (const photo of tweet.photos) {
-            const { description, title } = await this.runtime.useModel(
-              ModelType.IMAGE_DESCRIPTION,
-              photo.url
-            );
-            descriptions.push({ description, title });
-          }
-        }
-
         // Create standardized message memory
         const memory: Memory = {
           id: tweetId,
@@ -269,10 +257,7 @@ export class TwitterInteractionClient {
               tweet.photos?.map((photo, index) => ({
                 id: photo.id,
                 url: photo.url,
-                title: descriptions[index].title,
-                source: 'twitter',
-                description: descriptions[index].description,
-                text: descriptions[index].description,
+                contentType: ContentType.IMAGE, // TODO: check if we can read this.
               })) || [],
             inReplyTo: tweet.inReplyToStatusId
               ? createUniqueUuid(this.runtime, tweet.inReplyToStatusId)
