@@ -15,6 +15,7 @@ import type {
 import { addApiFeatures, requestApi } from "./api";
 import { apiRequestFactory } from "./api-data";
 import type { TwitterAuth } from "./auth";
+import { getTwitterApiHeaders } from "./browser-fingerprint";
 import { getEntityIdByScreenName } from "./profile";
 import { updateCookieJar } from "./requests";
 import { getTweetTimeline } from "./timeline-async";
@@ -565,17 +566,17 @@ export async function createCreateTweetRequest(
   const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
   //@ ts-expect-error - This is a private API.
+  const twitterHeaders = await getTwitterApiHeaders();
   const headers = new Headers({
     authorization: `Bearer ${(auth as any).bearerToken}`,
     cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
     "content-type": "application/json",
-    "User-Agent":
-      "Mozilla/5.0 (Linux; Android 11; Nokia G20) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.88 Mobile Safari/537.36",
     "x-guest-token": (auth as any).guestToken,
     "x-twitter-auth-type": "OAuth2Client",
     "x-twitter-active-user": "yes",
     "x-twitter-client-language": "en",
     "x-csrf-token": xCsrfToken?.value as string,
+    ...Object.fromEntries(twitterHeaders.entries()),
   });
 
   const variables: Record<string, any> = {
@@ -680,12 +681,12 @@ export async function createCreateNoteTweetRequest(
   const cookies = await auth.cookieJar().getCookies(onboardingTaskUrl);
   const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
+  const baseHeaders = await getTwitterApiHeaders();
   const headers = new Headers({
+    ...baseHeaders,
     authorization: `Bearer ${(auth as any).bearerToken}`,
     cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
     "content-type": "application/json",
-    "User-Agent":
-      "Mozilla/5.0 (Linux; Android 11; Nokia G20) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.88 Mobile Safari/537.36",
     "x-guest-token": (auth as any).guestToken,
     "x-twitter-auth-type": "OAuth2Client",
     "x-twitter-active-user": "yes",
@@ -827,12 +828,12 @@ export async function deleteTweet(tweetId: string, auth: TwitterAuth) {
   const cookies = await auth.cookieJar().getCookies(onboardingTaskUrl);
   const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
+  const baseHeaders = await getTwitterApiHeaders();
   const headers = new Headers({
+    ...baseHeaders,
     authorization: `Bearer ${(auth as any).bearerToken}`,
     cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
     "content-type": "application/json",
-    "User-Agent":
-      "Mozilla/5.0 (Linux; Android 11; Nokia G20) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.88 Mobile Safari/537.36",
     "x-guest-token": (auth as any).guestToken,
     "x-twitter-auth-type": "OAuth2Client",
     "x-twitter-active-user": "yes",
@@ -1333,12 +1334,12 @@ export async function createQuoteTweetRequest(
   const cookies = await auth.cookieJar().getCookies(onboardingTaskUrl);
   const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
+  const baseHeaders = await getTwitterApiHeaders();
   const headers = new Headers({
+    ...baseHeaders,
     authorization: `Bearer ${(auth as any).bearerToken}`,
     cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
     "content-type": "application/json",
-    "User-Agent":
-      "Mozilla/5.0 (Linux; Android 11; Nokia G20) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.88 Mobile Safari/537.36",
     "x-guest-token": (auth as any).guestToken,
     "x-twitter-auth-type": "OAuth2Client",
     "x-twitter-active-user": "yes",
@@ -1549,12 +1550,12 @@ export async function createCreateLongTweetRequest(
   const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
   //@ ts-expect-error - This is a private API.
+  const baseHeaders = await getTwitterApiHeaders();
   const headers = new Headers({
+    ...baseHeaders,
     authorization: `Bearer ${(auth as any).bearerToken}`,
     cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
     "content-type": "application/json",
-    "User-Agent":
-      "Mozilla/5.0 (Linux; Android 11; Nokia G20) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.88 Mobile Safari/537.36",
     "x-guest-token": (auth as any).guestToken,
     "x-twitter-auth-type": "OAuth2Client",
     "x-twitter-active-user": "yes",

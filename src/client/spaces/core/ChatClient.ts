@@ -4,6 +4,7 @@ import { EventEmitter } from 'node:events';
 import WebSocket from 'ws';
 import type { Logger } from '../logger';
 import type { OccupancyUpdate, SpeakerRequest } from '../types';
+import { getTwitterWebHeaders } from '../../browser-fingerprint';
 
 /**
  * Configuration object for ChatClient.
@@ -65,10 +66,11 @@ export class ChatClient extends EventEmitter {
     const wsUrl = `${this.endpoint}/chatapi/v1/chatnow`.replace('https://', 'wss://');
     this.logger.info('[ChatClient] Connecting =>', wsUrl);
 
+    const headers = await getTwitterWebHeaders();
     this.ws = new WebSocket(wsUrl, {
       headers: {
         Origin: 'https://x.com',
-        'User-Agent': 'Mozilla/5.0',
+        'User-Agent': headers['User-Agent'],
       },
     });
 

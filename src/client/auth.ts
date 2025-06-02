@@ -2,7 +2,8 @@ import { Headers } from "headers-polyfill";
 import { type Cookie, CookieJar } from "tough-cookie";
 import { TwitterApi } from "twitter-api-v2";
 import type { FetchTransformOptions } from "./api";
-import type { Profile } from "./profile";
+import { getTwitterApiHeaders } from "./browser-fingerprint";
+import { Profile } from "./profile";
 import { updateCookieJar } from "./requests";
 
 /**
@@ -259,6 +260,14 @@ export class TwitterGuestAuth implements TwitterAuth {
       Authorization: `Bearer ${this.bearerToken}`,
       Cookie: await this.getCookieString(),
     });
+
+    // Apply browser fingerprinting for better anti-detection
+    const browserHeaders = await getTwitterApiHeaders();
+    for (const [key, value] of browserHeaders.entries()) {
+      if (!headers.has(key) && key.toLowerCase() !== 'authorization' && key.toLowerCase() !== 'cookie') {
+        headers.set(key, value);
+      }
+    }
 
     const res = await this.fetch(guestActivateUrl, {
       method: "POST",
