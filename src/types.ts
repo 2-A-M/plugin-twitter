@@ -6,13 +6,13 @@ import type {
   MessagePayload,
   UUID,
   WorldPayload,
-} from '@elizaos/core';
-import type { TwitterService } from '.';
-import type { ClientBase } from './base';
-import type { Tweet as ClientTweet, Mention } from './client/tweets';
-import type { TwitterInteractionClient } from './interactions';
-import type { TwitterPostClient } from './post';
-import type { TwitterSpaceClient } from './spaces';
+} from "@elizaos/core";
+import type { TwitterService } from ".";
+import type { ClientBase } from "./base";
+import type { Tweet as ClientTweet, Mention } from "./client/tweets";
+import type { TwitterInteractionClient } from "./interactions";
+import type { TwitterPostClient } from "./post";
+import type { TwitterSpaceClient } from "./spaces";
 
 /**
  * Defines a type for media data, which includes a Buffer representing the actual data
@@ -60,7 +60,7 @@ export interface ITwitterClient {
 }
 
 export const ServiceType = {
-  TWITTER: 'twitter',
+  TWITTER: "twitter",
 } as const;
 
 /**
@@ -92,38 +92,42 @@ export function convertClientTweetToCoreTweet(tweet: ClientTweet): Tweet {
     ? tweet.mentions
         .filter(
           (mention): mention is Mention =>
-            typeof mention === 'object' && mention !== null && typeof mention.username === 'string'
+            typeof mention === "object" &&
+            mention !== null &&
+            typeof mention.username === "string"
         )
         .map((mention) => mention.username)
     : [];
 
   const hashtags = Array.isArray(tweet.hashtags)
     ? tweet.hashtags
-        .filter((tag) => tag !== null && typeof tag === 'object')
+        .filter((tag) => tag !== null && typeof tag === "object")
         .map((tag) => {
           const tagObj = tag as { text?: string };
-          return typeof tagObj.text === 'string' ? tagObj.text : '';
+          return typeof tagObj.text === "string" ? tagObj.text : "";
         })
-        .filter((text) => text !== '')
+        .filter((text) => text !== "")
     : [];
 
   const urls = Array.isArray(tweet.urls)
     ? tweet.urls
-        .filter((url) => url !== null && typeof url === 'object')
+        .filter((url) => url !== null && typeof url === "object")
         .map((url) => {
           const urlObj = url as { expanded_url?: string };
-          return typeof urlObj.expanded_url === 'string' ? urlObj.expanded_url : '';
+          return typeof urlObj.expanded_url === "string"
+            ? urlObj.expanded_url
+            : "";
         })
-        .filter((url) => url !== '')
+        .filter((url) => url !== "")
     : [];
 
   return {
-    id: tweet.id || '',
-    text: tweet.text || '',
-    userId: tweet.userId || '',
-    username: tweet.username || '',
-    name: tweet.name || '',
-    conversationId: tweet.conversationId || '',
+    id: tweet.id || "",
+    text: tweet.text || "",
+    userId: tweet.userId || "",
+    username: tweet.username || "",
+    name: tweet.name || "",
+    conversationId: tweet.conversationId || "",
     inReplyToStatusId: tweet.inReplyToStatusId,
     timestamp: tweet.timestamp || 0,
     photos: tweet.photos || [],
@@ -132,7 +136,7 @@ export function convertClientTweetToCoreTweet(tweet: ClientTweet): Tweet {
     urls,
     videos: tweet.videos || [],
     thread: tweet.thread || [],
-    permanentUrl: tweet.permanentUrl || '',
+    permanentUrl: tweet.permanentUrl || "",
   };
 }
 
@@ -146,34 +150,34 @@ export interface QueryTweetsResponse {
  */
 export enum TwitterEventTypes {
   // Message (interaction) events
-  MESSAGE_RECEIVED = 'TWITTER_MESSAGE_RECEIVED',
-  MESSAGE_SENT = 'TWITTER_MESSAGE_SENT',
+  MESSAGE_RECEIVED = "TWITTER_MESSAGE_RECEIVED",
+  MESSAGE_SENT = "TWITTER_MESSAGE_SENT",
 
   // Post events
-  POST_GENERATED = 'TWITTER_POST_GENERATED',
-  POST_SENT = 'TWITTER_POST_SENT',
+  POST_GENERATED = "TWITTER_POST_GENERATED",
+  POST_SENT = "TWITTER_POST_SENT",
 
   // Reaction events
-  REACTION_RECEIVED = 'TWITTER_REACTION_RECEIVED',
-  LIKE_RECEIVED = 'TWITTER_LIKE_RECEIVED',
-  RETWEET_RECEIVED = 'TWITTER_RETWEET_RECEIVED',
-  QUOTE_RECEIVED = 'TWITTER_QUOTE_RECEIVED',
+  REACTION_RECEIVED = "TWITTER_REACTION_RECEIVED",
+  LIKE_RECEIVED = "TWITTER_LIKE_RECEIVED",
+  RETWEET_RECEIVED = "TWITTER_RETWEET_RECEIVED",
+  QUOTE_RECEIVED = "TWITTER_QUOTE_RECEIVED",
 
   // Server events
-  WORLD_JOINED = 'TWITTER_WORLD_JOINED',
+  WORLD_JOINED = "TWITTER_WORLD_JOINED",
 
   // User events
-  ENTITY_JOINED = 'TWITTER_USER_JOINED',
-  ENTITY_LEFT = 'TWITTER_USER_LEFT',
-  USER_FOLLOWED = 'TWITTER_USER_FOLLOWED',
-  USER_UNFOLLOWED = 'TWITTER_USER_UNFOLLOWED',
+  ENTITY_JOINED = "TWITTER_USER_JOINED",
+  ENTITY_LEFT = "TWITTER_USER_LEFT",
+  USER_FOLLOWED = "TWITTER_USER_FOLLOWED",
+  USER_UNFOLLOWED = "TWITTER_USER_UNFOLLOWED",
 
   // Thread events
-  THREAD_CREATED = 'TWITTER_THREAD_CREATED',
-  THREAD_UPDATED = 'TWITTER_THREAD_UPDATED',
+  THREAD_CREATED = "TWITTER_THREAD_CREATED",
+  THREAD_UPDATED = "TWITTER_THREAD_UPDATED",
 
   // Mention events
-  MENTION_RECEIVED = 'TWITTER_MENTION_RECEIVED',
+  MENTION_RECEIVED = "TWITTER_MENTION_RECEIVED",
 }
 
 /**
@@ -181,7 +185,7 @@ export enum TwitterEventTypes {
  */
 export interface TwitterMemory extends Memory {
   content: {
-    source: 'twitter';
+    source: "twitter";
     text?: string;
     type?: string;
     targetId?: string;
@@ -193,7 +197,8 @@ export interface TwitterMemory extends Memory {
 /**
  * Twitter-specific message received payload
  */
-export interface TwitterMessageReceivedPayload extends Omit<MessagePayload, 'message'> {
+export interface TwitterMessageReceivedPayload
+  extends Omit<MessagePayload, "message"> {
   message: TwitterMemory;
   tweet: Tweet;
   user: any;
@@ -232,7 +237,7 @@ export interface TwitterReactionReceivedPayload extends MessagePayload {
   /** The tweet that was reacted to */
   tweet: Tweet;
   /** The reaction type (like, retweet) */
-  reactionType: 'like' | 'retweet';
+  reactionType: "like" | "retweet";
   /** The user who reacted */
   user: any;
 }
@@ -240,7 +245,8 @@ export interface TwitterReactionReceivedPayload extends MessagePayload {
 /**
  * Twitter-specific quote tweet received payload
  */
-export interface TwitterQuoteReceivedPayload extends Omit<MessagePayload, 'message' | 'reaction'> {
+export interface TwitterQuoteReceivedPayload
+  extends Omit<MessagePayload, "message" | "reaction"> {
   /** The original tweet that was quoted */
   quotedTweet: Tweet;
   /** The quote tweet */
@@ -253,7 +259,7 @@ export interface TwitterQuoteReceivedPayload extends Omit<MessagePayload, 'messa
   callback: HandlerCallback;
   /** The reaction details */
   reaction: {
-    type: 'quote';
+    type: "quote";
     entityId: UUID;
   };
 }
@@ -261,7 +267,8 @@ export interface TwitterQuoteReceivedPayload extends Omit<MessagePayload, 'messa
 /**
  * Twitter-specific mention received payload
  */
-export interface TwitterMentionReceivedPayload extends Omit<MessagePayload, 'message'> {
+export interface TwitterMentionReceivedPayload
+  extends Omit<MessagePayload, "message"> {
   /** The tweet containing the mention */
   tweet: Tweet;
   /** The user who mentioned */
@@ -271,7 +278,7 @@ export interface TwitterMentionReceivedPayload extends Omit<MessagePayload, 'mes
   /** Callback for handling the mention */
   callback: HandlerCallback;
   /** Source platform */
-  source: 'twitter';
+  source: "twitter";
 }
 
 /**
@@ -364,7 +371,7 @@ export interface TwitterEventPayloadMap {
 export interface TwitterInteractionMemory extends TwitterMemory {
   content: {
     type: string;
-    source: 'twitter';
+    source: "twitter";
     targetId?: string;
   };
 }
@@ -374,7 +381,7 @@ export interface TwitterInteractionMemory extends TwitterMemory {
  */
 export interface TwitterInteractionPayload {
   id: string;
-  type: 'like' | 'retweet' | 'quote';
+  type: "like" | "retweet" | "quote";
   userId: string;
   username: string;
   name: string;
@@ -394,7 +401,7 @@ export interface TwitterLikeReceivedPayload extends EventPayload {
     username: string;
     name: string;
   };
-  source: 'twitter';
+  source: "twitter";
 }
 
 /**
@@ -408,5 +415,5 @@ export interface TwitterRetweetReceivedPayload extends EventPayload {
     username: string;
     name: string;
   };
-  source: 'twitter';
+  source: "twitter";
 }

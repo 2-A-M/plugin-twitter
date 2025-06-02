@@ -1,6 +1,6 @@
-import { type Profile, parseProfile } from './profile';
-import type { QueryProfilesResponse } from './timeline-v1';
-import type { TimelineUserResultRaw } from './timeline-v2';
+import { type Profile, parseProfile } from "./profile";
+import type { QueryProfilesResponse } from "./timeline-v1";
+import type { TimelineUserResultRaw } from "./timeline-v2";
 
 /**
  * Interface for raw content of a relationship entry item.
@@ -77,20 +77,26 @@ export interface RelationshipTimeline {
  * @param timeline The RelationshipTimeline data to parse.
  * @returns The QueryProfilesResponse object containing profiles, next cursor, and previous cursor.
  */
-export function parseRelationshipTimeline(timeline: RelationshipTimeline): QueryProfilesResponse {
+export function parseRelationshipTimeline(
+  timeline: RelationshipTimeline
+): QueryProfilesResponse {
   let bottomCursor: string | undefined;
   let topCursor: string | undefined;
   const profiles: Profile[] = [];
-  const instructions = timeline.data?.user?.result?.timeline?.timeline?.instructions ?? [];
+  const instructions =
+    timeline.data?.user?.result?.timeline?.timeline?.instructions ?? [];
 
   for (const instruction of instructions) {
-    if (instruction.type === 'TimelineAddEntries' || instruction.type === 'TimelineReplaceEntry') {
-      if (instruction.entry?.content?.cursorType === 'Bottom') {
+    if (
+      instruction.type === "TimelineAddEntries" ||
+      instruction.type === "TimelineReplaceEntry"
+    ) {
+      if (instruction.entry?.content?.cursorType === "Bottom") {
         bottomCursor = instruction.entry.content.value;
         continue;
       }
 
-      if (instruction.entry?.content?.cursorType === 'Top') {
+      if (instruction.entry?.content?.cursorType === "Top") {
         topCursor = instruction.entry.content.value;
         continue;
       }
@@ -98,11 +104,14 @@ export function parseRelationshipTimeline(timeline: RelationshipTimeline): Query
       const entries = instruction.entries ?? [];
       for (const entry of entries) {
         const itemContent = entry.content?.itemContent;
-        if (itemContent?.userDisplayType === 'User') {
+        if (itemContent?.userDisplayType === "User") {
           const userResultRaw = itemContent.user_results?.result;
 
           if (userResultRaw?.legacy) {
-            const profile = parseProfile(userResultRaw.legacy, userResultRaw.is_blue_verified);
+            const profile = parseProfile(
+              userResultRaw.legacy,
+              userResultRaw.is_blue_verified
+            );
 
             if (!profile.userId) {
               profile.userId = userResultRaw.rest_id;
@@ -110,9 +119,9 @@ export function parseRelationshipTimeline(timeline: RelationshipTimeline): Query
 
             profiles.push(profile);
           }
-        } else if (entry.content?.cursorType === 'Bottom') {
+        } else if (entry.content?.cursorType === "Bottom") {
           bottomCursor = entry.content.value;
-        } else if (entry.content?.cursorType === 'Top') {
+        } else if (entry.content?.cursorType === "Top") {
           topCursor = entry.content.value;
         }
       }

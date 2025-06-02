@@ -1,5 +1,5 @@
-import type { Profile } from './profile';
-import type { Tweet } from './tweets';
+import type { Profile } from "./profile";
+import type { Tweet } from "./tweets";
 
 /**
  * Interface representing the response when fetching profiles.
@@ -66,7 +66,11 @@ export async function* getUserTimeline(
   let cursor: string | undefined = undefined;
   let consecutiveEmptyBatches = 0;
   while (nProfiles < maxProfiles) {
-    const batch: FetchProfilesResponse = await fetchFunc(query, maxProfiles, cursor);
+    const batch: FetchProfilesResponse = await fetchFunc(
+      query,
+      maxProfiles,
+      cursor
+    );
 
     const { profiles, next } = batch;
     cursor = next;
@@ -102,7 +106,11 @@ export async function* getTweetTimeline(
   let nTweets = 0;
   let cursor: string | undefined = undefined;
   while (nTweets < maxTweets) {
-    const batch: FetchTweetsResponse = await fetchFunc(query, maxTweets, cursor);
+    const batch: FetchTweetsResponse = await fetchFunc(
+      query,
+      maxTweets,
+      cursor
+    );
 
     const { tweets, next } = batch;
 

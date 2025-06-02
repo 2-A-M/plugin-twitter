@@ -1,6 +1,6 @@
-import fs from 'node:fs';
-import { ProxyAgent, setGlobalDispatcher } from 'undici';
-import { Client } from './client';
+import fs from "node:fs";
+import { ProxyAgent, setGlobalDispatcher } from "undici";
+import { Client } from "./client";
 
 /**
  * Authentication method preference for the client.
@@ -18,10 +18,12 @@ export interface ClientTestOptions {
    * - 'password': Use username/password for login.
    * - 'anonymous': No authentication.
    */
-  authMethod: 'api' | 'cookies' | 'password' | 'anonymous';
+  authMethod: "api" | "cookies" | "password" | "anonymous";
 }
 
-export async function getClient(options: Partial<ClientTestOptions> = { authMethod: 'cookies' }) {
+export async function getClient(
+  options: Partial<ClientTestOptions> = { authMethod: "cookies" }
+) {
   const username = process.env.TWITTER_USERNAME;
   const password = process.env.TWITTER_PASSWORD;
   const email = process.env.TWITTER_EMAIL;
@@ -36,14 +38,16 @@ export async function getClient(options: Partial<ClientTestOptions> = { authMeth
 
   // try to read cookies by reading cookies.json with fs and parsing
   // check if cookies.json exists
-  if (!fs.existsSync('./cookies.json')) {
-    console.error('cookies.json not found, using password auth - this is NOT recommended!');
+  if (!fs.existsSync("./cookies.json")) {
+    console.error(
+      "cookies.json not found, using password auth - this is NOT recommended!"
+    );
   } else {
     try {
-      const cookiesText = fs.readFileSync('./cookies.json', 'utf8');
+      const cookiesText = fs.readFileSync("./cookies.json", "utf8");
       cookiesArray = JSON.parse(cookiesText);
     } catch (e) {
-      console.error('Error parsing cookies.json', e);
+      console.error("Error parsing cookies.json", e);
     }
   }
 
@@ -51,23 +55,28 @@ export async function getClient(options: Partial<ClientTestOptions> = { authMeth
     (cookie: any) =>
       `${cookie.key}=${cookie.value}; Domain=${cookie.domain}; Path=${
         cookie.path
-      }; ${cookie.secure ? 'Secure' : ''}; ${
-        cookie.httpOnly ? 'HttpOnly' : ''
-      }; SameSite=${cookie.sameSite || 'Lax'}`
+      }; ${cookie.secure ? "Secure" : ""}; ${
+        cookie.httpOnly ? "HttpOnly" : ""
+      }; SameSite=${cookie.sameSite || "Lax"}`
   );
 
   const proxyUrl = process.env.PROXY_URL;
   let agent: any;
 
-  if (options.authMethod === 'cookies' && (!cookieStrings || cookieStrings.length === 0)) {
+  if (
+    options.authMethod === "cookies" &&
+    (!cookieStrings || cookieStrings.length === 0)
+  ) {
     console.warn(
-      'TWITTER_COOKIES variable is not defined, reverting to password auth (not recommended)'
+      "TWITTER_COOKIES variable is not defined, reverting to password auth (not recommended)"
     );
-    options.authMethod = 'password';
+    options.authMethod = "password";
   }
 
-  if (options.authMethod === 'password' && !(username && password)) {
-    throw new Error('TWITTER_USERNAME and TWITTER_PASSWORD variables must be defined.');
+  if (options.authMethod === "password" && !(username && password)) {
+    throw new Error(
+      "TWITTER_USERNAME and TWITTER_PASSWORD variables must be defined."
+    );
   }
 
   if (proxyUrl) {
@@ -77,8 +86,8 @@ export async function getClient(options: Partial<ClientTestOptions> = { authMeth
     const password = url.password;
 
     // Strip auth from URL if present
-    url.username = '';
-    url.password = '';
+    url.username = "";
+    url.password = "";
 
     const agentOptions: any = {
       uri: url.toString(),
@@ -89,7 +98,7 @@ export async function getClient(options: Partial<ClientTestOptions> = { authMeth
 
     // Add Basic auth if credentials exist
     if (username && password) {
-      agentOptions.token = `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
+      agentOptions.token = `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
     }
 
     agent = new ProxyAgent(agentOptions);
@@ -109,7 +118,7 @@ export async function getClient(options: Partial<ClientTestOptions> = { authMeth
   });
 
   if (
-    options.authMethod === 'api' &&
+    options.authMethod === "api" &&
     username &&
     password &&
     apiKey &&
@@ -127,13 +136,13 @@ export async function getClient(options: Partial<ClientTestOptions> = { authMeth
       accessToken,
       accessTokenSecret
     );
-  } else if (options.authMethod === 'cookies' && cookieStrings?.length) {
+  } else if (options.authMethod === "cookies" && cookieStrings?.length) {
     await client.setCookies(cookieStrings);
-  } else if (options.authMethod === 'password' && username && password) {
+  } else if (options.authMethod === "password" && username && password) {
     await client.login(username, password, email, twoFactorSecret);
   } else {
     console.warn(
-      'No valid authentication method available. Ensure at least one of the following is configured: API credentials, cookies, or username/password.'
+      "No valid authentication method available. Ensure at least one of the following is configured: API credentials, cookies, or username/password."
     );
   }
 

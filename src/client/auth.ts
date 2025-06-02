@@ -1,9 +1,9 @@
-import { Headers } from 'headers-polyfill';
-import { type Cookie, CookieJar, type MemoryCookieStore } from 'tough-cookie';
-import { TwitterApi } from 'twitter-api-v2';
-import type { FetchTransformOptions } from './api';
-import type { Profile } from './profile';
-import { updateCookieJar } from './requests';
+import { Headers } from "headers-polyfill";
+import { type Cookie, CookieJar, type MemoryCookieStore } from "tough-cookie";
+import { TwitterApi } from "twitter-api-v2";
+import type { FetchTransformOptions } from "./api";
+import type { Profile } from "./profile";
+import { updateCookieJar } from "./requests";
 
 /**
  * Represents the TwitterAuthOptions interface that defines the properties required for Twitter authentication.
@@ -31,7 +31,12 @@ export interface TwitterAuth {
   /**
    * Logs into a Twitter account using the v2 API
    */
-  loginWithV2(appKey: string, appSecret: string, accessToken: string, accessSecret: string): void;
+  loginWithV2(
+    appKey: string,
+    appSecret: string,
+    accessToken: string,
+    accessSecret: string
+  ): void;
 
   /**
    * Get v2 API client if it exists
@@ -104,7 +109,10 @@ function withTransform(
   transform?: Partial<FetchTransformOptions>
 ): typeof fetch {
   return async (input, init) => {
-    const fetchArgs = (await transform?.request?.(input, init)) ?? [input, init];
+    const fetchArgs = (await transform?.request?.(input, init)) ?? [
+      input,
+      init,
+    ];
     // @ts-expect-error don't care
     const res = await fetchFn(...fetchArgs);
     return (await transform?.response?.(res)) ?? res;
@@ -141,7 +149,12 @@ export class TwitterGuestAuth implements TwitterAuth {
     return this.v2Client ?? null;
   }
 
-  loginWithV2(appKey: string, appSecret: string, accessToken: string, accessSecret: string): void {
+  loginWithV2(
+    appKey: string,
+    appSecret: string,
+    accessToken: string,
+    accessSecret: string
+  ): void {
     const v2Client = new TwitterApi({
       appKey,
       appSecret,
@@ -194,19 +207,19 @@ export class TwitterGuestAuth implements TwitterAuth {
 
     const token = this.guestToken;
     if (token == null) {
-      throw new Error('Authentication token is null or undefined.');
+      throw new Error("Authentication token is null or undefined.");
     }
 
-    headers.set('authorization', `Bearer ${this.bearerToken}`);
-    headers.set('x-guest-token', token);
+    headers.set("authorization", `Bearer ${this.bearerToken}`);
+    headers.set("x-guest-token", token);
 
     const cookies = await this.getCookies();
-    const xCsrfToken = cookies.find((cookie) => cookie.key === 'ct0');
+    const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
     if (xCsrfToken) {
-      headers.set('x-csrf-token', xCsrfToken.value);
+      headers.set("x-csrf-token", xCsrfToken.value);
     }
 
-    headers.set('cookie', await this.getCookieString());
+    headers.set("cookie", await this.getCookieString());
   }
 
   protected getCookies(): Promise<Cookie[]> {
@@ -224,21 +237,23 @@ export class TwitterGuestAuth implements TwitterAuth {
       if (!cookie.domain || !cookie.path) continue;
       store.removeCookie(cookie.domain, cookie.path, key);
 
-      if (typeof document !== 'undefined') {
+      if (typeof document !== "undefined") {
         document.cookie = `${cookie.key}=; Max-Age=0; path=${cookie.path}; domain=${cookie.domain}`;
       }
     }
   }
 
   private getCookieJarUrl(): string {
-    return typeof document !== 'undefined' ? document.location.toString() : 'https://twitter.com';
+    return typeof document !== "undefined"
+      ? document.location.toString()
+      : "https://twitter.com";
   }
 
   /**
    * Updates the authentication state with a new guest token from the Twitter API.
    */
   protected async updateGuestToken() {
-    const guestActivateUrl = 'https://api.twitter.com/1.1/guest/activate.json';
+    const guestActivateUrl = "https://api.twitter.com/1.1/guest/activate.json";
 
     const headers = new Headers({
       Authorization: `Bearer ${this.bearerToken}`,
@@ -246,9 +261,9 @@ export class TwitterGuestAuth implements TwitterAuth {
     });
 
     const res = await this.fetch(guestActivateUrl, {
-      method: 'POST',
+      method: "POST",
       headers: headers as any,
-      referrerPolicy: 'no-referrer',
+      referrerPolicy: "no-referrer",
     });
 
     await updateCookieJar(this.jar, res.headers);
@@ -259,12 +274,12 @@ export class TwitterGuestAuth implements TwitterAuth {
 
     const o = await res.json();
     if (o == null || o.guest_token == null) {
-      throw new Error('guest_token not found.');
+      throw new Error("guest_token not found.");
     }
 
     const newGuestToken = o.guest_token;
-    if (typeof newGuestToken !== 'string') {
-      throw new Error('guest_token was not a string.');
+    if (typeof newGuestToken !== "string") {
+      throw new Error("guest_token was not a string.");
     }
 
     this.guestToken = newGuestToken;
@@ -279,7 +294,8 @@ export class TwitterGuestAuth implements TwitterAuth {
     return (
       !this.hasToken() ||
       (this.guestCreatedAt != null &&
-        this.guestCreatedAt < new Date(new Date().valueOf() - 3 * 60 * 60 * 1000))
+        this.guestCreatedAt <
+          new Date(new Date().valueOf() - 3 * 60 * 60 * 1000))
     );
   }
 }

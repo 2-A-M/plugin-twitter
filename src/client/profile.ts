@@ -1,7 +1,7 @@
-import stringify from 'json-stable-stringify';
-import { type RequestApiResult, requestApi } from './api';
-import type { TwitterAuth } from './auth';
-import type { TwitterApiErrorRaw } from './errors';
+import stringify from "json-stable-stringify";
+import { type RequestApiResult, requestApi } from "./api";
+import type { TwitterAuth } from "./auth";
+import type { TwitterApiErrorRaw } from "./errors";
 
 /**
  * Interface representing a raw user object from a legacy system.
@@ -139,10 +139,13 @@ export interface UserRaw {
 }
 
 function getAvatarOriginalSizeUrl(avatarUrl: string | undefined) {
-  return avatarUrl ? avatarUrl.replace('_normal', '') : undefined;
+  return avatarUrl ? avatarUrl.replace("_normal", "") : undefined;
 }
 
-export function parseProfile(user: LegacyUserRaw, isBlueVerified?: boolean): Profile {
+export function parseProfile(
+  user: LegacyUserRaw,
+  isBlueVerified?: boolean
+): Profile {
   const profile: Profile = {
     avatar: getAvatarOriginalSizeUrl(user.profile_image_url_https),
     banner: user.profile_banner_url,
@@ -184,15 +187,15 @@ export async function getProfile(
 ): Promise<RequestApiResult<Profile>> {
   const params = new URLSearchParams();
   params.set(
-    'variables',
+    "variables",
     stringify({
       screen_name: username,
       withSafetyModeUserFields: true,
-    }) ?? ''
+    }) ?? ""
   );
 
   params.set(
-    'features',
+    "features",
     stringify({
       hidden_profile_likes_enabled: false,
       hidden_profile_subscriptions_enabled: false, // Auth-restricted
@@ -204,10 +207,13 @@ export async function getProfile(
       creator_subscriptions_tweet_preview_api_enabled: true,
       responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
       responsive_web_graphql_timeline_navigation_enabled: true,
-    }) ?? ''
+    }) ?? ""
   );
 
-  params.set('fieldToggles', stringify({ withAuxiliaryUserLabels: false }) ?? '');
+  params.set(
+    "fieldToggles",
+    stringify({ withAuxiliaryUserLabels: false }) ?? ""
+  );
 
   const res = await requestApi<UserRaw>(
     `https://twitter.com/i/api/graphql/G3KGOASz96M-Qu0nwmGXNg/UserByScreenName?${params.toString()}`,
@@ -229,7 +235,7 @@ export async function getProfile(
   if (!value.data || !value.data.user || !value.data.user.result) {
     return {
       success: false,
-      err: new Error('User not found.'),
+      err: new Error("User not found."),
     };
   }
   const { result: user } = value.data.user;
@@ -238,7 +244,7 @@ export async function getProfile(
   if (user.rest_id == null || user.rest_id.length === 0) {
     return {
       success: false,
-      err: new Error('rest_id not found.'),
+      err: new Error("rest_id not found."),
     };
   }
 
@@ -265,15 +271,15 @@ export async function getScreenNameByUserId(
 ): Promise<RequestApiResult<string>> {
   const params = new URLSearchParams();
   params.set(
-    'variables',
+    "variables",
     stringify({
       userId: userId,
       withSafetyModeUserFields: true,
-    }) ?? ''
+    }) ?? ""
   );
 
   params.set(
-    'features',
+    "features",
     stringify({
       hidden_profile_subscriptions_enabled: true,
       rweb_tipjar_consumption_enabled: true,
@@ -285,7 +291,7 @@ export async function getScreenNameByUserId(
       creator_subscriptions_tweet_preview_api_enabled: true,
       responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
       responsive_web_graphql_timeline_navigation_enabled: true,
-    }) ?? ''
+    }) ?? ""
   );
 
   const res = await requestApi<UserRaw>(
@@ -309,7 +315,7 @@ export async function getScreenNameByUserId(
   if (!value.data || !value.data.user || !value.data.user.result) {
     return {
       success: false,
-      err: new Error('User not found.'),
+      err: new Error("User not found."),
     };
   }
 
@@ -319,7 +325,9 @@ export async function getScreenNameByUserId(
   if (legacy.screen_name == null || legacy.screen_name.length === 0) {
     return {
       success: false,
-      err: new Error(`Either user with ID ${userId} does not exist or is private.`),
+      err: new Error(
+        `Either user with ID ${userId} does not exist or is private.`
+      ),
     };
   }
 
@@ -355,6 +363,6 @@ export async function getEntityIdByScreenName(
 
   return {
     success: false,
-    err: new Error('User ID is undefined.'),
+    err: new Error("User ID is undefined."),
   };
 }

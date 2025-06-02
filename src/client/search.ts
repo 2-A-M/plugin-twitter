@@ -1,15 +1,15 @@
-import stringify from 'json-stable-stringify';
-import { addApiFeatures, requestApi } from './api';
-import type { TwitterAuth } from './auth';
-import type { Profile } from './profile';
-import { getTweetTimeline, getUserTimeline } from './timeline-async';
+import stringify from "json-stable-stringify";
+import { addApiFeatures, requestApi } from "./api";
+import type { TwitterAuth } from "./auth";
+import type { Profile } from "./profile";
+import { getTweetTimeline, getUserTimeline } from "./timeline-async";
 import {
   type SearchTimeline,
   parseSearchTimelineTweets,
   parseSearchTimelineUsers,
-} from './timeline-search';
-import type { QueryProfilesResponse, QueryTweetsResponse } from './timeline-v1';
-import type { Tweet } from './tweets';
+} from "./timeline-search";
+import type { QueryProfilesResponse, QueryTweetsResponse } from "./timeline-v1";
+import type { Tweet } from "./tweets";
 
 /**
  * The categories that can be used in Twitter searches.
@@ -55,7 +55,13 @@ export async function fetchSearchTweets(
   auth: TwitterAuth,
   cursor?: string
 ): Promise<QueryTweetsResponse> {
-  const timeline = await getSearchTimeline(query, maxTweets, searchMode, auth, cursor);
+  const timeline = await getSearchTimeline(
+    query,
+    maxTweets,
+    searchMode,
+    auth,
+    cursor
+  );
 
   return parseSearchTimelineTweets(timeline);
 }
@@ -66,7 +72,13 @@ export async function fetchSearchProfiles(
   auth: TwitterAuth,
   cursor?: string
 ): Promise<QueryProfilesResponse> {
-  const timeline = await getSearchTimeline(query, maxProfiles, SearchMode.Users, auth, cursor);
+  const timeline = await getSearchTimeline(
+    query,
+    maxProfiles,
+    SearchMode.Users,
+    auth,
+    cursor
+  );
 
   return parseSearchTimelineUsers(timeline);
 }
@@ -79,7 +91,7 @@ async function getSearchTimeline(
   cursor?: string
 ): Promise<SearchTimeline> {
   if (!auth.isLoggedIn()) {
-    throw new Error('Client is not logged-in for search.');
+    throw new Error("Client is not logged-in for search.");
   }
 
   if (maxItems > 50) {
@@ -89,8 +101,8 @@ async function getSearchTimeline(
   const variables: Record<string, any> = {
     rawQuery: query,
     count: maxItems,
-    querySource: 'typed_query',
-    product: 'Top',
+    querySource: "typed_query",
+    product: "Top",
   };
 
   const features = addApiFeatures({
@@ -98,7 +110,8 @@ async function getSearchTimeline(
     responsive_web_enhance_cards_enabled: false,
     responsive_web_media_download_video_enabled: false,
     responsive_web_twitter_article_tweet_consumption_enabled: false,
-    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
+    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled:
+      true,
     interactive_text_enabled: false,
     responsive_web_text_conversations_enabled: false,
     vibe_api_enabled: false,
@@ -108,31 +121,31 @@ async function getSearchTimeline(
     withArticleRichContentState: false,
   };
 
-  if (cursor != null && cursor !== '') {
+  if (cursor != null && cursor !== "") {
     variables.cursor = cursor;
   }
 
   switch (searchMode) {
     case SearchMode.Latest:
-      variables.product = 'Latest';
+      variables.product = "Latest";
       break;
     case SearchMode.Photos:
-      variables.product = 'Photos';
+      variables.product = "Photos";
       break;
     case SearchMode.Videos:
-      variables.product = 'Videos';
+      variables.product = "Videos";
       break;
     case SearchMode.Users:
-      variables.product = 'People';
+      variables.product = "People";
       break;
     default:
       break;
   }
 
   const params = new URLSearchParams();
-  params.set('features', stringify(features) ?? '');
-  params.set('fieldToggles', stringify(fieldToggles) ?? '');
-  params.set('variables', stringify(variables) ?? '');
+  params.set("features", stringify(features) ?? "");
+  params.set("fieldToggles", stringify(fieldToggles) ?? "");
+  params.set("variables", stringify(variables) ?? "");
 
   const res = await requestApi<SearchTimeline>(
     `https://api.twitter.com/graphql/gkjsKepM6gl_HmFWoWKfgg/SearchTimeline?${params.toString()}`,
@@ -171,11 +184,11 @@ export async function fetchQuotedTweetsPage(
   const variables: Record<string, any> = {
     rawQuery: `quoted_tweet_id:${quotedTweetId}`,
     count: maxTweets,
-    querySource: 'tdqt',
-    product: 'Top',
+    querySource: "tdqt",
+    product: "Top",
   };
 
-  if (cursor && cursor !== '') {
+  if (cursor && cursor !== "") {
     variables.cursor = cursor;
   }
 
@@ -204,7 +217,8 @@ export async function fetchQuotedTweetsPage(
     creator_subscriptions_quote_tweet_preview_enabled: false,
     freedom_of_speech_not_reach_fetch_enabled: true,
     standardized_nudges_misinfo: true,
-    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
+    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled:
+      true,
     rweb_video_timestamps_enabled: true,
     longform_notetweets_rich_text_read_enabled: true,
     longform_notetweets_inline_media_enabled: true,
@@ -217,9 +231,9 @@ export async function fetchQuotedTweetsPage(
   };
 
   const params = new URLSearchParams();
-  params.set('features', stringify(features) ?? '');
-  params.set('fieldToggles', stringify(fieldToggles) ?? '');
-  params.set('variables', stringify(variables) ?? '');
+  params.set("features", stringify(features) ?? "");
+  params.set("fieldToggles", stringify(fieldToggles) ?? "");
+  params.set("variables", stringify(variables) ?? "");
 
   const url = `https://x.com/i/api/graphql/1BP5aKg8NvTNvRCyyCyq8g/SearchTimeline?${params.toString()}`;
 
@@ -247,7 +261,12 @@ export async function* searchQuotedTweets(
   let cursor: string | undefined;
 
   while (true) {
-    const response = await fetchQuotedTweetsPage(quotedTweetId, maxTweets, auth, cursor);
+    const response = await fetchQuotedTweetsPage(
+      quotedTweetId,
+      maxTweets,
+      auth,
+      cursor
+    );
     yield response;
 
     // Prevent infinite loop if the API keeps returning the same cursor

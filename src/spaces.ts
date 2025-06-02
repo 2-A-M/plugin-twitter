@@ -1,11 +1,10 @@
 import {
-  ChannelType,
   type IAgentRuntime,
   ModelType,
   createUniqueUuid,
   logger,
-} from '@elizaos/core';
-import type { ClientBase } from './base';
+} from "@elizaos/core";
+import type { ClientBase } from "./base";
 import {
   type Client,
   IdleMonitorPlugin,
@@ -13,9 +12,9 @@ import {
   type SpaceConfig,
   SpaceParticipant,
   type SpeakerRequest,
-} from './client/index';
-import { SttTtsPlugin } from './sttTtsSpaces';
-import { generateTopicsIfEmpty, isAgentInSpace, speakFiller } from './utils';
+} from "./client/index";
+import { SttTtsPlugin } from "./sttTtsSpaces";
+import { generateTopicsIfEmpty, isAgentInSpace, speakFiller } from "./utils";
 
 /**
  * Interface representing options for deciding on creating a Twitter Space.
@@ -65,9 +64,9 @@ interface CurrentSpeakerState {
  * @property {string} IDLE - Indicates that the space is not currently being used.
  */
 export enum SpaceActivity {
-  HOSTING = 'hosting',
-  PARTICIPATING = 'participating',
-  IDLE = 'idle',
+  HOSTING = "hosting",
+  PARTICIPATING = "participating",
+  IDLE = "idle",
 }
 
 /**
@@ -79,9 +78,9 @@ export enum SpaceActivity {
  * @property {string} PENDING - Represents a participant whose activity is pending.
  */
 export enum ParticipantActivity {
-  LISTENER = 'listener',
-  SPEAKER = 'speaker',
-  PENDING = 'pending',
+  LISTENER = "listener",
+  SPEAKER = "speaker",
+  PENDING = "pending",
 }
 
 /**
@@ -134,7 +133,8 @@ export class TwitterSpaceClient {
       maxSpeakers: charSpaces.maxSpeakers ?? 1,
       typicalDurationMinutes: charSpaces.typicalDurationMinutes ?? 30,
       idleKickTimeoutMs: charSpaces.idleKickTimeoutMs ?? 5 * 60_000,
-      minIntervalBetweenSpacesMinutes: charSpaces.minIntervalBetweenSpacesMinutes ?? 60,
+      minIntervalBetweenSpacesMinutes:
+        charSpaces.minIntervalBetweenSpacesMinutes ?? 60,
       enableIdleMonitor: charSpaces.enableIdleMonitor !== false,
       enableRecording: charSpaces.enableRecording !== false,
       enableSpaceHosting: charSpaces.enableSpaceHosting || false,
@@ -146,7 +146,7 @@ export class TwitterSpaceClient {
    * Periodic check to launch or manage space
    */
   public async startPeriodicSpaceCheck() {
-    logger.log('[Space] Starting periodic check routine...');
+    logger.log("[Space] Starting periodic check routine...");
 
     const interval = 20_000;
 
@@ -170,7 +170,7 @@ export class TwitterSpaceClient {
         }
         this.checkInterval = setTimeout(routine, interval) as any;
       } catch (error) {
-        logger.error('[Space] Error in routine =>', error);
+        logger.error("[Space] Error in routine =>", error);
         // In case of error, still schedule next iteration
         this.checkInterval = setTimeout(routine, interval) as any;
       }
@@ -190,19 +190,20 @@ export class TwitterSpaceClient {
     // Interval
     const now = Date.now();
     if (this.lastSpaceEndedAt) {
-      const minIntervalMs = (this.decisionOptions.minIntervalBetweenSpacesMinutes ?? 60) * 60_000;
+      const minIntervalMs =
+        (this.decisionOptions.minIntervalBetweenSpacesMinutes ?? 60) * 60_000;
       if (now - this.lastSpaceEndedAt < minIntervalMs) {
-        logger.log('[Space] Too soon since last space => skip');
+        logger.log("[Space] Too soon since last space => skip");
         return false;
       }
     }
 
-    logger.log('[Space] Deciding to launch a new Space...');
+    logger.log("[Space] Deciding to launch a new Space...");
     return true;
   }
 
   private async generateSpaceConfig(): Promise<SpaceConfig> {
-    let chosenTopic = 'Random Tech Chat';
+    let chosenTopic = "Random Tech Chat";
     let topics = this.runtime.character.topics || [];
     if (!topics.length) {
       const newTopics = await generateTopicsIfEmpty(this.client.runtime);
@@ -213,15 +214,15 @@ export class TwitterSpaceClient {
 
     return {
       record: this.decisionOptions.enableRecording,
-      mode: 'INTERACTIVE',
+      mode: "INTERACTIVE",
       title: chosenTopic,
       description: `Discussion about ${chosenTopic}`,
-      languages: ['en'],
+      languages: ["en"],
     };
   }
 
   public async startSpace(config: SpaceConfig) {
-    logger.log('[Space] Starting a new Twitter Space...');
+    logger.log("[Space] Starting a new Twitter Space...");
 
     try {
       this.currentSpace = new Space(this.twitterClient);
@@ -239,16 +240,17 @@ export class TwitterSpaceClient {
       // Create standardized world and room IDs for the space
       const userId = this.client.profile.id;
       const worldId = createUniqueUuid(this.runtime, userId);
-      const spaceRoomId = createUniqueUuid(this.runtime, `${userId}-space-${this.spaceId}`);
+      const spaceRoomId = createUniqueUuid(
+        this.runtime,
+        `${userId}-space-${this.spaceId}`
+      );
 
       // Ensure world exists first
       await this.runtime.ensureWorldExists({
         id: worldId,
-        worldName: config.title || 'Twitter Space',
         name: `${this.client.profile.username}'s Twitter`,
         agentId: this.runtime.agentId,
         serverId: userId,
-        source: 'twitter',
         metadata: {
           ownership: { ownerId: userId },
           twitter: {
@@ -270,7 +272,7 @@ export class TwitterSpaceClient {
         this.runtime.getModel(ModelType.TEXT_TO_SPEECH) &&
         this.runtime.getModel(ModelType.TRANSCRIPTION)
       ) {
-        logger.log('[Space] Using SttTtsPlugin');
+        logger.log("[Space] Using SttTtsPlugin");
         this.currentSpace.use(this.sttTtsPlugin as any, {
           runtime: this.runtime,
           spaceId: this.spaceId,
@@ -278,46 +280,55 @@ export class TwitterSpaceClient {
       }
 
       if (this.decisionOptions.enableIdleMonitor) {
-        logger.log('[Space] Using IdleMonitorPlugin');
+        logger.log("[Space] Using IdleMonitorPlugin");
         this.currentSpace.use(
-          new IdleMonitorPlugin(this.decisionOptions.idleKickTimeoutMs ?? 60_000, 10_000)
+          new IdleMonitorPlugin(
+            this.decisionOptions.idleKickTimeoutMs ?? 60_000,
+            10_000
+          )
         );
       }
       this.spaceStatus = SpaceActivity.HOSTING;
 
       // Create tweet announcing the space
-      const spaceUrl = broadcastInfo.share_url.replace('broadcasts', 'spaces');
+      const spaceUrl = broadcastInfo.share_url.replace("broadcasts", "spaces");
       await this.twitterClient.sendTweet(spaceUrl);
 
       logger.log(`[Space] Space started => ${spaceUrl}`);
 
       // Greet
-      await speakFiller(this.client.runtime, this.sttTtsPlugin, 'WELCOME');
+      await speakFiller(this.client.runtime, this.sttTtsPlugin, "WELCOME");
 
       // Events
-      this.currentSpace.on('occupancyUpdate', (update) => {
+      this.currentSpace.on("occupancyUpdate", (update) => {
         logger.log(`[Space] Occupancy => ${update.occupancy} participant(s).`);
       });
 
-      this.currentSpace.on('speakerRequest', async (req: SpeakerRequest) => {
-        logger.log(`[Space] Speaker request from @${req.username} (${req.userId}).`);
+      this.currentSpace.on("speakerRequest", async (req: SpeakerRequest) => {
+        logger.log(
+          `[Space] Speaker request from @${req.username} (${req.userId}).`
+        );
         await this.handleSpeakerRequest(req);
       });
 
-      this.currentSpace.on('idleTimeout', async (info) => {
+      this.currentSpace.on("idleTimeout", async (info) => {
         logger.log(`[Space] idleTimeout => no audio for ${info.idleMs} ms.`);
-        await speakFiller(this.client.runtime, this.sttTtsPlugin, 'IDLE_ENDING');
+        await speakFiller(
+          this.client.runtime,
+          this.sttTtsPlugin,
+          "IDLE_ENDING"
+        );
         await this.stopSpace();
       });
 
-      process.on('SIGINT', async () => {
-        logger.log('[Space] SIGINT => stopping space');
-        await speakFiller(this.client.runtime, this.sttTtsPlugin, 'CLOSING');
+      process.on("SIGINT", async () => {
+        logger.log("[Space] SIGINT => stopping space");
+        await speakFiller(this.client.runtime, this.sttTtsPlugin, "CLOSING");
         await this.stopSpace();
         process.exit(0);
       });
     } catch (error) {
-      logger.error('[Space] Error launching Space =>', error);
+      logger.error("[Space] Error launching Space =>", error);
       this.spaceStatus = SpaceActivity.IDLE;
       throw error;
     }
@@ -329,7 +340,9 @@ export class TwitterSpaceClient {
   private async manageCurrentSpace() {
     if (!this.spaceId || !this.currentSpace) return;
     try {
-      const audioSpace = await this.twitterClient.getAudioSpaceById(this.spaceId);
+      const audioSpace = await this.twitterClient.getAudioSpaceById(
+        this.spaceId
+      );
       const { participants } = audioSpace;
       const numSpeakers = participants.speakers?.length || 0;
       const totalListeners = participants.listeners?.length || 0;
@@ -342,12 +355,18 @@ export class TwitterSpaceClient {
         const speaker = this.activeSpeakers[i];
         const elapsed = now - speaker.startTime;
         if (elapsed > maxDur) {
-          logger.log(`[Space] Speaker @${speaker.username} exceeded max duration => removing`);
+          logger.log(
+            `[Space] Speaker @${speaker.username} exceeded max duration => removing`
+          );
           await this.removeSpeaker(speaker.userId);
           this.activeSpeakers.splice(i, 1);
 
           // Possibly speak a short "SPEAKER_LEFT" filler
-          await speakFiller(this.client.runtime, this.sttTtsPlugin, 'SPEAKER_LEFT');
+          await speakFiller(
+            this.client.runtime,
+            this.sttTtsPlugin,
+            "SPEAKER_LEFT"
+          );
         }
       }
 
@@ -356,7 +375,7 @@ export class TwitterSpaceClient {
 
       // 3) If somehow more than maxSpeakers are active, remove the extras
       if (numSpeakers > (this.decisionOptions.maxSpeakers ?? 1)) {
-        logger.log('[Space] More than maxSpeakers => removing extras...');
+        logger.log("[Space] More than maxSpeakers => removing extras...");
         await this.kickExtraSpeakers(participants.speakers);
       }
 
@@ -366,12 +385,17 @@ export class TwitterSpaceClient {
         elapsedMinutes > (this.decisionOptions.typicalDurationMinutes ?? 30) ||
         (numSpeakers === 0 && totalListeners === 0 && elapsedMinutes > 5)
       ) {
-        logger.log('[Space] Condition met => stopping the Space...');
-        await speakFiller(this.client.runtime, this.sttTtsPlugin, 'CLOSING', 4000);
+        logger.log("[Space] Condition met => stopping the Space...");
+        await speakFiller(
+          this.client.runtime,
+          this.sttTtsPlugin,
+          "CLOSING",
+          4000
+        );
         await this.stopSpace();
       }
     } catch (error) {
-      logger.error('[Space] Error in manageCurrentSpace =>', error);
+      logger.error("[Space] Error in manageCurrentSpace =>", error);
     }
   }
 
@@ -384,7 +408,7 @@ export class TwitterSpaceClient {
     while (this.speakerQueue.length > 0 && this.activeSpeakers.length < ms) {
       const nextReq = this.speakerQueue.shift();
       if (nextReq) {
-        await speakFiller(this.client.runtime, this.sttTtsPlugin, 'PRE_ACCEPT');
+        await speakFiller(this.client.runtime, this.sttTtsPlugin, "PRE_ACCEPT");
         await this.acceptSpeaker(nextReq);
       }
     }
@@ -399,7 +423,7 @@ export class TwitterSpaceClient {
     // If we haven't reached maxSpeakers, accept immediately
     if (janusSpeakers.length < (this.decisionOptions.maxSpeakers ?? 1)) {
       logger.log(`[Space] Accepting speaker @${req.username} now`);
-      await speakFiller(this.client.runtime, this.sttTtsPlugin, 'PRE_ACCEPT');
+      await speakFiller(this.client.runtime, this.sttTtsPlugin, "PRE_ACCEPT");
       await this.acceptSpeaker(req);
     } else {
       logger.log(`[Space] Adding speaker @${req.username} to the queue`);
@@ -456,12 +480,13 @@ export class TwitterSpaceClient {
   }
 
   public async stopSpace() {
-    if (!this.currentSpace || this.spaceStatus !== SpaceActivity.HOSTING) return;
+    if (!this.currentSpace || this.spaceStatus !== SpaceActivity.HOSTING)
+      return;
     try {
-      logger.log('[Space] Stopping the current Space...');
+      logger.log("[Space] Stopping the current Space...");
       await this.currentSpace.stop();
     } catch (err) {
-      logger.error('[Space] Error stopping Space =>', err);
+      logger.error("[Space] Error stopping Space =>", err);
     } finally {
       this.spaceStatus = SpaceActivity.IDLE;
       this.spaceId = undefined;
@@ -475,7 +500,7 @@ export class TwitterSpaceClient {
 
   async startParticipant(spaceId: string) {
     if (this.spaceStatus !== SpaceActivity.IDLE) {
-      logger.warn('currently hosting/participating a space');
+      logger.warn("currently hosting/participating a space");
       return null;
     }
 
@@ -514,7 +539,9 @@ export class TwitterSpaceClient {
 
     // Check if we should request to speak
     if (this.participantStatus === ParticipantActivity.LISTENER) {
-      logger.log('[SpaceParticipant] Checking if we should request to speak...');
+      logger.log(
+        "[SpaceParticipant] Checking if we should request to speak..."
+      );
 
       this.participantStatus = ParticipantActivity.PENDING;
 
@@ -522,19 +549,19 @@ export class TwitterSpaceClient {
 
       const handleSpeakerRemove = async (evt: { sessionUUID: string }) => {
         if (evt.sessionUUID === sessionUUID) {
-          logger.debug('[SpaceParticipant] Speaker removed:', evt);
+          logger.debug("[SpaceParticipant] Speaker removed:", evt);
           try {
             await this.spaceParticipant.removeFromSpeaker();
           } catch (err) {
-            console.error('[SpaceParticipant] Failed to become speaker:', err);
+            console.error("[SpaceParticipant] Failed to become speaker:", err);
           }
           this.participantStatus = ParticipantActivity.LISTENER;
-          this.spaceParticipant?.off('newSpeakerRemoved', handleSpeakerRemove);
+          this.spaceParticipant?.off("newSpeakerRemoved", handleSpeakerRemove);
         }
       };
 
       // Attach listener for speaker removal
-      this.spaceParticipant.on('newSpeakerRemoved', handleSpeakerRemove);
+      this.spaceParticipant.on("newSpeakerRemoved", handleSpeakerRemove);
 
       this.waitForApproval(this.spaceParticipant, sessionUUID, 15000)
         .then(() => {
@@ -545,27 +572,41 @@ export class TwitterSpaceClient {
           });
         })
         .catch(async (err) => {
-          console.error('[SpaceParticipant] Approval error or timeout =>', err);
+          console.error("[SpaceParticipant] Approval error or timeout =>", err);
 
           this.participantStatus = ParticipantActivity.LISTENER;
 
           try {
             await this.spaceParticipant.cancelSpeakerRequest();
-            logger.debug('[SpaceParticipant] Speaker request canceled after timeout or error.');
+            logger.debug(
+              "[SpaceParticipant] Speaker request canceled after timeout or error."
+            );
           } catch (cancelErr) {
-            console.error('[SpaceParticipant] Could not cancel the request =>', cancelErr);
+            console.error(
+              "[SpaceParticipant] Could not cancel the request =>",
+              cancelErr
+            );
           }
         });
     }
   }
 
   public async stopParticipant() {
-    if (!this.spaceParticipant || this.spaceStatus !== SpaceActivity.PARTICIPATING) return;
+    if (
+      !this.spaceParticipant ||
+      this.spaceStatus !== SpaceActivity.PARTICIPATING
+    )
+      return;
     try {
-      logger.log('[SpaceParticipant] Stopping the current space participant...');
+      logger.log(
+        "[SpaceParticipant] Stopping the current space participant..."
+      );
       await this.spaceParticipant.leaveSpace();
     } catch (err) {
-      logger.error('[SpaceParticipant] Error stopping space participant =>', err);
+      logger.error(
+        "[SpaceParticipant] Error stopping space participant =>",
+        err
+      );
     } finally {
       this.spaceStatus = SpaceActivity.IDLE;
       this.participantStatus = ParticipantActivity.LISTENER;
@@ -589,10 +630,10 @@ export class TwitterSpaceClient {
       const handler = async (evt: { sessionUUID: string }) => {
         if (evt.sessionUUID === sessionUUID) {
           resolved = true;
-          participant.off('newSpeakerAccepted', handler);
+          participant.off("newSpeakerAccepted", handler);
           try {
             await participant.becomeSpeaker();
-            logger.debug('[SpaceParticipant] Successfully became speaker!');
+            logger.debug("[SpaceParticipant] Successfully became speaker!");
             resolve();
           } catch (err) {
             reject(err);
@@ -601,12 +642,12 @@ export class TwitterSpaceClient {
       };
 
       // Listen to "newSpeakerAccepted" from participant
-      participant.on('newSpeakerAccepted', handler);
+      participant.on("newSpeakerAccepted", handler);
 
       // Timeout to reject if not approved in time
       setTimeout(() => {
         if (!resolved) {
-          participant.off('newSpeakerAccepted', handler);
+          participant.off("newSpeakerAccepted", handler);
           reject(
             new Error(
               `[SpaceParticipant] Timed out waiting for speaker approval after ${timeoutMs}ms.`

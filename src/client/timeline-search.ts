@@ -1,7 +1,7 @@
-import { type Profile, parseProfile } from './profile';
-import type { QueryProfilesResponse, QueryTweetsResponse } from './timeline-v1';
-import { type SearchEntryRaw, parseLegacyTweet } from './timeline-v2';
-import type { Tweet } from './tweets';
+import { type Profile, parseProfile } from "./profile";
+import type { QueryProfilesResponse, QueryTweetsResponse } from "./timeline-v1";
+import { type SearchEntryRaw, parseLegacyTweet } from "./timeline-v2";
+import type { Tweet } from "./tweets";
 
 /**
  * Represents a search timeline object.
@@ -37,19 +37,25 @@ export interface SearchTimeline {
  * @param {SearchTimeline} timeline The SearchTimeline object containing the data to be parsed.
  * @returns {QueryTweetsResponse} An object containing an array of parsed Tweet objects, as well as the next and previous cursors for pagination.
  */
-export function parseSearchTimelineTweets(timeline: SearchTimeline): QueryTweetsResponse {
+export function parseSearchTimelineTweets(
+  timeline: SearchTimeline
+): QueryTweetsResponse {
   let bottomCursor: string | undefined;
   let topCursor: string | undefined;
   const tweets: Tweet[] = [];
   const instructions =
-    timeline.data?.search_by_raw_query?.search_timeline?.timeline?.instructions ?? [];
+    timeline.data?.search_by_raw_query?.search_timeline?.timeline
+      ?.instructions ?? [];
   for (const instruction of instructions) {
-    if (instruction.type === 'TimelineAddEntries' || instruction.type === 'TimelineReplaceEntry') {
-      if (instruction.entry?.content?.cursorType === 'Bottom') {
+    if (
+      instruction.type === "TimelineAddEntries" ||
+      instruction.type === "TimelineReplaceEntry"
+    ) {
+      if (instruction.entry?.content?.cursorType === "Bottom") {
         bottomCursor = instruction.entry.content.value;
         continue;
       }
-      if (instruction.entry?.content?.cursorType === 'Top') {
+      if (instruction.entry?.content?.cursorType === "Top") {
         topCursor = instruction.entry.content.value;
         continue;
       }
@@ -57,7 +63,7 @@ export function parseSearchTimelineTweets(timeline: SearchTimeline): QueryTweets
       const entries = instruction.entries ?? [];
       for (const entry of entries) {
         const itemContent = entry.content?.itemContent;
-        if (itemContent?.tweetDisplayType === 'Tweet') {
+        if (itemContent?.tweetDisplayType === "Tweet") {
           const tweetResultRaw = itemContent.tweet_results?.result;
           const tweetResult = parseLegacyTweet(
             tweetResultRaw?.core?.user_results?.result?.legacy,
@@ -74,9 +80,9 @@ export function parseSearchTimelineTweets(timeline: SearchTimeline): QueryTweets
 
             tweets.push(tweetResult.tweet);
           }
-        } else if (entry.content?.cursorType === 'Bottom') {
+        } else if (entry.content?.cursorType === "Bottom") {
           bottomCursor = entry.content.value;
-        } else if (entry.content?.cursorType === 'Top') {
+        } else if (entry.content?.cursorType === "Top") {
           topCursor = entry.content.value;
         }
       }
@@ -91,20 +97,26 @@ export function parseSearchTimelineTweets(timeline: SearchTimeline): QueryTweets
  * @param {SearchTimeline} timeline The search timeline to parse users from.
  * @returns {QueryProfilesResponse} An object containing the parsed profiles along with next and previous cursors.
  */
-export function parseSearchTimelineUsers(timeline: SearchTimeline): QueryProfilesResponse {
+export function parseSearchTimelineUsers(
+  timeline: SearchTimeline
+): QueryProfilesResponse {
   let bottomCursor: string | undefined;
   let topCursor: string | undefined;
   const profiles: Profile[] = [];
   const instructions =
-    timeline.data?.search_by_raw_query?.search_timeline?.timeline?.instructions ?? [];
+    timeline.data?.search_by_raw_query?.search_timeline?.timeline
+      ?.instructions ?? [];
 
   for (const instruction of instructions) {
-    if (instruction.type === 'TimelineAddEntries' || instruction.type === 'TimelineReplaceEntry') {
-      if (instruction.entry?.content?.cursorType === 'Bottom') {
+    if (
+      instruction.type === "TimelineAddEntries" ||
+      instruction.type === "TimelineReplaceEntry"
+    ) {
+      if (instruction.entry?.content?.cursorType === "Bottom") {
         bottomCursor = instruction.entry.content.value;
         continue;
       }
-      if (instruction.entry?.content?.cursorType === 'Top') {
+      if (instruction.entry?.content?.cursorType === "Top") {
         topCursor = instruction.entry.content.value;
         continue;
       }
@@ -112,11 +124,14 @@ export function parseSearchTimelineUsers(timeline: SearchTimeline): QueryProfile
       const entries = instruction.entries ?? [];
       for (const entry of entries) {
         const itemContent = entry.content?.itemContent;
-        if (itemContent?.userDisplayType === 'User') {
+        if (itemContent?.userDisplayType === "User") {
           const userResultRaw = itemContent.user_results?.result;
 
           if (userResultRaw?.legacy) {
-            const profile = parseProfile(userResultRaw.legacy, userResultRaw.is_blue_verified);
+            const profile = parseProfile(
+              userResultRaw.legacy,
+              userResultRaw.is_blue_verified
+            );
 
             if (!profile.userId) {
               profile.userId = userResultRaw.rest_id;
@@ -124,9 +139,9 @@ export function parseSearchTimelineUsers(timeline: SearchTimeline): QueryProfile
 
             profiles.push(profile);
           }
-        } else if (entry.content?.cursorType === 'Bottom') {
+        } else if (entry.content?.cursorType === "Bottom") {
           bottomCursor = entry.content.value;
-        } else if (entry.content?.cursorType === 'Top') {
+        } else if (entry.content?.cursorType === "Top") {
           topCursor = entry.content.value;
         }
       }

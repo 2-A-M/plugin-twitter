@@ -1,4 +1,4 @@
-import type { Cookie } from 'tough-cookie';
+import type { Cookie } from "tough-cookie";
 import type {
   TTweetv2Expansion,
   TTweetv2MediaField,
@@ -6,44 +6,52 @@ import type {
   TTweetv2PollField,
   TTweetv2TweetField,
   TTweetv2UserField,
-} from 'twitter-api-v2';
-import { type FetchTransformOptions, type RequestApiResult, bearerToken, requestApi } from './api';
-import { type TwitterAuth, type TwitterAuthOptions, TwitterGuestAuth } from './auth';
-import { TwitterUserAuth } from './auth-user';
+} from "twitter-api-v2";
+import {
+  type FetchTransformOptions,
+  type RequestApiResult,
+  bearerToken,
+  requestApi,
+} from "./api";
+import {
+  type TwitterAuth,
+  type TwitterAuthOptions,
+  TwitterGuestAuth,
+} from "./auth";
+import { TwitterUserAuth } from "./auth-user";
 import {
   type GrokChatOptions,
   type GrokChatResponse,
   createGrokConversation,
   grokChat,
-} from './grok';
+} from "./grok";
 import {
   type DirectMessagesResponse,
   type SendDirectMessageResponse,
   getDirectMessageConversations,
   sendDirectMessage,
-} from './messages';
+} from "./messages";
 import {
   type Profile,
   getEntityIdByScreenName,
   getProfile,
   getScreenNameByUserId,
-} from './profile';
+} from "./profile";
 import {
   fetchProfileFollowers,
   fetchProfileFollowing,
   followUser,
   getFollowers,
   getFollowing,
-} from './relationships';
+} from "./relationships";
 import {
   SearchMode,
   fetchQuotedTweetsPage,
   fetchSearchProfiles,
   fetchSearchTweets,
   searchProfiles,
-  searchQuotedTweets,
   searchTweets,
-} from './search';
+} from "./search";
 import {
   fetchAudioSpaceById,
   fetchAuthenticatePeriscope,
@@ -51,12 +59,16 @@ import {
   fetchCommunitySelectQuery,
   fetchLiveVideoStreamStatus,
   fetchLoginTwitterToken,
-} from './spaces';
-import { fetchFollowingTimeline } from './timeline-following';
-import { fetchHomeTimeline } from './timeline-home';
-import type { QueryProfilesResponse, QueryTweetsResponse } from './timeline-v1';
-import { type TimelineArticle, type TimelineV2, parseTimelineTweetsV2 } from './timeline-v2';
-import { getTrends } from './trends';
+} from "./spaces";
+import { fetchFollowingTimeline } from "./timeline-following";
+import { fetchHomeTimeline } from "./timeline-home";
+import type { QueryProfilesResponse, QueryTweetsResponse } from "./timeline-v1";
+import {
+  type TimelineArticle,
+  type TimelineV2,
+  parseTimelineTweetsV2,
+} from "./timeline-v2";
+import { getTrends } from "./trends";
 import {
   type PollData,
   type Retweeter,
@@ -85,17 +97,18 @@ import {
   getTweetsWhere,
   likeTweet,
   retweet,
-} from './tweets';
+} from "./tweets";
 import type {
   AudioSpace,
   Community,
   LiveVideoStreamStatus,
   LoginTwitterTokenResponse,
   Subtopic,
-} from './types/spaces';
+} from "./types/spaces";
 
-const twUrl = 'https://twitter.com';
-const UserTweetsUrl = 'https://twitter.com/i/api/graphql/E3opETHurmVJflFsUBVuUQ/UserTweets';
+const twUrl = "https://twitter.com";
+const UserTweetsUrl =
+  "https://twitter.com/i/api/graphql/E3opETHurmVJflFsUBVuUQ/UserTweets";
 
 /**
  * An alternative fetch function to use instead of the default fetch function. This may be useful
@@ -201,7 +214,10 @@ export class Client {
    * @param maxProfiles The maximum number of profiles to return.
    * @returns An {@link AsyncGenerator} of tweets matching the provided filter(s).
    */
-  public searchProfiles(query: string, maxProfiles: number): AsyncGenerator<Profile, void> {
+  public searchProfiles(
+    query: string,
+    maxProfiles: number
+  ): AsyncGenerator<Profile, void> {
     return searchProfiles(query, maxProfiles, this.auth);
   }
 
@@ -259,7 +275,10 @@ export class Client {
    * @param maxProfiles The maximum number of profiles to return.
    * @returns An {@link AsyncGenerator} of following profiles for the provided user.
    */
-  public getFollowing(userId: string, maxProfiles: number): AsyncGenerator<Profile, void> {
+  public getFollowing(
+    userId: string,
+    maxProfiles: number
+  ): AsyncGenerator<Profile, void> {
     return getFollowing(userId, maxProfiles, this.auth);
   }
 
@@ -269,7 +288,10 @@ export class Client {
    * @param maxProfiles The maximum number of profiles to return.
    * @returns An {@link AsyncGenerator} of profiles following the provided user.
    */
-  public getFollowers(userId: string, maxProfiles: number): AsyncGenerator<Profile, void> {
+  public getFollowers(
+    userId: string,
+    maxProfiles: number
+  ): AsyncGenerator<Profile, void> {
     return getFollowers(userId, maxProfiles, this.auth);
   }
 
@@ -309,7 +331,10 @@ export class Client {
    * @param seenTweetIds An array of tweet IDs that have already been seen.
    * @returns A promise that resolves to the home timeline response.
    */
-  public async fetchHomeTimeline(count: number, seenTweetIds: string[]): Promise<any[]> {
+  public async fetchHomeTimeline(
+    count: number,
+    seenTweetIds: string[]
+  ): Promise<any[]> {
     return await fetchHomeTimeline(count, seenTweetIds, this.auth);
   }
 
@@ -319,7 +344,10 @@ export class Client {
    * @param seenTweetIds An array of tweet IDs that have already been seen.
    * @returns A promise that resolves to the home timeline response.
    */
-  public async fetchFollowingTimeline(count: number, seenTweetIds: string[]): Promise<any[]> {
+  public async fetchFollowingTimeline(
+    count: number,
+    seenTweetIds: string[]
+  ): Promise<any[]> {
     return await fetchFollowingTimeline(count, seenTweetIds, this.auth);
   }
 
@@ -364,7 +392,8 @@ export class Client {
       creator_subscriptions_quote_tweet_preview_enabled: false,
       freedom_of_speech_not_reach_fetch_enabled: true,
       standardized_nudges_misinfo: true,
-      tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
+      tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled:
+        true,
       rweb_video_timestamps_enabled: true,
       longform_notetweets_rich_text_read_enabled: true,
       longform_notetweets_inline_media_enabled: true,
@@ -395,12 +424,19 @@ export class Client {
     };
   }
 
-  async *getUserTweetsIterator(userId: string, maxTweets = 200): AsyncGenerator<Tweet, void> {
+  async *getUserTweetsIterator(
+    userId: string,
+    maxTweets = 200
+  ): AsyncGenerator<Tweet, void> {
     let cursor: string | undefined;
     let retrievedTweets = 0;
 
     while (retrievedTweets < maxTweets) {
-      const response = await this.getUserTweets(userId, maxTweets - retrievedTweets, cursor);
+      const response = await this.getUserTweets(
+        userId,
+        maxTweets - retrievedTweets,
+        cursor
+      );
 
       for (const tweet of response.tweets) {
         yield tweet;
@@ -442,7 +478,10 @@ export class Client {
    * @param maxTweets The maximum number of tweets to return. Defaults to `200`.
    * @returns An {@link AsyncGenerator} of tweets from the provided user.
    */
-  public getTweetsByUserId(userId: string, maxTweets = 200): AsyncGenerator<Tweet, void> {
+  public getTweetsByUserId(
+    userId: string,
+    maxTweets = 200
+  ): AsyncGenerator<Tweet, void> {
     return getTweetsByUserId(userId, maxTweets, this.auth);
   }
 
@@ -461,10 +500,10 @@ export class Client {
     hideLinkPreview?: boolean
   ) {
     if (!text || text.trim().length === 0) {
-      throw new Error('Text is required');
+      throw new Error("Text is required");
     }
-    if (text.toLowerCase().startsWith('error:')) {
-      throw new Error('Error sending tweet: ' + text);
+    if (text.toLowerCase().startsWith("error:")) {
+      throw new Error("Error sending tweet: " + text);
     }
     return await createCreateTweetRequest(
       text,
@@ -481,12 +520,17 @@ export class Client {
     mediaData?: { data: Buffer; mediaType: string }[]
   ) {
     if (!text || text.trim().length === 0) {
-      throw new Error('Text is required');
+      throw new Error("Text is required");
     }
-    if (text.toLowerCase().startsWith('error:')) {
-      throw new Error('Error sending note tweet: ' + text);
+    if (text.toLowerCase().startsWith("error:")) {
+      throw new Error("Error sending note tweet: " + text);
     }
-    return await createCreateNoteTweetRequest(text, this.auth, replyToTweetId, mediaData);
+    return await createCreateNoteTweetRequest(
+      text,
+      this.auth,
+      replyToTweetId,
+      mediaData
+    );
   }
 
   /**
@@ -501,7 +545,12 @@ export class Client {
     replyToTweetId?: string,
     mediaData?: { data: Buffer; mediaType: string }[]
   ) {
-    return await createCreateLongTweetRequest(text, this.auth, replyToTweetId, mediaData);
+    return await createCreateLongTweetRequest(
+      text,
+      this.auth,
+      replyToTweetId,
+      mediaData
+    );
   }
 
   /**
@@ -519,7 +568,12 @@ export class Client {
       poll?: PollData;
     }
   ) {
-    return await createCreateTweetRequestV2(text, this.auth, replyToTweetId, options);
+    return await createCreateTweetRequestV2(
+      text,
+      this.auth,
+      replyToTweetId,
+      options
+    );
   }
 
   /**
@@ -528,7 +582,10 @@ export class Client {
    * @param maxTweets The maximum number of tweets to return. Defaults to `200`.
    * @returns An {@link AsyncGenerator} of tweets from the provided user.
    */
-  public getTweetsAndReplies(user: string, maxTweets = 200): AsyncGenerator<Tweet> {
+  public getTweetsAndReplies(
+    user: string,
+    maxTweets = 200
+  ): AsyncGenerator<Tweet> {
     return getTweetsAndReplies(user, maxTweets, this.auth);
   }
 
@@ -538,7 +595,10 @@ export class Client {
    * @param maxTweets The maximum number of tweets to return. Defaults to `200`.
    * @returns An {@link AsyncGenerator} of tweets from the provided user.
    */
-  public getTweetsAndRepliesByUserId(userId: string, maxTweets = 200): AsyncGenerator<Tweet, void> {
+  public getTweetsAndRepliesByUserId(
+    userId: string,
+    maxTweets = 200
+  ): AsyncGenerator<Tweet, void> {
     return getTweetsAndRepliesByUserId(userId, maxTweets, this.auth);
   }
 
@@ -558,7 +618,10 @@ export class Client {
    * - All keys are optional.
    * - If specified, the key must be implemented by that of {@link Tweet}.
    */
-  public getTweetWhere(tweets: AsyncIterable<Tweet>, query: TweetQuery): Promise<Tweet | null> {
+  public getTweetWhere(
+    tweets: AsyncIterable<Tweet>,
+    query: TweetQuery
+  ): Promise<Tweet | null> {
     return getTweetWhere(tweets, query);
   }
 
@@ -578,7 +641,10 @@ export class Client {
    * - All keys are optional.
    * - If specified, the key must be implemented by that of {@link Tweet}.
    */
-  public getTweetsWhere(tweets: AsyncIterable<Tweet>, query: TweetQuery): Promise<Tweet[]> {
+  public getTweetsWhere(
+    tweets: AsyncIterable<Tweet>,
+    query: TweetQuery
+  ): Promise<Tweet[]> {
     return getTweetsWhere(tweets, query);
   }
 
@@ -677,7 +743,9 @@ export class Client {
    * @returns `true` if the client is logged in with a real user account; otherwise `false`.
    */
   public async isLoggedIn(): Promise<boolean> {
-    return (await this.auth.isLoggedIn()) && (await this.authTrends.isLoggedIn());
+    return (
+      (await this.auth.isLoggedIn()) && (await this.authTrends.isLoggedIn())
+    );
   }
 
   /**
@@ -740,7 +808,9 @@ export class Client {
   public async getCookies(): Promise<Cookie[]> {
     return await this.authTrends
       .cookieJar()
-      .getCookies(typeof document !== 'undefined' ? document.location.toString() : twUrl);
+      .getCookies(
+        typeof document !== "undefined" ? document.location.toString() : twUrl
+      );
   }
 
   /**
@@ -774,7 +844,7 @@ export class Client {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public withCookie(_cookie: string): Client {
     console.warn(
-      'Warning: Client#withCookie is deprecated and will be removed in a later version. Use Client#login or Client#setCookies instead.'
+      "Warning: Client#withCookie is deprecated and will be removed in a later version. Use Client#login or Client#setCookies instead."
     );
     return this;
   }
@@ -788,7 +858,7 @@ export class Client {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public withXCsrfToken(_token: string): Client {
     console.warn(
-      'Warning: Client#withXCsrfToken is deprecated and will be removed in a later version.'
+      "Warning: Client#withXCsrfToken is deprecated and will be removed in a later version."
     );
     return this;
   }
@@ -807,7 +877,12 @@ export class Client {
       mediaData: { data: Buffer; mediaType: string }[];
     }
   ) {
-    return await createQuoteTweetRequest(text, quotedTweetId, this.auth, options?.mediaData);
+    return await createQuoteTweetRequest(
+      text,
+      quotedTweetId,
+      this.auth,
+      options?.mediaData
+    );
   }
 
   /**
@@ -928,7 +1003,9 @@ export class Client {
    * @param mediaKey The media key of the Audio Space.
    * @returns The status of the Audio Space stream.
    */
-  public async getAudioSpaceStreamStatus(mediaKey: string): Promise<LiveVideoStreamStatus> {
+  public async getAudioSpaceStreamStatus(
+    mediaKey: string
+  ): Promise<LiveVideoStreamStatus> {
     return await fetchLiveVideoStreamStatus(mediaKey, this.auth);
   }
 
@@ -939,12 +1016,14 @@ export class Client {
    * @param audioSpaceId The ID of the Audio Space.
    * @returns The status of the Audio Space stream.
    */
-  public async getAudioSpaceStatus(audioSpaceId: string): Promise<LiveVideoStreamStatus> {
+  public async getAudioSpaceStatus(
+    audioSpaceId: string
+  ): Promise<LiveVideoStreamStatus> {
     const audioSpace = await this.getAudioSpaceById(audioSpaceId);
 
     const mediaKey = audioSpace.metadata.media_key;
     if (!mediaKey) {
-      throw new Error('Media Key not found in Audio Space metadata.');
+      throw new Error("Media Key not found in Audio Space metadata.");
     }
 
     return await this.getAudioSpaceStreamStatus(mediaKey);
@@ -963,7 +1042,9 @@ export class Client {
    * @param jwt The JWT obtained from AuthenticatePeriscope.
    * @returns The response containing the cookie and user information.
    */
-  public async loginTwitterToken(jwt: string): Promise<LoginTwitterTokenResponse> {
+  public async loginTwitterToken(
+    jwt: string
+  ): Promise<LoginTwitterTokenResponse> {
     return await fetchLoginTwitterToken(jwt, this.auth);
   }
 
@@ -1024,13 +1105,21 @@ export class Client {
    * @param maxTweetsPerPage Max tweets per page (default 20).
    * @returns An array of all Tweet objects referencing the given tweet.
    */
-  public async getAllQuotedTweets(quotedTweetId: string, maxTweetsPerPage = 20): Promise<Tweet[]> {
+  public async getAllQuotedTweets(
+    quotedTweetId: string,
+    maxTweetsPerPage = 20
+  ): Promise<Tweet[]> {
     const allQuotes: Tweet[] = [];
     let cursor: string | undefined;
     let prevCursor: string | undefined;
 
     while (true) {
-      const page = await fetchQuotedTweetsPage(quotedTweetId, maxTweetsPerPage, this.auth, cursor);
+      const page = await fetchQuotedTweetsPage(
+        quotedTweetId,
+        maxTweetsPerPage,
+        this.auth,
+        cursor
+      );
 
       // If there's no new tweets, stop
       if (!page.tweets || page.tweets.length === 0) {

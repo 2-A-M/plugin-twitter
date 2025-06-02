@@ -1,5 +1,5 @@
-import type { TwitterAuth } from './auth';
-import { updateCookieJar } from './requests';
+import type { TwitterAuth } from "./auth";
+import { updateCookieJar } from "./requests";
 
 /**
  * Represents a direct message object.
@@ -183,7 +183,10 @@ export interface SendDirectMessageResponse {
  * @param {string} userId - The user ID for which the conversations should be parsed.
  * @returns {DirectMessagesResponse} The parsed direct message conversations.
  */
-function parseDirectMessageConversations(data: any, userId: string): DirectMessagesResponse {
+function parseDirectMessageConversations(
+  data: any,
+  userId: string
+): DirectMessagesResponse {
   try {
     const inboxState = data?.inbox_initial_state;
     const conversations = inboxState?.conversations || {};
@@ -191,17 +194,19 @@ function parseDirectMessageConversations(data: any, userId: string): DirectMessa
     const users = inboxState?.users || {};
 
     // Parse users first
-    const parsedUsers: TwitterUser[] = Object.values(users).map((user: any) => ({
-      id: user.id_str,
-      screenName: user.screen_name,
-      name: user.name,
-      profileImageUrl: user.profile_image_url_https,
-      description: user.description,
-      verified: user.verified,
-      protected: user.protected,
-      followersCount: user.followers_count,
-      friendsCount: user.friends_count,
-    }));
+    const parsedUsers: TwitterUser[] = Object.values(users).map(
+      (user: any) => ({
+        id: user.id_str,
+        screenName: user.screen_name,
+        name: user.name,
+        profileImageUrl: user.profile_image_url_https,
+        description: user.description,
+        verified: user.verified,
+        protected: user.protected,
+        followersCount: user.followers_count,
+        friendsCount: user.friends_count,
+      })
+    );
 
     // Group messages by conversation_id
     const messagesByConversation: Record<string, any[]> = {};
@@ -254,7 +259,7 @@ function parseDirectMessageConversations(data: any, userId: string): DirectMessa
       userId,
     };
   } catch (error) {
-    console.error('Error parsing DM conversations:', error);
+    console.error("Error parsing DM conversations:", error);
     return {
       conversations: [],
       users: [],
@@ -283,7 +288,7 @@ function parseDirectMessages(messages: any[], users: any): DirectMessage[] {
       recipientScreenName: users[msg.message_data.recipient_id]?.screen_name,
     }));
   } catch (error) {
-    console.error('Error parsing DMs:', error);
+    console.error("Error parsing DMs:", error);
     return [];
   }
 }
@@ -328,36 +333,37 @@ export async function getDirectMessageConversations(
   cursor?: string
 ): Promise<DirectMessagesResponse> {
   if (!auth.isLoggedIn()) {
-    throw new Error('Authentication required to fetch direct messages');
+    throw new Error("Authentication required to fetch direct messages");
   }
 
-  const url = 'https://twitter.com/i/api/graphql/7s3kOODhC5vgXlO0OlqYdA/DMInboxTimeline';
-  const messageListUrl = 'https://x.com/i/api/1.1/dm/inbox_initial_state.json';
+  const url =
+    "https://twitter.com/i/api/graphql/7s3kOODhC5vgXlO0OlqYdA/DMInboxTimeline";
+  const messageListUrl = "https://x.com/i/api/1.1/dm/inbox_initial_state.json";
 
   const params = new URLSearchParams();
 
   if (cursor) {
-    params.append('cursor', cursor);
+    params.append("cursor", cursor);
   }
 
-  const finalUrl = `${messageListUrl}${params.toString() ? `?${params.toString()}` : ''}`;
+  const finalUrl = `${messageListUrl}${params.toString() ? `?${params.toString()}` : ""}`;
   const cookies = await auth.cookieJar().getCookies(url);
-  const xCsrfToken = cookies.find((cookie) => cookie.key === 'ct0');
+  const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
   const headers = new Headers({
     authorization: `Bearer ${(auth as any).bearerToken}`,
     cookie: await auth.cookieJar().getCookieString(url),
-    'content-type': 'application/json',
-    'User-Agent':
-      'Mozilla/5.0 (Linux; Android 11; Nokia G20) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.88 Mobile Safari/537.36',
-    'x-guest-token': (auth as any).guestToken,
-    'x-twitter-auth-type': 'OAuth2Client',
-    'x-twitter-active-user': 'yes',
-    'x-csrf-token': xCsrfToken?.value as string,
+    "content-type": "application/json",
+    "User-Agent":
+      "Mozilla/5.0 (Linux; Android 11; Nokia G20) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.88 Mobile Safari/537.36",
+    "x-guest-token": (auth as any).guestToken,
+    "x-twitter-auth-type": "OAuth2Client",
+    "x-twitter-active-user": "yes",
+    "x-csrf-token": xCsrfToken?.value as string,
   });
 
   const response = await fetch(finalUrl, {
-    method: 'GET',
+    method: "GET",
     headers,
   });
 
@@ -387,39 +393,40 @@ export async function sendDirectMessage(
   text: string
 ): Promise<SendDirectMessageResponse> {
   if (!auth.isLoggedIn()) {
-    throw new Error('Authentication required to send direct messages');
+    throw new Error("Authentication required to send direct messages");
   }
 
-  const url = 'https://twitter.com/i/api/graphql/7s3kOODhC5vgXlO0OlqYdA/DMInboxTimeline';
-  const messageDmUrl = 'https://x.com/i/api/1.1/dm/new2.json';
+  const url =
+    "https://twitter.com/i/api/graphql/7s3kOODhC5vgXlO0OlqYdA/DMInboxTimeline";
+  const messageDmUrl = "https://x.com/i/api/1.1/dm/new2.json";
 
   const cookies = await auth.cookieJar().getCookies(url);
-  const xCsrfToken = cookies.find((cookie) => cookie.key === 'ct0');
+  const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
   const headers = new Headers({
     authorization: `Bearer ${(auth as any).bearerToken}`,
     cookie: await auth.cookieJar().getCookieString(url),
-    'content-type': 'application/json',
-    'User-Agent':
-      'Mozilla/5.0 (Linux; Android 11; Nokia G20) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.88 Mobile Safari/537.36',
-    'x-guest-token': (auth as any).guestToken,
-    'x-twitter-auth-type': 'OAuth2Client',
-    'x-twitter-active-user': 'yes',
-    'x-csrf-token': xCsrfToken?.value as string,
+    "content-type": "application/json",
+    "User-Agent":
+      "Mozilla/5.0 (Linux; Android 11; Nokia G20) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.88 Mobile Safari/537.36",
+    "x-guest-token": (auth as any).guestToken,
+    "x-twitter-auth-type": "OAuth2Client",
+    "x-twitter-active-user": "yes",
+    "x-csrf-token": xCsrfToken?.value as string,
   });
 
   const payload = {
     conversation_id: `${conversation_id}`,
     recipient_ids: false,
     text: text,
-    cards_platform: 'Web-12',
+    cards_platform: "Web-12",
     include_cards: 1,
     include_quote_count: true,
     dm_users: false,
   };
 
   const response = await fetch(messageDmUrl, {
-    method: 'POST',
+    method: "POST",
     headers,
     body: JSON.stringify(payload),
   });

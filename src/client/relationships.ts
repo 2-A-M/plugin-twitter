@@ -1,11 +1,14 @@
-import { Headers } from 'headers-polyfill';
-import stringify from 'json-stable-stringify';
-import { addApiFeatures, bearerToken, requestApi } from './api';
-import type { TwitterAuth } from './auth';
-import { type Profile, getEntityIdByScreenName } from './profile';
-import { getUserTimeline } from './timeline-async';
-import { type RelationshipTimeline, parseRelationshipTimeline } from './timeline-relationship';
-import type { QueryProfilesResponse } from './timeline-v1';
+import { Headers } from "headers-polyfill";
+import stringify from "json-stable-stringify";
+import { addApiFeatures, bearerToken, requestApi } from "./api";
+import type { TwitterAuth } from "./auth";
+import { type Profile, getEntityIdByScreenName } from "./profile";
+import { getUserTimeline } from "./timeline-async";
+import {
+  type RelationshipTimeline,
+  parseRelationshipTimeline,
+} from "./timeline-relationship";
+import type { QueryProfilesResponse } from "./timeline-v1";
 
 /**
  * Function to get the following profiles of a user.
@@ -55,7 +58,12 @@ export async function fetchProfileFollowing(
   auth: TwitterAuth,
   cursor?: string
 ): Promise<QueryProfilesResponse> {
-  const timeline = await getFollowingTimeline(userId, maxProfiles, auth, cursor);
+  const timeline = await getFollowingTimeline(
+    userId,
+    maxProfiles,
+    auth,
+    cursor
+  );
 
   return parseRelationshipTimeline(timeline);
 }
@@ -75,7 +83,12 @@ export async function fetchProfileFollowers(
   auth: TwitterAuth,
   cursor?: string
 ): Promise<QueryProfilesResponse> {
-  const timeline = await getFollowersTimeline(userId, maxProfiles, auth, cursor);
+  const timeline = await getFollowersTimeline(
+    userId,
+    maxProfiles,
+    auth,
+    cursor
+  );
 
   return parseRelationshipTimeline(timeline);
 }
@@ -97,7 +110,7 @@ async function getFollowingTimeline(
   cursor?: string
 ): Promise<RelationshipTimeline> {
   if (!auth.isLoggedIn()) {
-    throw new Error('Client is not logged-in for profile following.');
+    throw new Error("Client is not logged-in for profile following.");
   }
 
   if (maxItems > 50) {
@@ -112,18 +125,19 @@ async function getFollowingTimeline(
 
   const features = addApiFeatures({
     responsive_web_twitter_article_tweet_consumption_enabled: false,
-    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
+    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled:
+      true,
     longform_notetweets_inline_media_enabled: true,
     responsive_web_media_download_video_enabled: false,
   });
 
-  if (cursor != null && cursor !== '') {
+  if (cursor != null && cursor !== "") {
     variables.cursor = cursor;
   }
 
   const params = new URLSearchParams();
-  params.set('features', stringify(features) ?? '');
-  params.set('variables', stringify(variables) ?? '');
+  params.set("features", stringify(features) ?? "");
+  params.set("variables", stringify(variables) ?? "");
 
   const res = await requestApi<RelationshipTimeline>(
     `https://twitter.com/i/api/graphql/iSicc7LrzWGBgDPL0tM_TQ/Following?${params.toString()}`,
@@ -131,7 +145,7 @@ async function getFollowingTimeline(
   );
 
   if (!res.success) {
-    throw res.err;
+    throw (res as any).err;
   }
 
   return res.value;
@@ -153,7 +167,7 @@ async function getFollowersTimeline(
   cursor?: string
 ): Promise<RelationshipTimeline> {
   if (!auth.isLoggedIn()) {
-    throw new Error('Client is not logged-in for profile followers.');
+    throw new Error("Client is not logged-in for profile followers.");
   }
 
   if (maxItems > 50) {
@@ -168,18 +182,19 @@ async function getFollowersTimeline(
 
   const features = addApiFeatures({
     responsive_web_twitter_article_tweet_consumption_enabled: false,
-    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
+    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled:
+      true,
     longform_notetweets_inline_media_enabled: true,
     responsive_web_media_download_video_enabled: false,
   });
 
-  if (cursor != null && cursor !== '') {
+  if (cursor != null && cursor !== "") {
     variables.cursor = cursor;
   }
 
   const params = new URLSearchParams();
-  params.set('features', stringify(features) ?? '');
-  params.set('variables', stringify(variables) ?? '');
+  params.set("features", stringify(features) ?? "");
+  params.set("variables", stringify(variables) ?? "");
 
   const res = await requestApi<RelationshipTimeline>(
     `https://twitter.com/i/api/graphql/rRXFSG5vR6drKr5M37YOTw/Followers?${params.toString()}`,
@@ -187,7 +202,7 @@ async function getFollowersTimeline(
   );
 
   if (!res.success) {
-    throw res.err;
+    throw (res as any).err;
   }
 
   return res.value;
@@ -201,47 +216,58 @@ async function getFollowersTimeline(
  * @returns {Promise<Response>} - A Promise that resolves with the response data.
  * @throws {Error} - If the user is not logged in, or if an error occurs during the follow process.
  */
-export async function followUser(username: string, auth: TwitterAuth): Promise<Response> {
+export async function followUser(
+  username: string,
+  auth: TwitterAuth
+): Promise<Response> {
   // Check if the user is logged in
   if (!(await auth.isLoggedIn())) {
-    throw new Error('Must be logged in to follow users');
+    throw new Error("Must be logged in to follow users");
   }
   // Get user ID from username
   const userIdResult = await getEntityIdByScreenName(username, auth);
 
   if (!userIdResult.success) {
-    throw new Error(`Failed to get user ID: ${userIdResult.err.message}`);
+    throw new Error(
+      `Failed to get user ID: ${(userIdResult as any).err.message}`
+    );
   }
 
   const userId = userIdResult.value;
 
   // Prepare the request body
   const requestBody = {
-    include_profile_interstitial_type: '1',
-    skip_status: 'true',
+    include_profile_interstitial_type: "1",
+    skip_status: "true",
     user_id: userId,
   };
 
   // Prepare the headers
   const headers = new Headers({
-    'Content-Type': 'application/x-www-form-urlencoded',
+    "Content-Type": "application/x-www-form-urlencoded",
     Referer: `https://twitter.com/${username}`,
-    'X-Twitter-Active-User': 'yes',
-    'X-Twitter-Auth-Type': 'OAuth2Session',
-    'X-Twitter-Client-Language': 'en',
+    "X-Twitter-Active-User": "yes",
+    "X-Twitter-Auth-Type": "OAuth2Session",
+    "X-Twitter-Client-Language": "en",
     Authorization: `Bearer ${bearerToken}`,
   });
 
   // Install auth headers
-  await auth.installTo(headers, 'https://api.twitter.com/1.1/friendships/create.json');
+  await auth.installTo(
+    headers,
+    "https://api.twitter.com/1.1/friendships/create.json"
+  );
 
   // Make the follow request using auth.fetch
-  const res = await auth.fetch('https://api.twitter.com/1.1/friendships/create.json', {
-    method: 'POST',
-    headers,
-    body: new URLSearchParams(requestBody).toString(),
-    credentials: 'include',
-  });
+  const res = await auth.fetch(
+    "https://api.twitter.com/1.1/friendships/create.json",
+    {
+      method: "POST",
+      headers,
+      body: new URLSearchParams(requestBody).toString(),
+      credentials: "include",
+    }
+  );
 
   if (!res.ok) {
     throw new Error(`Failed to follow user: ${res.statusText}`);
@@ -252,7 +278,7 @@ export async function followUser(username: string, auth: TwitterAuth): Promise<R
   return new Response(JSON.stringify(data), {
     status: 200,
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
   });
 }

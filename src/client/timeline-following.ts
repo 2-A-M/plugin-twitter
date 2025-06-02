@@ -1,7 +1,7 @@
-import { type RequestApiResult, requestApi } from './api';
-import type { TwitterAuth } from './auth';
-import { ApiError } from './errors';
-import type { TimelineInstruction } from './timeline-v2';
+import { type RequestApiResult, requestApi } from "./api";
+import type { TwitterAuth } from "./auth";
+import { ApiError } from "./errors";
+import type { TimelineInstruction } from "./timeline-v2";
 
 /**
  * Interface for the response data of the latest timeline for the home page.
@@ -36,7 +36,7 @@ export async function fetchFollowingTimeline(
     count,
     includePromotedContent: true,
     latestControlAvailable: true,
-    requestContext: 'launch',
+    requestContext: "launch",
     seenTweetIds,
   };
 
@@ -60,7 +60,8 @@ export async function fetchFollowingTimeline(
     creator_subscriptions_quote_tweet_preview_enabled: false,
     freedom_of_speech_not_reach_fetch_enabled: true,
     standardized_nudges_misinfo: true,
-    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
+    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled:
+      true,
     rweb_video_timestamps_enabled: true,
     longform_notetweets_rich_text_read_enabled: true,
     longform_notetweets_inline_media_enabled: true,
@@ -72,12 +73,12 @@ export async function fetchFollowingTimeline(
       JSON.stringify(variables)
     )}&features=${encodeURIComponent(JSON.stringify(features))}`,
     auth,
-    'GET'
+    "GET"
   )) as RequestApiResult<HomeLatestTimelineResponse>;
 
   if (!res.success) {
     if ((res as any).err instanceof ApiError) {
-      console.error('Error details:', (res as any).err.data);
+      console.error("Error details:", (res as any).err.data);
     }
     throw (res as any).err;
   }
@@ -91,7 +92,7 @@ export async function fetchFollowingTimeline(
   const entries: any[] = [];
 
   for (const instruction of home) {
-    if (instruction.type === 'TimelineAddEntries') {
+    if (instruction.type === "TimelineAddEntries") {
       for (const entry of instruction.entries ?? []) {
         entries.push(entry);
       }

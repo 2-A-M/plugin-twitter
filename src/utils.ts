@@ -1,8 +1,7 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import type { Media, ModelTypeName, State } from '@elizaos/core';
+import fs from "node:fs";
+import path from "node:path";
+import type { Media, State } from "@elizaos/core";
 import {
-  ChannelType,
   type Content,
   type IAgentRuntime,
   type Memory,
@@ -12,17 +11,16 @@ import {
   createUniqueUuid,
   logger,
   truncateToCompleteSentence,
-} from '@elizaos/core';
-import type { ClientBase } from './base';
-import type { Tweet } from './client';
-import type { Tweet as ClientTweet } from './client/tweets';
-import type { SttTtsPlugin } from './sttTtsSpaces';
-import type { ActionResponse, MediaData } from './types';
-import type { Tweet as CoreTweet } from './types';
-import { TWEET_CHAR_LIMIT } from './constants';
+} from "@elizaos/core";
+import type { ClientBase } from "./base";
+import type { Tweet } from "./client";
+import type { SttTtsPlugin } from "./sttTtsSpaces";
+import type { ActionResponse, MediaData } from "./types";
+import { TWEET_CHAR_LIMIT } from "./constants";
 
 export const wait = (minTime = 1000, maxTime = 3000) => {
-  const waitTime = Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
+  const waitTime =
+    Math.floor(Math.random() * (maxTime - minTime + 1)) + minTime;
   return new Promise((resolve) => setTimeout(resolve, waitTime));
 };
 
@@ -33,7 +31,9 @@ export const isValidTweet = (tweet: Tweet): boolean => {
   const dollarSignCount = (tweet.text?.match(/\$/g) || []).length;
   const totalCount = hashtagCount + atCount + dollarSignCount;
 
-  return hashtagCount <= 1 && atCount <= 2 && dollarSignCount <= 1 && totalCount <= 3;
+  return (
+    hashtagCount <= 1 && atCount <= 2 && dollarSignCount <= 1 && totalCount <= 3
+  );
 };
 
 /**
@@ -42,7 +42,9 @@ export const isValidTweet = (tweet: Tweet): boolean => {
  * @param attachments Array of Media objects containing URLs or file paths to fetch media from
  * @returns Promise that resolves with an array of MediaData objects containing the fetched media data and content type
  */
-export async function fetchMediaData(attachments: Media[]): Promise<MediaData[]> {
+export async function fetchMediaData(
+  attachments: Media[]
+): Promise<MediaData[]> {
   return Promise.all(
     attachments.map(async (attachment: Media) => {
       if (/^(http|https):\/\//.test(attachment.url)) {
@@ -52,16 +54,20 @@ export async function fetchMediaData(attachments: Media[]): Promise<MediaData[]>
           throw new Error(`Failed to fetch file: ${attachment.url}`);
         }
         const mediaBuffer = Buffer.from(await response.arrayBuffer());
-        const mediaType = attachment.contentType || 'image/png';
+        const mediaType = attachment.contentType || "image/png";
         return { data: mediaBuffer, mediaType };
       }
       if (fs.existsSync(attachment.url)) {
         // Handle local file paths
-        const mediaBuffer = await fs.promises.readFile(path.resolve(attachment.url));
-        const mediaType = attachment.contentType || 'image/png';
+        const mediaBuffer = await fs.promises.readFile(
+          path.resolve(attachment.url)
+        );
+        const mediaType = attachment.contentType || "image/png";
         return { data: mediaBuffer, mediaType };
       }
-      throw new Error(`File not found: ${attachment.url}. Make sure the path is correct.`);
+      throw new Error(
+        `File not found: ${attachment.url}. Make sure the path is correct.`
+      );
     })
   );
 }
@@ -83,12 +89,16 @@ async function handleNoteTweet(
   mediaData?: MediaData[]
 ) {
   const noteTweetResult = await client.requestQueue.add(
-    async () => await client.twitterClient.sendNoteTweet(content, tweetId, mediaData)
+    async () =>
+      await client.twitterClient.sendNoteTweet(content, tweetId, mediaData)
   );
 
   if (noteTweetResult.errors && noteTweetResult.errors.length > 0) {
     // Note Tweet failed due to authorization. Falling back to standard Tweet.
-    const truncateContent = truncateToCompleteSentence(content, TWEET_CHAR_LIMIT - 1);
+    const truncateContent = truncateToCompleteSentence(
+      content,
+      TWEET_CHAR_LIMIT - 1
+    );
     return await sendStandardTweet(client, truncateContent, tweetId);
   }
   return noteTweetResult.data.notetweet_create.tweet_results.result;
@@ -110,11 +120,12 @@ export async function sendStandardTweet(
   mediaData?: MediaData[]
 ) {
   const standardTweetResult = await client.requestQueue.add(
-    async () => await client.twitterClient.sendTweet(content, tweetId, mediaData)
+    async () =>
+      await client.twitterClient.sendTweet(content, tweetId, mediaData)
   );
   const body = await standardTweetResult.json();
   if (!body?.data?.create_tweet?.tweet_results?.result) {
-    logger.error('Error sending tweet; Bad response:', body);
+    logger.error("Error sending tweet; Bad response:", body);
     return;
   }
   return body.data.create_tweet.tweet_results.result;
@@ -167,7 +178,11 @@ export async function sendChunkedTweet(
 
     const result = await client.requestQueue.add(async () =>
       isLongTweet
-        ? client.twitterClient.sendLongTweet(cleanChunk, previousTweetId, mediaData)
+        ? client.twitterClient.sendLongTweet(
+            cleanChunk,
+            previousTweetId,
+            mediaData
+          )
         : client.twitterClient.sendTweet(cleanChunk, previousTweetId, mediaData)
     );
 
@@ -197,7 +212,7 @@ export async function sendChunkedTweet(
       sentTweets.push(finalTweet);
       previousTweetId = finalTweet.id;
     } else {
-      logger.error('Error sending tweet chunk:', {
+      logger.error("Error sending tweet chunk:", {
         chunk,
         response: body,
       });
@@ -214,7 +229,7 @@ export async function sendChunkedTweet(
     content: {
       tweetId: tweet.id,
       text: tweet.text,
-      source: 'twitter',
+      source: "twitter",
       url: tweet.permanentUrl,
       imageUrls: tweet.photos.map((p) => p.url) || [],
       inReplyTo: tweet.inReplyToStatusId
@@ -235,9 +250,9 @@ export async function sendChunkedTweet(
  * @returns {string[]} An array of strings representing individual tweets.
  */
 function splitTweetContent(content: string, maxLength: number): string[] {
-  const paragraphs = content.split('\n\n').map((p) => p.trim());
+  const paragraphs = content.split("\n\n").map((p) => p.trim());
   const tweets: string[] = [];
-  let currentTweet = '';
+  let currentTweet = "";
 
   for (const paragraph of paragraphs) {
     if (!paragraph) continue;
@@ -310,7 +325,7 @@ function splitSentencesAndWords(text: string, maxLength: number): string[] {
   // Note that URLs in text have been replaced with `<<URL_xxx>>` and won't be split by dots
   const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [text];
   const chunks: string[] = [];
-  let currentChunk = '';
+  let currentChunk = "";
 
   for (const sentence of sentences) {
     if (`${currentChunk} ${sentence}`.trim().length <= maxLength) {
@@ -330,8 +345,8 @@ function splitSentencesAndWords(text: string, maxLength: number): string[] {
         currentChunk = sentence;
       } else {
         // Need to split sentence by spaces
-        const words = sentence.split(' ');
-        currentChunk = '';
+        const words = sentence.split(" ");
+        currentChunk = "";
         for (const word of words) {
           if (`${currentChunk} ${word}`.trim().length <= maxLength) {
             if (currentChunk) {
@@ -376,13 +391,13 @@ function deduplicateMentions(paragraph: string) {
   }
 
   // Extract mentions from the match groups
-  let mentions = matches.slice(0, 1)[0].trim().split(' ');
+  let mentions = matches.slice(0, 1)[0].trim().split(" ");
 
   // Deduplicate mentions
   mentions = Array.from(new Set(mentions));
 
   // Reconstruct the string with deduplicated mentions
-  const uniqueMentionsString = mentions.join(' ');
+  const uniqueMentionsString = mentions.join(" ");
 
   // Find where the mentions end in the original string
   const endOfMentions = paragraph.indexOf(matches[0]) + matches[0].length;
@@ -398,7 +413,10 @@ function deduplicateMentions(paragraph: string) {
  * @param {Map<string, string>} placeholderMap - Map with placeholder URLs as keys and original URLs as values.
  * @returns {string[]} - Array of strings with original URLs restored in each chunk.
  */
-function restoreUrls(chunks: string[], placeholderMap: Map<string, string>): string[] {
+function restoreUrls(
+  chunks: string[],
+  placeholderMap: Map<string, string>
+): string[] {
   return chunks.map((chunk) => {
     // Replace all <<URL_CONSIDERER_23_>> in chunk back to original URLs using regex
     return chunk.replace(/<<URL_CONSIDERER_23_(\d+)>>/g, (match) => {
@@ -420,7 +438,10 @@ function splitParagraph(paragraph: string, maxLength: number): string[] {
   const { textWithPlaceholders, placeholderMap } = extractUrls(paragraph);
 
   // 2) Use first section's logic to split by sentences first, then do secondary split
-  const splittedChunks = splitSentencesAndWords(textWithPlaceholders, maxLength);
+  const splittedChunks = splitSentencesAndWords(
+    textWithPlaceholders,
+    maxLength
+  );
 
   // 3) Replace placeholders back to original URLs
   const restoredChunks = restoreUrls(splittedChunks, placeholderMap);
@@ -434,7 +455,9 @@ function splitParagraph(paragraph: string, maxLength: number): string[] {
  * @param {string} text - The text to parse actions from.
  * @returns {{ actions: ActionResponse }} The parsed actions with boolean values indicating if each action is present in the text.
  */
-export const parseActionResponseFromText = (text: string): { actions: ActionResponse } => {
+export const parseActionResponseFromText = (
+  text: string
+): { actions: ActionResponse } => {
   const actions: ActionResponse = {
     like: false,
     retweet: false,
@@ -455,13 +478,13 @@ export const parseActionResponseFromText = (text: string): { actions: ActionResp
   actions.reply = replyPattern.test(text);
 
   // Also do line by line parsing as backup
-  const lines = text.split('\n');
+  const lines = text.split("\n");
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed === '[LIKE]') actions.like = true;
-    if (trimmed === '[RETWEET]') actions.retweet = true;
-    if (trimmed === '[QUOTE]') actions.quote = true;
-    if (trimmed === '[REPLY]') actions.reply = true;
+    if (trimmed === "[LIKE]") actions.like = true;
+    if (trimmed === "[RETWEET]") actions.retweet = true;
+    if (trimmed === "[QUOTE]") actions.quote = true;
+    if (trimmed === "[REPLY]") actions.reply = true;
   }
 
   return { actions };
@@ -477,7 +500,10 @@ export const parseActionResponseFromText = (text: string): { actions: ActionResp
  * @param {string} fillerType - The type of filler message to generate.
  * @returns {Promise<string>} The generated filler message as a string.
  */
-export async function generateFiller(runtime: IAgentRuntime, fillerType: string): Promise<string> {
+export async function generateFiller(
+  runtime: IAgentRuntime,
+  fillerType: string
+): Promise<string> {
   const prompt = composePrompt({
     state: {
       values: {
@@ -523,7 +549,9 @@ export async function speakFiller(
 /**
  * Generate topic suggestions via GPT if no topics are configured
  */
-export async function generateTopicsIfEmpty(runtime: IAgentRuntime): Promise<string[]> {
+export async function generateTopicsIfEmpty(
+  runtime: IAgentRuntime
+): Promise<string[]> {
   const prompt = composePrompt({
     state: {} as any,
     template: `
@@ -540,13 +568,16 @@ Example:
     prompt,
   });
   const topics = response
-    .split(',')
+    .split(",")
     .map((t) => t.trim())
     .filter(Boolean);
-  return topics.length ? topics : ['Random Tech Chat', 'AI Thoughts'];
+  return topics.length ? topics : ["Random Tech Chat", "AI Thoughts"];
 }
 
-export async function isAgentInSpace(client: ClientBase, spaceId: string): Promise<boolean> {
+export async function isAgentInSpace(
+  client: ClientBase,
+  spaceId: string
+): Promise<boolean> {
   const space = await client.twitterClient.getAudioSpaceById(spaceId);
   const agentName = client.state.TWITTER_USERNAME;
 
@@ -554,6 +585,8 @@ export async function isAgentInSpace(client: ClientBase, spaceId: string): Promi
     space.participants.listeners.some(
       (participant) => participant.twitter_screen_name === agentName
     ) ||
-    space.participants.speakers.some((participant) => participant.twitter_screen_name === agentName)
+    space.participants.speakers.some(
+      (participant) => participant.twitter_screen_name === agentName
+    )
   );
 }

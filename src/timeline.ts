@@ -1,4 +1,4 @@
-import type { ClientBase } from './base';
+import type { ClientBase } from "./base";
 import {
   ChannelType,
   composePromptFromState,
@@ -7,19 +7,23 @@ import {
   type IAgentRuntime,
   UUID,
   State,
-  type ActionResponse,
   Memory,
   parseKeyValueXml,
-} from '@elizaos/core';
-import type { Client, Tweet } from './client/index';
-import { logger } from '@elizaos/core';
+} from "@elizaos/core";
+import type { Client, Tweet } from "./client/index";
+import { logger } from "@elizaos/core";
 
-import { twitterActionTemplate, quoteTweetTemplate, replyTweetTemplate } from './templates';
-import { sendTweet, parseActionResponseFromText } from './utils';
+import {
+  twitterActionTemplate,
+  quoteTweetTemplate,
+  replyTweetTemplate,
+} from "./templates";
+import { sendTweet, parseActionResponseFromText } from "./utils";
+import { ActionResponse } from "./types";
 
 enum TIMELINE_TYPE {
-  ForYou = 'foryou',
-  Following = 'following',
+  ForYou = "foryou",
+  Following = "following",
 }
 
 export class TwitterTimelineClient {
@@ -37,7 +41,8 @@ export class TwitterTimelineClient {
     this.state = state;
 
     this.timelineType =
-      this.state?.TWITTER_TIMELINE_MODE || this.runtime.getSetting('TWITTER_TIMELINE_MODE');
+      this.state?.TWITTER_TIMELINE_MODE ||
+      this.runtime.getSetting("TWITTER_TIMELINE_MODE");
   }
 
   async start() {
@@ -45,7 +50,9 @@ export class TwitterTimelineClient {
       // Defaults to 2 minutes
       const interactionInterval =
         (this.state?.TWITTER_TIMELINE_POLL_INTERVAL ||
-          (this.runtime.getSetting('TWITTER_TIMELINE_POLL_INTERVAL') as unknown as number) ||
+          (this.runtime.getSetting(
+            "TWITTER_TIMELINE_POLL_INTERVAL"
+          ) as unknown as number) ||
           120) * 1000;
 
       this.handleTimeline();
@@ -76,7 +83,7 @@ export class TwitterTimelineClient {
         mentions: tweet.legacy?.entities?.user_mentions || [],
         photos:
           tweet.legacy?.entities?.media
-            ?.filter((media) => media.type === 'photo')
+            ?.filter((media) => media.type === "photo")
             .map((media) => ({
               id: media.id_str,
               url: media.media_url_https, // Store media_url_https as url
@@ -84,7 +91,10 @@ export class TwitterTimelineClient {
             })) || [],
         thread: tweet.thread || [],
         urls: tweet.legacy?.entities?.urls || [],
-        videos: tweet.legacy?.entities?.media?.filter((media) => media.type === 'video') || [],
+        videos:
+          tweet.legacy?.entities?.media?.filter(
+            (media) => media.type === "video"
+          ) || [],
       }))
       .filter((tweet) => tweet.username !== twitterUsername); // do not perform action on self-tweets
   }
@@ -104,7 +114,7 @@ export class TwitterTimelineClient {
         inReplyTo: tweet.inReplyToStatusId
           ? createUniqueUuid(runtime, tweet.inReplyToStatusId)
           : undefined,
-        source: 'twitter',
+        source: "twitter",
         channelType: ChannelType.GROUP,
         tweet,
       },
@@ -115,7 +125,7 @@ export class TwitterTimelineClient {
   }
 
   async handleTimeline() {
-    console.log('Start Hanldeling Twitter Timeline');
+    console.log("Start Hanldeling Twitter Timeline");
 
     const tweets = await this.getTimeline(20);
     const maxActionsPerCycle = 20;
@@ -140,7 +150,8 @@ export class TwitterTimelineClient {
           composePromptFromState({
             state,
             template:
-              this.runtime.character.templates?.twitterActionTemplate || twitterActionTemplate,
+              this.runtime.character.templates?.twitterActionTemplate ||
+              twitterActionTemplate,
           }) +
           `
 Tweet:
@@ -150,9 +161,12 @@ ${tweet.text}
 
 Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appropriate. Each action must be on its own line. Your response must only include the chosen actions.`;
 
-        const actionResponse = await this.runtime.useModel(ModelType.TEXT_SMALL, {
-          prompt: actionRespondPrompt,
-        });
+        const actionResponse = await this.runtime.useModel(
+          ModelType.TEXT_SMALL,
+          {
+            prompt: actionRespondPrompt,
+          }
+        );
 
         if (!actionResponse) {
           logger.log(`No valid actions generated for tweet ${tweet.id}`);
@@ -228,7 +242,7 @@ Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appro
 
         await Promise.all([
           this.runtime.addEmbeddingToMemory(message),
-          this.runtime.createMemory(message, 'messages'),
+          this.runtime.createMemory(message, "messages"),
         ]);
 
         // Execute actions
@@ -256,14 +270,19 @@ Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appro
     return results;
   }
 
-  private async ensureTweetWorldContext(tweet: Tweet, roomId: UUID, worldId: UUID, entityId: UUID) {
+  private async ensureTweetWorldContext(
+    tweet: Tweet,
+    roomId: UUID,
+    worldId: UUID,
+    entityId: UUID
+  ) {
     await this.runtime.ensureConnection({
       entityId,
       roomId,
       userName: tweet.username,
       name: tweet.name,
       worldName: `${tweet.name}'s Twitter`,
-      source: 'twitter',
+      source: "twitter",
       type: ChannelType.GROUP,
       channelId: tweet.conversationId,
       serverId: tweet.userId,
@@ -306,7 +325,9 @@ Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appro
       const quotePrompt =
         composePromptFromState({
           state,
-          template: this.runtime.character.templates?.quoteTweetTemplate || quoteTweetTemplate,
+          template:
+            this.runtime.character.templates?.quoteTweetTemplate ||
+            quoteTweetTemplate,
         }) +
         `
 You are responding to this tweet:
@@ -319,15 +340,19 @@ ${tweet.text}`;
 
       if (responseObject.post) {
         const result = await this.client.requestQueue.add(
-          async () => await this.twitterClient.sendQuoteTweet(responseObject.post, tweet.id)
+          async () =>
+            await this.twitterClient.sendQuoteTweet(
+              responseObject.post,
+              tweet.id
+            )
         );
 
         const body = await result.json();
 
         if (body?.data?.create_tweet?.tweet_results?.result) {
-          logger.log('Successfully posted quote tweet');
+          logger.log("Successfully posted quote tweet");
         } else {
-          logger.error('Quote tweet creation failed:', body);
+          logger.error("Quote tweet creation failed:", body);
         }
 
         // Create memory for our response
@@ -345,10 +370,10 @@ ${tweet.text}`;
         };
 
         // Save the response to memory
-        await this.runtime.createMemory(responseMemory, 'messages');
+        await this.runtime.createMemory(responseMemory, "messages");
       }
     } catch (error) {
-      logger.error('Error in quote tweet generation:', error);
+      logger.error("Error in quote tweet generation:", error);
     }
   }
 
@@ -361,7 +386,9 @@ ${tweet.text}`;
       const replyPrompt =
         composePromptFromState({
           state,
-          template: this.runtime.character.templates?.replyTweetTemplate || replyTweetTemplate,
+          template:
+            this.runtime.character.templates?.replyTweetTemplate ||
+            replyTweetTemplate,
         }) +
         `
 You are responding to this tweet:
@@ -373,10 +400,15 @@ ${tweet.text}`;
       const responseObject = parseKeyValueXml(replyResponse);
 
       if (responseObject.post) {
-        const tweetResult = await sendTweet(this.client, responseObject.post, [], tweet.id);
+        const tweetResult = await sendTweet(
+          this.client,
+          responseObject.post,
+          [],
+          tweet.id
+        );
 
         if (!tweetResult) {
-          throw new Error('Failed to get tweet result from response');
+          throw new Error("Failed to get tweet result from response");
         }
 
         // Create memory for our response
@@ -394,10 +426,10 @@ ${tweet.text}`;
         };
 
         // Save the response to memory
-        await this.runtime.createMemory(responseMemory, 'messages');
+        await this.runtime.createMemory(responseMemory, "messages");
       }
     } catch (error) {
-      logger.error('Error in quote tweet generation:', error);
+      logger.error("Error in quote tweet generation:", error);
     }
   }
 }

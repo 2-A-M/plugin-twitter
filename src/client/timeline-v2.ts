@@ -1,14 +1,14 @@
-import type { LegacyUserRaw } from './profile';
-import { parseMediaGroups, reconstructTweetHtml } from './timeline-tweet-util';
+import type { LegacyUserRaw } from "./profile";
+import { parseMediaGroups, reconstructTweetHtml } from "./timeline-tweet-util";
 import type {
   LegacyTweetRaw,
   ParseTweetResult,
   QueryTweetsResponse,
   SearchResultRaw,
   TimelineResultRaw,
-} from './timeline-v1';
-import type { Tweet } from './tweets';
-import { isFieldDefined } from './type-util';
+} from "./timeline-v1";
+import type { Tweet } from "./tweets";
+import { isFieldDefined } from "./type-util";
 
 /**
  * Interface representing raw data for a user result in a timeline.
@@ -188,18 +188,21 @@ export interface ThreadedConversation {
  * @param {LegacyTweetRaw} [tweet] - The legacy tweet object.
  * @returns {ParseTweetResult} The result of parsing the legacy tweet.
  */
-export function parseLegacyTweet(user?: LegacyUserRaw, tweet?: LegacyTweetRaw): ParseTweetResult {
+export function parseLegacyTweet(
+  user?: LegacyUserRaw,
+  tweet?: LegacyTweetRaw
+): ParseTweetResult {
   if (tweet == null) {
     return {
       success: false,
-      err: new Error('Tweet was not found in the timeline object.'),
+      err: new Error("Tweet was not found in the timeline object."),
     };
   }
 
   if (user == null) {
     return {
       success: false,
-      err: new Error('User was not found in the timeline object.'),
+      err: new Error("User was not found in the timeline object."),
     };
   }
 
@@ -207,7 +210,7 @@ export function parseLegacyTweet(user?: LegacyUserRaw, tweet?: LegacyTweetRaw): 
     if (!tweet.conversation_id_str) {
       return {
         success: false,
-        err: new Error('Tweet ID was not found in object.'),
+        err: new Error("Tweet ID was not found in object."),
       };
     }
 
@@ -217,7 +220,9 @@ export function parseLegacyTweet(user?: LegacyUserRaw, tweet?: LegacyTweetRaw): 
   const hashtags = tweet.entities?.hashtags ?? [];
   const mentions = tweet.entities?.user_mentions ?? [];
   const media = tweet.extended_entities?.media ?? [];
-  const pinnedTweets = new Set<string | undefined>(user.pinned_tweet_ids_str ?? []);
+  const pinnedTweets = new Set<string | undefined>(
+    user.pinned_tweet_ids_str ?? []
+  );
   const urls = tweet.entities?.urls ?? [];
   const { photos, videos, sensitiveContent } = parseMediaGroups(media);
 
@@ -225,9 +230,11 @@ export function parseLegacyTweet(user?: LegacyUserRaw, tweet?: LegacyTweetRaw): 
     bookmarkCount: tweet.bookmark_count,
     conversationId: tweet.conversation_id_str,
     id: tweet.id_str,
-    hashtags: hashtags.filter(isFieldDefined('text')).map((hashtag) => hashtag.text),
+    hashtags: hashtags
+      .filter(isFieldDefined("text"))
+      .map((hashtag) => hashtag.text),
     likes: tweet.favorite_count,
-    mentions: mentions.filter(isFieldDefined('id_str')).map((mention) => ({
+    mentions: mentions.filter(isFieldDefined("id_str")).map((mention) => ({
       id: mention.id_str,
       username: mention.screen_name,
       name: mention.name,
@@ -239,7 +246,9 @@ export function parseLegacyTweet(user?: LegacyUserRaw, tweet?: LegacyTweetRaw): 
     retweets: tweet.retweet_count,
     text: tweet.full_text,
     thread: [],
-    urls: urls.filter(isFieldDefined('expanded_url')).map((url) => url.expanded_url),
+    urls: urls
+      .filter(isFieldDefined("expanded_url"))
+      .map((url) => url.expanded_url),
     userId: tweet.user_id_str,
     username: user.screen_name,
     videos,
@@ -290,7 +299,7 @@ export function parseLegacyTweet(user?: LegacyUserRaw, tweet?: LegacyTweetRaw): 
     }
   }
 
-  const views = Number.parseInt(tweet.ext_views?.count ?? '');
+  const views = Number.parseInt(tweet.ext_views?.count ?? "");
   if (!Number.isNaN(views)) {
     tw.views = views;
   }
@@ -317,13 +326,17 @@ export function parseLegacyTweet(user?: LegacyUserRaw, tweet?: LegacyTweetRaw): 
  * @returns {ParseTweetResult} The parsed tweet result object.
  */
 function parseResult(result?: TimelineResultRaw): ParseTweetResult {
-  const noteTweetResultText = result?.note_tweet?.note_tweet_results?.result?.text;
+  const noteTweetResultText =
+    result?.note_tweet?.note_tweet_results?.result?.text;
 
   if (result?.legacy && noteTweetResultText) {
     result.legacy.full_text = noteTweetResultText;
   }
 
-  const tweetResult = parseLegacyTweet(result?.core?.user_results?.result?.legacy, result?.legacy);
+  const tweetResult = parseLegacyTweet(
+    result?.core?.user_results?.result?.legacy,
+    result?.legacy
+  );
   if (!tweetResult.success) {
     return tweetResult;
   }
@@ -350,18 +363,21 @@ function parseResult(result?: TimelineResultRaw): ParseTweetResult {
   return tweetResult;
 }
 
-const expectedEntryTypes = ['tweet', 'profile-conversation'];
+const expectedEntryTypes = ["tweet", "profile-conversation"];
 
 /**
  * Parses the timeline tweets from a TimelineV2 object and returns the QueryTweetsResponse.
  * @param {TimelineV2} timeline The timeline object containing the tweet data.
  * @returns {QueryTweetsResponse} The parsed tweets along with the next and previous cursors.
  */
-export function parseTimelineTweetsV2(timeline: TimelineV2): QueryTweetsResponse {
+export function parseTimelineTweetsV2(
+  timeline: TimelineV2
+): QueryTweetsResponse {
   let bottomCursor: string | undefined;
   let topCursor: string | undefined;
   const tweets: Tweet[] = [];
-  const instructions = timeline.data?.user?.result?.timeline_v2?.timeline?.instructions ?? [];
+  const instructions =
+    timeline.data?.user?.result?.timeline_v2?.timeline?.instructions ?? [];
   for (const instruction of instructions) {
     const entries = instruction.entries ?? [];
 
@@ -370,17 +386,19 @@ export function parseTimelineTweetsV2(timeline: TimelineV2): QueryTweetsResponse
       if (!entryContent) continue;
 
       // Handle pagination
-      if (entryContent.cursorType === 'Bottom') {
+      if (entryContent.cursorType === "Bottom") {
         bottomCursor = entryContent.value;
         continue;
       }
-      if (entryContent.cursorType === 'Top') {
+      if (entryContent.cursorType === "Top") {
         topCursor = entryContent.value;
         continue;
       }
 
       const idStr = entry.entryId;
-      if (!expectedEntryTypes.some((entryType) => idStr.startsWith(entryType))) {
+      if (
+        !expectedEntryTypes.some((entryType) => idStr.startsWith(entryType))
+      ) {
         continue;
       }
 
@@ -415,20 +433,22 @@ export function parseTimelineEntryItemContentRaw(
 ) {
   let result = content.tweet_results?.result ?? content.tweetResult?.result;
   if (
-    result?.__typename === 'Tweet' ||
-    (result?.__typename === 'TweetWithVisibilityResults' && result?.tweet)
+    result?.__typename === "Tweet" ||
+    (result?.__typename === "TweetWithVisibilityResults" && result?.tweet)
   ) {
-    if (result?.__typename === 'TweetWithVisibilityResults') result = result.tweet;
+    if (result?.__typename === "TweetWithVisibilityResults")
+      result = result.tweet;
 
     if (result?.legacy) {
       result.legacy.id_str =
-        result.rest_id ?? entryId.replace('conversation-', '').replace('tweet-', '');
+        result.rest_id ??
+        entryId.replace("conversation-", "").replace("tweet-", "");
     }
 
     const tweetResult = parseResult(result);
     if (tweetResult.success) {
       if (isConversation) {
-        if (content?.tweetDisplayType === 'SelfThread') {
+        if (content?.tweetDisplayType === "SelfThread") {
           tweetResult.tweet.isSelfThread = true;
         }
       }
@@ -454,7 +474,11 @@ export function parseAndPush(
   entryId: string,
   isConversation = false
 ) {
-  const tweet = parseTimelineEntryItemContentRaw(content, entryId, isConversation);
+  const tweet = parseTimelineEntryItemContentRaw(
+    content,
+    entryId,
+    isConversation
+  );
 
   if (tweet) {
     tweets.push(tweet);
@@ -466,10 +490,13 @@ export function parseAndPush(
  * @param conversation The threaded conversation object to parse
  * @returns An array of Tweet objects parsed from the conversation
  */
-export function parseThreadedConversation(conversation: ThreadedConversation): Tweet[] {
+export function parseThreadedConversation(
+  conversation: ThreadedConversation
+): Tweet[] {
   const tweets: Tweet[] = [];
   const instructions =
-    conversation.data?.threaded_conversation_with_injections_v2?.instructions ?? [];
+    conversation.data?.threaded_conversation_with_injections_v2?.instructions ??
+    [];
 
   for (const instruction of instructions) {
     const entries = instruction.entries ?? [];
@@ -539,23 +566,29 @@ export interface TimelineArticle {
  * @param {ThreadedConversation} conversation - The ThreadedConversation object to parse.
  * @returns {TimelineArticle[]} The extracted TimelineArticle objects.
  */
-export function parseArticle(conversation: ThreadedConversation): TimelineArticle[] {
+export function parseArticle(
+  conversation: ThreadedConversation
+): TimelineArticle[] {
   const articles: TimelineArticle[] = [];
-  for (const instruction of conversation.data?.threaded_conversation_with_injections_v2
-    ?.instructions ?? []) {
+  for (const instruction of conversation.data
+    ?.threaded_conversation_with_injections_v2?.instructions ?? []) {
     for (const entry of instruction.entries ?? []) {
       const id = entry.content?.itemContent?.tweet_results?.result?.rest_id;
       const article =
-        entry.content?.itemContent?.tweet_results?.result?.article?.article_results?.result;
+        entry.content?.itemContent?.tweet_results?.result?.article
+          ?.article_results?.result;
       if (!id || !article) continue;
-      const text = article.content_state?.blocks?.map((block) => block.text).join('\n\n') ?? '';
+      const text =
+        article.content_state?.blocks
+          ?.map((block) => block.text)
+          .join("\n\n") ?? "";
       articles.push({
         id,
-        articleId: article.rest_id || '',
+        articleId: article.rest_id || "",
         coverMediaUrl: article.cover_media?.media_info?.original_img_url,
-        previewText: article.preview_text || '',
+        previewText: article.preview_text || "",
         text,
-        title: article.title || '',
+        title: article.title || "",
       });
     }
   }

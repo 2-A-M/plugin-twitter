@@ -1,5 +1,5 @@
-import { requestApi } from './api';
-import type { TwitterAuth } from './auth';
+import { requestApi } from "./api";
+import type { TwitterAuth } from "./auth";
 
 /**
  * Interface representing a Grok conversation object.
@@ -60,7 +60,7 @@ export interface GrokRequest {
  * @property {string} content - The content of the message.
  */
 export interface GrokMessage {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
 }
 
@@ -147,11 +147,13 @@ export interface GrokChatResponse {
  * @param {TwitterAuth} auth - Twitter authorization credentials required to make the API request.
  * @returns {Promise<string>} A promise that resolves with the conversation ID of the newly created Grok conversation.
  */
-export async function createGrokConversation(auth: TwitterAuth): Promise<string> {
+export async function createGrokConversation(
+  auth: TwitterAuth
+): Promise<string> {
   const res = await requestApi<GrokConversation>(
-    'https://x.com/i/api/graphql/6cmfJY3d7EPWuCSXWrkOFg/CreateGrokConversation',
+    "https://x.com/i/api/graphql/6cmfJY3d7EPWuCSXWrkOFg/CreateGrokConversation",
     auth,
-    'POST'
+    "POST"
   );
 
   if (!res.success) {
@@ -178,23 +180,23 @@ export async function grokChat(
   // Convert OpenAI-style messages to Grok's internal format
   const responses: GrokResponseMessage[] = messages.map((msg: GrokMessage) => ({
     message: msg.content,
-    sender: msg.role === 'user' ? 1 : 2,
-    ...(msg.role === 'user' && {
-      promptSource: '',
+    sender: msg.role === "user" ? 1 : 2,
+    ...(msg.role === "user" && {
+      promptSource: "",
       fileAttachments: [],
     }),
   }));
 
   const payload: GrokRequest = {
     responses,
-    systemPromptName: '',
-    grokModelOptionId: 'grok-2a',
+    systemPromptName: "",
+    grokModelOptionId: "grok-2a",
     conversationId,
     returnSearchResults: options.returnSearchResults ?? true,
     returnCitations: options.returnCitations ?? true,
     promptMetadata: {
-      promptSource: 'NATURAL',
-      action: 'INPUT',
+      promptSource: "NATURAL",
+      action: "INPUT",
     },
     imageGenerationCount: 4,
     requestFeatures: {
@@ -204,9 +206,9 @@ export async function grokChat(
   };
 
   const res = await requestApi<{ text: string }>(
-    'https://api.x.com/2/grok/add_response.json',
+    "https://api.x.com/2/grok/add_response.json",
     auth,
-    'POST',
+    "POST",
     undefined,
     payload
   );
@@ -220,7 +222,7 @@ export async function grokChat(
   if (res.value.text) {
     // For streaming responses, split text into chunks and parse each JSON chunk
     chunks = res.value.text
-      .split('\n')
+      .split("\n")
       .filter(Boolean)
       .map((chunk: any) => JSON.parse(chunk));
   } else {
@@ -230,11 +232,14 @@ export async function grokChat(
 
   // Check if we hit rate limits by examining first chunk
   const firstChunk = chunks[0];
-  if (firstChunk.result?.responseType === 'limiter') {
+  if (firstChunk.result?.responseType === "limiter") {
     return {
       conversationId,
       message: firstChunk.result.message,
-      messages: [...messages, { role: 'assistant', content: firstChunk.result.message }],
+      messages: [
+        ...messages,
+        { role: "assistant", content: firstChunk.result.message },
+      ],
       rateLimit: {
         isRateLimited: true,
         message: firstChunk.result.message,
@@ -254,14 +259,15 @@ export async function grokChat(
   const fullMessage = chunks
     .filter((chunk: any) => chunk.result?.message)
     .map((chunk: any) => chunk.result.message)
-    .join('');
+    .join("");
 
   // Return complete response with conversation history and metadata
   return {
     conversationId,
     message: fullMessage,
-    messages: [...messages, { role: 'assistant', content: fullMessage }],
-    webResults: chunks.find((chunk: any) => chunk.result?.webResults)?.result.webResults,
+    messages: [...messages, { role: "assistant", content: fullMessage }],
+    webResults: chunks.find((chunk: any) => chunk.result?.webResults)?.result
+      .webResults,
     metadata: chunks[0],
   };
 }

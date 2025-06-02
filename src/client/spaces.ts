@@ -1,5 +1,5 @@
-import type { TwitterAuth } from './auth';
-import { updateCookieJar } from './requests';
+import type { TwitterAuth } from "./auth";
+import { updateCookieJar } from "./requests";
 import type {
   AudioSpace,
   AudioSpaceByIdResponse,
@@ -11,7 +11,7 @@ import type {
   LiveVideoStreamStatus,
   LoginTwitterTokenResponse,
   Subtopic,
-} from './types/spaces';
+} from "./types/spaces";
 
 /**
  * Generates a random string that mimics a UUID v4.
@@ -22,9 +22,9 @@ import type {
  * @returns {string} A randomly generated UUID.
  */
 function generateRandomId(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    const v = c === "x" ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
@@ -39,8 +39,8 @@ export async function fetchAudioSpaceById(
   variables: AudioSpaceByIdVariables,
   auth: TwitterAuth
 ): Promise<AudioSpace> {
-  const queryId = 'Tvv_cNXCbtTcgdy1vWYPMw'; // Specific to the AudioSpaceById GraphQL query
-  const operationName = 'AudioSpaceById';
+  const queryId = "Tvv_cNXCbtTcgdy1vWYPMw"; // Specific to the AudioSpaceById GraphQL query
+  const operationName = "AudioSpaceById";
 
   // URL encode the variables and features
   const variablesEncoded = encodeURIComponent(JSON.stringify(variables));
@@ -67,7 +67,8 @@ export async function fetchAudioSpaceById(
     creator_subscriptions_quote_tweet_preview_enabled: false,
     freedom_of_speech_not_reach_fetch_enabled: true,
     standardized_nudges_misinfo: true,
-    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled: true,
+    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled:
+      true,
     rweb_video_timestamps_enabled: true,
     longform_notetweets_rich_text_read_enabled: true,
     longform_notetweets_inline_media_enabled: true,
@@ -78,28 +79,28 @@ export async function fetchAudioSpaceById(
 
   const url = `https://x.com/i/api/graphql/${queryId}/${operationName}?variables=${variablesEncoded}&features=${featuresEncoded}`;
 
-  const onboardingTaskUrl = 'https://api.twitter.com/1.1/onboarding/task.json';
+  const onboardingTaskUrl = "https://api.twitter.com/1.1/onboarding/task.json";
 
   // Retrieve necessary cookies and tokens
   const cookies = await auth.cookieJar().getCookies(onboardingTaskUrl);
-  const xCsrfToken = cookies.find((cookie) => cookie.key === 'ct0');
+  const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
   const headers = new Headers({
-    Accept: '*/*',
+    Accept: "*/*",
     Authorization: `Bearer ${(auth as any).bearerToken}`,
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     Cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
-    'User-Agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    'x-guest-token': (auth as any).guestToken,
-    'x-twitter-auth-type': 'OAuth2Client',
-    'x-twitter-active-user': 'yes',
-    'x-csrf-token': xCsrfToken?.value as string,
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "x-guest-token": (auth as any).guestToken,
+    "x-twitter-auth-type": "OAuth2Client",
+    "x-twitter-active-user": "yes",
+    "x-csrf-token": xCsrfToken?.value as string,
   });
 
   const response = await auth.fetch(url, {
     headers,
-    method: 'GET',
+    method: "GET",
   });
 
   // Update the cookie jar with any new cookies from the response
@@ -124,9 +125,11 @@ export async function fetchAudioSpaceById(
  * @param auth The authentication object.
  * @returns An array of space topics.
  */
-export async function fetchBrowseSpaceTopics(auth: TwitterAuth): Promise<Subtopic[]> {
-  const queryId = 'TYpVV9QioZfViHqEqRZxJA';
-  const operationName = 'BrowseSpaceTopics';
+export async function fetchBrowseSpaceTopics(
+  auth: TwitterAuth
+): Promise<Subtopic[]> {
+  const queryId = "TYpVV9QioZfViHqEqRZxJA";
+  const operationName = "BrowseSpaceTopics";
 
   const variables = {};
   const features = {};
@@ -136,28 +139,28 @@ export async function fetchBrowseSpaceTopics(auth: TwitterAuth): Promise<Subtopi
 
   const url = `https://x.com/i/api/graphql/${queryId}/${operationName}?variables=${variablesEncoded}&features=${featuresEncoded}`;
 
-  const onboardingTaskUrl = 'https://api.twitter.com/1.1/onboarding/task.json';
+  const onboardingTaskUrl = "https://api.twitter.com/1.1/onboarding/task.json";
 
   // Retrieve necessary cookies and tokens
   const cookies = await auth.cookieJar().getCookies(onboardingTaskUrl);
-  const xCsrfToken = cookies.find((cookie) => cookie.key === 'ct0');
+  const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
   const headers = new Headers({
-    Accept: '*/*',
+    Accept: "*/*",
     Authorization: `Bearer ${(auth as any).bearerToken}`,
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     Cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
-    'User-Agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    'x-guest-token': (auth as any).guestToken,
-    'x-twitter-auth-type': 'OAuth2Client',
-    'x-twitter-active-user': 'yes',
-    'x-csrf-token': xCsrfToken?.value as string,
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "x-guest-token": (auth as any).guestToken,
+    "x-twitter-auth-type": "OAuth2Client",
+    "x-twitter-active-user": "yes",
+    "x-csrf-token": xCsrfToken?.value as string,
   });
 
   const response = await auth.fetch(url, {
     headers,
-    method: 'GET',
+    method: "GET",
   });
 
   // Update the cookie jar with any new cookies from the response
@@ -175,7 +178,9 @@ export async function fetchBrowseSpaceTopics(auth: TwitterAuth): Promise<Subtopi
   }
 
   // Flatten the subtopics from all categories into a single array
-  return data.data.browse_space_topics.categories.flatMap((category) => category.subtopics);
+  return data.data.browse_space_topics.categories.flatMap(
+    (category) => category.subtopics
+  );
 }
 
 /**
@@ -183,9 +188,11 @@ export async function fetchBrowseSpaceTopics(auth: TwitterAuth): Promise<Subtopi
  * @param auth The authentication object.
  * @returns An array of communities.
  */
-export async function fetchCommunitySelectQuery(auth: TwitterAuth): Promise<Community[]> {
-  const queryId = 'Lue1DfmoW2cc0225t_8z1w'; // Specific to the CommunitySelectQuery GraphQL query
-  const operationName = 'CommunitySelectQuery';
+export async function fetchCommunitySelectQuery(
+  auth: TwitterAuth
+): Promise<Community[]> {
+  const queryId = "Lue1DfmoW2cc0225t_8z1w"; // Specific to the CommunitySelectQuery GraphQL query
+  const operationName = "CommunitySelectQuery";
 
   const variables = {};
   const features = {};
@@ -195,28 +202,28 @@ export async function fetchCommunitySelectQuery(auth: TwitterAuth): Promise<Comm
 
   const url = `https://x.com/i/api/graphql/${queryId}/${operationName}?variables=${variablesEncoded}&features=${featuresEncoded}`;
 
-  const onboardingTaskUrl = 'https://api.twitter.com/1.1/onboarding/task.json';
+  const onboardingTaskUrl = "https://api.twitter.com/1.1/onboarding/task.json";
 
   // Retrieve necessary cookies and tokens
   const cookies = await auth.cookieJar().getCookies(onboardingTaskUrl);
-  const xCsrfToken = cookies.find((cookie) => cookie.key === 'ct0');
+  const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
   const headers = new Headers({
-    Accept: '*/*',
+    Accept: "*/*",
     Authorization: `Bearer ${(auth as any).bearerToken}`,
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     Cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
-    'User-Agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    'x-guest-token': (auth as any).guestToken,
-    'x-twitter-auth-type': 'OAuth2Client',
-    'x-twitter-active-user': 'yes',
-    'x-csrf-token': xCsrfToken?.value as string,
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "x-guest-token": (auth as any).guestToken,
+    "x-twitter-auth-type": "OAuth2Client",
+    "x-twitter-active-user": "yes",
+    "x-csrf-token": xCsrfToken?.value as string,
   });
 
   const response = await auth.fetch(url, {
     headers,
-    method: 'GET',
+    method: "GET",
   });
 
   // Update the cookie jar with any new cookies from the response
@@ -224,7 +231,9 @@ export async function fetchCommunitySelectQuery(auth: TwitterAuth): Promise<Comm
 
   // Check for errors in the response
   if (!response.ok) {
-    throw new Error(`Failed to fetch Community Select Query: ${await response.text()}`);
+    throw new Error(
+      `Failed to fetch Community Select Query: ${await response.text()}`
+    );
   }
 
   const data: CommunitySelectQueryResponse = await response.json();
@@ -249,35 +258,35 @@ export async function fetchLiveVideoStreamStatus(
 ): Promise<LiveVideoStreamStatus> {
   const baseUrl = `https://x.com/i/api/1.1/live_video_stream/status/${mediaKey}`;
   const queryParams = new URLSearchParams({
-    client: 'web',
-    use_syndication_guest_id: 'false',
-    cookie_set_host: 'x.com',
+    client: "web",
+    use_syndication_guest_id: "false",
+    cookie_set_host: "x.com",
   });
 
   const url = `${baseUrl}?${queryParams.toString()}`;
 
-  const onboardingTaskUrl = 'https://api.twitter.com/1.1/onboarding/task.json';
+  const onboardingTaskUrl = "https://api.twitter.com/1.1/onboarding/task.json";
 
   // Retrieve necessary cookies and tokens
   const cookies = await auth.cookieJar().getCookies(onboardingTaskUrl);
-  const xCsrfToken = cookies.find((cookie) => cookie.key === 'ct0');
+  const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
   const headers = new Headers({
-    Accept: '*/*',
+    Accept: "*/*",
     Authorization: `Bearer ${(auth as any).bearerToken}`,
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     Cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
-    'User-Agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    'x-guest-token': (auth as any).guestToken,
-    'x-twitter-auth-type': 'OAuth2Client',
-    'x-twitter-active-user': 'yes',
-    'x-csrf-token': xCsrfToken?.value as string,
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "x-guest-token": (auth as any).guestToken,
+    "x-twitter-auth-type": "OAuth2Client",
+    "x-twitter-active-user": "yes",
+    "x-csrf-token": xCsrfToken?.value as string,
   });
 
   try {
     const response = await auth.fetch(url, {
-      method: 'GET',
+      method: "GET",
       headers: headers,
     });
 
@@ -286,12 +295,17 @@ export async function fetchLiveVideoStreamStatus(
 
     // Check for errors in the response
     if (!response.ok) {
-      throw new Error(`Failed to fetch live video stream status: ${await response.text()}`);
+      throw new Error(
+        `Failed to fetch live video stream status: ${await response.text()}`
+      );
     }
 
     return await response.json();
   } catch (error) {
-    console.error(`Error fetching live video stream status for mediaKey ${mediaKey}:`, error);
+    console.error(
+      `Error fetching live video stream status for mediaKey ${mediaKey}:`,
+      error
+    );
     throw error;
   }
 }
@@ -301,9 +315,11 @@ export async function fetchLiveVideoStreamStatus(
  * @param auth The authentication object.
  * @returns The Periscope authentication token.
  */
-export async function fetchAuthenticatePeriscope(auth: TwitterAuth): Promise<string> {
-  const queryId = 'r7VUmxbfqNkx7uwjgONSNw';
-  const operationName = 'AuthenticatePeriscope';
+export async function fetchAuthenticatePeriscope(
+  auth: TwitterAuth
+): Promise<string> {
+  const queryId = "r7VUmxbfqNkx7uwjgONSNw";
+  const operationName = "AuthenticatePeriscope";
 
   const variables = {};
   const features = {};
@@ -313,39 +329,40 @@ export async function fetchAuthenticatePeriscope(auth: TwitterAuth): Promise<str
 
   const url = `https://x.com/i/api/graphql/${queryId}/${operationName}?variables=${variablesEncoded}&features=${featuresEncoded}`;
 
-  const onboardingTaskUrl = 'https://api.twitter.com/1.1/onboarding/task.json';
+  const onboardingTaskUrl = "https://api.twitter.com/1.1/onboarding/task.json";
 
   const cookies = await auth.cookieJar().getCookies(onboardingTaskUrl);
-  const xCsrfToken = cookies.find((cookie) => cookie.key === 'ct0');
+  const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
   if (!xCsrfToken) {
-    throw new Error('CSRF Token (ct0) not found in cookies.');
+    throw new Error("CSRF Token (ct0) not found in cookies.");
   }
 
   const clientTransactionId = generateRandomId();
 
   const headers = new Headers({
-    Accept: '*/*',
+    Accept: "*/*",
     Authorization: `Bearer ${(auth as any).bearerToken}`,
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     Cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
-    'User-Agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-    'x-guest-token': (auth as any).guestToken,
-    'x-twitter-auth-type': 'OAuth2Session',
-    'x-twitter-active-user': 'yes',
-    'x-csrf-token': xCsrfToken.value,
-    'x-client-transaction-id': clientTransactionId,
-    'sec-ch-ua-platform': '"Windows"',
-    'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-    'x-twitter-client-language': 'en',
-    'sec-ch-ua-mobile': '?0',
-    Referer: 'https://x.com/i/spaces/start',
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "x-guest-token": (auth as any).guestToken,
+    "x-twitter-auth-type": "OAuth2Session",
+    "x-twitter-active-user": "yes",
+    "x-csrf-token": xCsrfToken.value,
+    "x-client-transaction-id": clientTransactionId,
+    "sec-ch-ua-platform": '"Windows"',
+    "sec-ch-ua":
+      '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+    "x-twitter-client-language": "en",
+    "sec-ch-ua-mobile": "?0",
+    Referer: "https://x.com/i/spaces/start",
   });
 
   try {
     const response = await auth.fetch(url, {
-      method: 'GET',
+      method: "GET",
       headers: headers,
     });
 
@@ -363,12 +380,12 @@ export async function fetchAuthenticatePeriscope(auth: TwitterAuth): Promise<str
     }
 
     if (!data.data.authenticate_periscope) {
-      throw new Error('Periscope authentication failed, no data returned.');
+      throw new Error("Periscope authentication failed, no data returned.");
     }
 
     return data.data.authenticate_periscope;
   } catch (error) {
-    console.error('Error during Periscope authentication:', error);
+    console.error("Error during Periscope authentication:", error);
     throw error;
   }
 }
@@ -383,32 +400,33 @@ export async function fetchLoginTwitterToken(
   jwt: unknown,
   auth: TwitterAuth
 ): Promise<LoginTwitterTokenResponse> {
-  const url = 'https://proxsee.pscp.tv/api/v2/loginTwitterToken';
+  const url = "https://proxsee.pscp.tv/api/v2/loginTwitterToken";
 
   const idempotenceKey = generateRandomId();
 
   const payload = {
     jwt: jwt,
-    vendor_id: 'm5-proxsee-login-a2011357b73e',
+    vendor_id: "m5-proxsee-login-a2011357b73e",
     create_user: true,
   };
 
   const headers = new Headers({
-    'Content-Type': 'application/json',
-    'User-Agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-    Referer: 'https://x.com/',
-    'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-    'sec-ch-ua-platform': '"Windows"',
-    'sec-ch-ua-mobile': '?0',
-    'X-Periscope-User-Agent': 'Twitter/m5',
-    'X-Idempotence': idempotenceKey,
-    'X-Attempt': '1',
+    "Content-Type": "application/json",
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    Referer: "https://x.com/",
+    "sec-ch-ua":
+      '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+    "sec-ch-ua-platform": '"Windows"',
+    "sec-ch-ua-mobile": "?0",
+    "X-Periscope-User-Agent": "Twitter/m5",
+    "X-Idempotence": idempotenceKey,
+    "X-Attempt": "1",
   });
 
   try {
     const response = await auth.fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers: headers,
       body: JSON.stringify(payload),
     });
@@ -425,12 +443,12 @@ export async function fetchLoginTwitterToken(
     const data: LoginTwitterTokenResponse = await response.json();
 
     if (!data.cookie || !data.user) {
-      throw new Error('Twitter authentication failed, missing data.');
+      throw new Error("Twitter authentication failed, missing data.");
     }
 
     return data;
   } catch (error) {
-    console.error('Error logging into Twitter via Proxsee:', error);
+    console.error("Error logging into Twitter via Proxsee:", error);
     throw error;
   }
 }

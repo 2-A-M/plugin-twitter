@@ -1,7 +1,7 @@
-import { type LegacyUserRaw, type Profile, parseProfile } from './profile';
-import { parseMediaGroups, reconstructTweetHtml } from './timeline-tweet-util';
-import type { PlaceRaw, Tweet } from './tweets';
-import { isFieldDefined } from './type-util';
+import { type LegacyUserRaw, type Profile, parseProfile } from "./profile";
+import { parseMediaGroups, reconstructTweetHtml } from "./timeline-tweet-util";
+import type { PlaceRaw, Tweet } from "./tweets";
+import { isFieldDefined } from "./type-util";
 
 /**
  * Interface representing a hashtag.
@@ -510,7 +510,9 @@ export interface TimelineV1 {
  * @property {Tweet} tweet - The parsed tweet if successful.
  * @property {Error} err - The error object if the parse was unsuccessful.
  */
-export type ParseTweetResult = { success: true; tweet: Tweet } | { success: false; err: Error };
+export type ParseTweetResult =
+  | { success: true; tweet: Tweet }
+  | { success: false; err: Error };
 
 /**
  * Parses a tweet from a timeline object and constructs a Tweet object with relevant information.
@@ -519,7 +521,10 @@ export type ParseTweetResult = { success: true; tweet: Tweet } | { success: fals
  * @param {string} id - The ID of the tweet to parse.
  * @returns {ParseTweetResult} An object indicating the success of parsing and the resulting Tweet object.
  */
-function parseTimelineTweet(timeline: TimelineV1, id: string): ParseTweetResult {
+function parseTimelineTweet(
+  timeline: TimelineV1,
+  id: string
+): ParseTweetResult {
   const tweets = timeline.globalObjects?.tweets ?? {};
   const tweet = tweets[id];
   if (tweet?.user_id_str == null) {
@@ -541,16 +546,20 @@ function parseTimelineTweet(timeline: TimelineV1, id: string): ParseTweetResult 
   const hashtags = tweet.entities?.hashtags ?? [];
   const mentions = tweet.entities?.user_mentions ?? [];
   const media = tweet.extended_entities?.media ?? [];
-  const pinnedTweets = new Set<string | undefined>(user.pinned_tweet_ids_str ?? []);
+  const pinnedTweets = new Set<string | undefined>(
+    user.pinned_tweet_ids_str ?? []
+  );
   const urls = tweet.entities?.urls ?? [];
   const { photos, videos, sensitiveContent } = parseMediaGroups(media);
 
   const tw: Tweet = {
     conversationId: tweet.conversation_id_str,
     id,
-    hashtags: hashtags.filter(isFieldDefined('text')).map((hashtag) => hashtag.text),
+    hashtags: hashtags
+      .filter(isFieldDefined("text"))
+      .map((hashtag) => hashtag.text),
     likes: tweet.favorite_count,
-    mentions: mentions.filter(isFieldDefined('id_str')).map((mention) => ({
+    mentions: mentions.filter(isFieldDefined("id_str")).map((mention) => ({
       id: mention.id_str,
       username: mention.screen_name,
       name: mention.name,
@@ -562,7 +571,9 @@ function parseTimelineTweet(timeline: TimelineV1, id: string): ParseTweetResult 
     retweets: tweet.retweet_count,
     text: tweet.full_text,
     thread: [],
-    urls: urls.filter(isFieldDefined('expanded_url')).map((url) => url.expanded_url),
+    urls: urls
+      .filter(isFieldDefined("expanded_url"))
+      .map((url) => url.expanded_url),
     userId: tweet.user_id_str,
     username: user.screen_name,
     videos,
@@ -581,7 +592,10 @@ function parseTimelineTweet(timeline: TimelineV1, id: string): ParseTweetResult 
     tw.isQuoted = true;
     tw.quotedStatusId = tweet.quoted_status_id_str;
 
-    const quotedStatusResult = parseTimelineTweet(timeline, tweet.quoted_status_id_str);
+    const quotedStatusResult = parseTimelineTweet(
+      timeline,
+      tweet.quoted_status_id_str
+    );
     if (quotedStatusResult.success) {
       tw.quotedStatus = quotedStatusResult.tweet;
     }
@@ -591,7 +605,10 @@ function parseTimelineTweet(timeline: TimelineV1, id: string): ParseTweetResult 
     tw.isReply = true;
     tw.inReplyToStatusId = tweet.in_reply_to_status_id_str;
 
-    const replyStatusResult = parseTimelineTweet(timeline, tweet.in_reply_to_status_id_str);
+    const replyStatusResult = parseTimelineTweet(
+      timeline,
+      tweet.in_reply_to_status_id_str
+    );
     if (replyStatusResult.success) {
       tw.inReplyToStatus = replyStatusResult.tweet;
     }
@@ -601,13 +618,16 @@ function parseTimelineTweet(timeline: TimelineV1, id: string): ParseTweetResult 
     tw.isRetweet = true;
     tw.retweetedStatusId = tweet.retweeted_status_id_str;
 
-    const retweetedStatusResult = parseTimelineTweet(timeline, tweet.retweeted_status_id_str);
+    const retweetedStatusResult = parseTimelineTweet(
+      timeline,
+      tweet.retweeted_status_id_str
+    );
     if (retweetedStatusResult.success) {
       tw.retweetedStatus = retweetedStatusResult.tweet;
     }
   }
 
-  const views = Number.parseInt(tweet.ext_views?.count ?? '');
+  const views = Number.parseInt(tweet.ext_views?.count ?? "");
   if (!Number.isNaN(views)) {
     tw.views = views;
   }
@@ -645,7 +665,9 @@ export interface QueryTweetsResponse {
   previous?: string;
 }
 
-export function parseTimelineTweetsV1(timeline: TimelineV1): QueryTweetsResponse {
+export function parseTimelineTweetsV1(
+  timeline: TimelineV1
+): QueryTweetsResponse {
   let bottomCursor: string | undefined;
   let topCursor: string | undefined;
   let pinnedTweet: Tweet | undefined;
@@ -673,18 +695,18 @@ export function parseTimelineTweetsV1(timeline: TimelineV1): QueryTweetsResponse
       }
 
       const operation = content?.operation;
-      if (operation?.cursor?.cursorType === 'Bottom') {
+      if (operation?.cursor?.cursorType === "Bottom") {
         bottomCursor = operation?.cursor?.value;
-      } else if (operation?.cursor?.cursorType === 'Top') {
+      } else if (operation?.cursor?.cursorType === "Top") {
         topCursor = operation?.cursor?.value;
       }
     }
 
     // Handle replace instruction
     const operation = replaceEntry?.entry?.content?.operation;
-    if (operation?.cursor?.cursorType === 'Bottom') {
+    if (operation?.cursor?.cursorType === "Bottom") {
       bottomCursor = operation.cursor.value;
-    } else if (operation?.cursor?.cursorType === 'Top') {
+    } else if (operation?.cursor?.cursorType === "Top") {
       topCursor = operation.cursor.value;
     }
   }
@@ -735,17 +757,17 @@ export function parseUsers(timeline: TimelineV1): QueryProfilesResponse {
       }
 
       const operation = entry.content?.operation;
-      if (operation?.cursor?.cursorType === 'Bottom') {
+      if (operation?.cursor?.cursorType === "Bottom") {
         bottomCursor = operation?.cursor?.value;
-      } else if (operation?.cursor?.cursorType === 'Top') {
+      } else if (operation?.cursor?.cursorType === "Top") {
         topCursor = operation?.cursor?.value;
       }
     }
 
     const operation = instruction.replaceEntry?.entry?.content?.operation;
-    if (operation?.cursor?.cursorType === 'Bottom') {
+    if (operation?.cursor?.cursorType === "Bottom") {
       bottomCursor = operation.cursor.value;
-    } else if (operation?.cursor?.cursorType === 'Top') {
+    } else if (operation?.cursor?.cursorType === "Top") {
       topCursor = operation.cursor.value;
     }
   }

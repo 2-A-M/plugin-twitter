@@ -1,6 +1,6 @@
-import type { QueryTweetsResponse } from './timeline-v1';
-import { type TimelineEntryRaw, parseAndPush } from './timeline-v2';
-import type { Tweet } from './tweets';
+import type { QueryTweetsResponse } from "./timeline-v1";
+import { type TimelineEntryRaw, parseAndPush } from "./timeline-v2";
+import type { Tweet } from "./tweets";
 
 /**
  * Interface representing a list timeline with optional data.
@@ -37,11 +37,14 @@ export interface ListTimeline {
  * @param {ListTimeline} timeline The ListTimeline object to parse tweets from.
  * @returns {QueryTweetsResponse} An object containing the parsed tweets, next cursor, and previous cursor.
  */
-export function parseListTimelineTweets(timeline: ListTimeline): QueryTweetsResponse {
+export function parseListTimelineTweets(
+  timeline: ListTimeline
+): QueryTweetsResponse {
   let bottomCursor: string | undefined;
   let topCursor: string | undefined;
   const tweets: Tweet[] = [];
-  const instructions = timeline.data?.list?.tweets_timeline?.timeline?.instructions ?? [];
+  const instructions =
+    timeline.data?.list?.tweets_timeline?.timeline?.instructions ?? [];
   for (const instruction of instructions) {
     const entries = instruction.entries ?? [];
 
@@ -49,17 +52,20 @@ export function parseListTimelineTweets(timeline: ListTimeline): QueryTweetsResp
       const entryContent = entry.content;
       if (!entryContent) continue;
 
-      if (entryContent.cursorType === 'Bottom') {
+      if (entryContent.cursorType === "Bottom") {
         bottomCursor = entryContent.value;
         continue;
       }
-      if (entryContent.cursorType === 'Top') {
+      if (entryContent.cursorType === "Top") {
         topCursor = entryContent.value;
         continue;
       }
 
       const idStr = entry.entryId;
-      if (!idStr.startsWith('tweet') && !idStr.startsWith('list-conversation')) {
+      if (
+        !idStr.startsWith("tweet") &&
+        !idStr.startsWith("list-conversation")
+      ) {
         continue;
       }
 
@@ -71,7 +77,7 @@ export function parseListTimelineTweets(timeline: ListTimeline): QueryTweetsResp
             parseAndPush(
               tweets,
               contentItem.item.itemContent,
-              contentItem.entryId.split('tweet-')[1]
+              contentItem.entryId.split("tweet-")[1]
             );
           }
         }

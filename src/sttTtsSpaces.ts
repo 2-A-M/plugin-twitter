@@ -1,7 +1,7 @@
 // src/plugins/SttTtsPlugin.ts
 
-import { spawn } from 'node:child_process';
-import type { Readable } from 'node:stream';
+import { spawn } from "node:child_process";
+import type { Readable } from "node:stream";
 import {
   ChannelType,
   type Content,
@@ -13,9 +13,10 @@ import {
   type Plugin,
   createUniqueUuid,
   logger,
-} from '@elizaos/core';
-import type { ClientBase } from './base';
-import type { AudioDataWithUser, JanusClient, Space } from './client';
+} from "@elizaos/core";
+import type { ClientBase } from "./base";
+import type { AudioDataWithUser, JanusClient, Space } from "./client";
+type Timer = NodeJS.Timeout;
 
 /**
  * Interface for defining configuration options for a plugin.
@@ -46,8 +47,8 @@ const SILENCE_DETECTION_THRESHOLD_MS = 1000; // 1-second silence threshold
  */
 
 export class SttTtsPlugin implements Plugin {
-  name = 'SttTtsPlugin';
-  description = 'Speech-to-text (OpenAI) + conversation + TTS (ElevenLabs)';
+  name = "SttTtsPlugin";
+  description = "Speech-to-text (OpenAI) + conversation + TTS (ElevenLabs)";
   private runtime: IAgentRuntime;
   private spaceId: string;
 
@@ -63,17 +64,18 @@ export class SttTtsPlugin implements Plugin {
   private ttsQueue: string[] = [];
   private isSpeaking = false;
   private isProcessingAudio = false;
-
-  private userSpeakingTimer: NodeJS.Timer | null = null;
+  private userSpeakingTimer: Timer | null = null;
   private volumeBuffers: Map<string, number[]>;
   private ttsAbortController: AbortController | null = null;
 
   onAttach(_space: Space) {
-    logger.log('[SttTtsPlugin] onAttach => space was attached');
+    logger.log("[SttTtsPlugin] onAttach => space was attached");
   }
 
   async init(params): Promise<void> {
-    logger.log('[SttTtsPlugin] init => Space fully ready. Subscribing to events.');
+    logger.log(
+      "[SttTtsPlugin] init => Space fully ready. Subscribing to events."
+    );
 
     this.space = params.space;
     this.janus = (this.space as any)?.janusClient as JanusClient | undefined;
@@ -118,10 +120,13 @@ export class SttTtsPlugin implements Plugin {
 
     if (!this.isSpeaking) {
       this.userSpeakingTimer = setTimeout(() => {
-        logger.log('[SttTtsPlugin] start processing audio for user =>', data.userId);
+        logger.log(
+          "[SttTtsPlugin] start processing audio for user =>",
+          data.userId
+        );
         this.userSpeakingTimer = null;
         this.processAudio(data.userId).catch((err) =>
-          logger.error('[SttTtsPlugin] handleSilence error =>', err)
+          logger.error("[SttTtsPlugin] handleSilence error =>", err)
         );
       }, SILENCE_DETECTION_THRESHOLD_MS);
     } else {
@@ -142,14 +147,15 @@ export class SttTtsPlugin implements Plugin {
       if (volumeBuffer.length > VOLUME_WINDOW_SIZE) {
         volumeBuffer.shift();
       }
-      const avgVolume = volumeBuffer.reduce((sum, v) => sum + v, 0) / VOLUME_WINDOW_SIZE;
+      const avgVolume =
+        volumeBuffer.reduce((sum, v) => sum + v, 0) / VOLUME_WINDOW_SIZE;
 
       if (avgVolume > SPEAKING_THRESHOLD) {
         volumeBuffer.length = 0;
         if (this.ttsAbortController) {
           this.ttsAbortController.abort();
           this.isSpeaking = false;
-          logger.log('[SttTtsPlugin] TTS playback interrupted');
+          logger.log("[SttTtsPlugin] TTS playback interrupted");
         }
       }
     }
@@ -173,12 +179,12 @@ export class SttTtsPlugin implements Plugin {
     const view = new DataView(buffer);
 
     // RIFF chunk descriptor
-    this.writeString(view, 0, 'RIFF');
+    this.writeString(view, 0, "RIFF");
     view.setUint32(4, 36 + dataSize, true); // file size - 8
-    this.writeString(view, 8, 'WAVE');
+    this.writeString(view, 8, "WAVE");
 
     // fmt sub-chunk
-    this.writeString(view, 12, 'fmt ');
+    this.writeString(view, 12, "fmt ");
     view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
     view.setUint16(20, 1, true); // AudioFormat (1 = PCM)
     view.setUint16(22, numChannels, true); // NumChannels
@@ -188,7 +194,7 @@ export class SttTtsPlugin implements Plugin {
     view.setUint16(34, 16, true); // BitsPerSample (16)
 
     // data sub-chunk
-    this.writeString(view, 36, 'data');
+    this.writeString(view, 36, "data");
     view.setUint32(40, dataSize, true);
 
     // Write PCM samples
@@ -215,15 +221,17 @@ export class SttTtsPlugin implements Plugin {
     }
     this.isProcessingAudio = true;
     try {
-      logger.log('[SttTtsPlugin] Starting audio processing for user:', userId);
+      logger.log("[SttTtsPlugin] Starting audio processing for user:", userId);
       const chunks = this.pcmBuffers.get(userId) || [];
       this.pcmBuffers.clear();
 
       if (!chunks.length) {
-        logger.warn('[SttTtsPlugin] No audio chunks for user =>', userId);
+        logger.warn("[SttTtsPlugin] No audio chunks for user =>", userId);
         return;
       }
-      logger.log(`[SttTtsPlugin] Flushing STT buffer for user=${userId}, chunks=${chunks.length}`);
+      logger.log(
+        `[SttTtsPlugin] Flushing STT buffer for user=${userId}, chunks=${chunks.length}`
+      );
 
       const totalLen = chunks.reduce((acc, c) => acc + c.length, 0);
       const merged = new Int16Array(totalLen);
@@ -237,12 +245,15 @@ export class SttTtsPlugin implements Plugin {
       const wavBuffer = await this.convertPcmToWavInMemory(merged, 48000);
 
       // Whisper STT
-      const sttText = await this.runtime.useModel(ModelType.TRANSCRIPTION, wavBuffer);
+      const sttText = await this.runtime.useModel(
+        ModelType.TRANSCRIPTION,
+        wavBuffer
+      );
 
       logger.log(`[SttTtsPlugin] Transcription result: "${sttText}"`);
 
       if (!sttText || !sttText.trim()) {
-        logger.warn('[SttTtsPlugin] No speech recognized for user =>', userId);
+        logger.warn("[SttTtsPlugin] No speech recognized for user =>", userId);
         return;
       }
       logger.log(`[SttTtsPlugin] STT => user=${userId}, text="${sttText}"`);
@@ -250,7 +261,7 @@ export class SttTtsPlugin implements Plugin {
       // Get response
       await this.handleUserMessage(sttText, userId);
     } catch (error) {
-      logger.error('[SttTtsPlugin] processAudio error =>', error);
+      logger.error("[SttTtsPlugin] processAudio error =>", error);
     } finally {
       this.isProcessingAudio = false;
     }
@@ -264,7 +275,7 @@ export class SttTtsPlugin implements Plugin {
     if (!this.isSpeaking) {
       this.isSpeaking = true;
       this.processTtsQueue().catch((err) => {
-        logger.error('[SttTtsPlugin] processTtsQueue error =>', err);
+        logger.error("[SttTtsPlugin] processTtsQueue error =>", err);
       });
     }
   }
@@ -281,23 +292,26 @@ export class SttTtsPlugin implements Plugin {
       const { signal } = this.ttsAbortController;
 
       try {
-        const responseStream = await this.runtime.useModel(ModelType.TEXT_TO_SPEECH, text);
+        const responseStream = await this.runtime.useModel(
+          ModelType.TEXT_TO_SPEECH,
+          text
+        );
         if (!responseStream) {
-          logger.error('[SttTtsPlugin] TTS responseStream is null');
+          logger.error("[SttTtsPlugin] TTS responseStream is null");
           continue;
         }
 
-        logger.log('[SttTtsPlugin] Received ElevenLabs TTS stream');
+        logger.log("[SttTtsPlugin] Received ElevenLabs TTS stream");
 
         // Convert the Readable Stream to PCM and stream to Janus
         await this.streamTtsStreamToJanus(responseStream, 48000, signal);
 
         if (signal.aborted) {
-          logger.log('[SttTtsPlugin] TTS interrupted after streaming');
+          logger.log("[SttTtsPlugin] TTS interrupted after streaming");
           return;
         }
       } catch (err) {
-        logger.error('[SttTtsPlugin] TTS streaming error =>', err);
+        logger.error("[SttTtsPlugin] TTS streaming error =>", err);
       } finally {
         // Clean up the AbortController
         this.ttsAbortController = null;
@@ -313,13 +327,16 @@ export class SttTtsPlugin implements Plugin {
     userText: string,
     userId: string // This is the raw Twitter user ID like 'tw-1865462035586142208'
   ): Promise<string> {
-    if (!userText || userText.trim() === '') {
+    if (!userText || userText.trim() === "") {
       return null;
     }
 
     // Extract the numeric ID part
-    const numericId = userId.replace('tw-', '');
-    const roomId = createUniqueUuid(this.runtime, `twitter_generate_room-${this.spaceId}`);
+    const numericId = userId.replace("tw-", "");
+    const roomId = createUniqueUuid(
+      this.runtime,
+      `twitter_generate_room-${this.spaceId}`
+    );
 
     // Create consistent UUID for the user
     const userUuid = createUniqueUuid(this.runtime, numericId);
@@ -337,8 +354,8 @@ export class SttTtsPlugin implements Plugin {
     await this.runtime.ensureConnection({
       entityId: userUuid,
       roomId: roomId,
-      name: 'Twitter Space',
-      source: 'twitter',
+      name: "Twitter Space",
+      source: "twitter",
       type: ChannelType.VOICE_GROUP,
       channelId: null,
       serverId: this.spaceId,
@@ -346,21 +363,30 @@ export class SttTtsPlugin implements Plugin {
     });
 
     const memory = {
-      id: createUniqueUuid(this.runtime, `${roomId}-voice-message-${Date.now()}`),
+      id: createUniqueUuid(
+        this.runtime,
+        `${roomId}-voice-message-${Date.now()}`
+      ),
       agentId: this.runtime.agentId,
       content: {
         text: userText,
-        source: 'twitter',
+        source: "twitter",
       },
       userId: userUuid,
       roomId,
       createdAt: Date.now(),
     };
 
-    const callback: HandlerCallback = async (content: Content, _files: any[] = []) => {
+    const callback: HandlerCallback = async (
+      content: Content,
+      _files: any[] = []
+    ) => {
       try {
         const responseMemory: Memory = {
-          id: createUniqueUuid(this.runtime, `${memory.id}-voice-response-${Date.now()}`),
+          id: createUniqueUuid(
+            this.runtime,
+            `${memory.id}-voice-response-${Date.now()}`
+          ),
           entityId: this.runtime.agentId,
           agentId: this.runtime.agentId,
           content: {
@@ -374,7 +400,7 @@ export class SttTtsPlugin implements Plugin {
         };
 
         if (responseMemory.content.text?.trim()) {
-          await this.runtime.createMemory(responseMemory, 'messages');
+          await this.runtime.createMemory(responseMemory, "messages");
           this.isProcessingAudio = false;
           this.volumeBuffers.clear();
           await this.speakText(content.text);
@@ -382,7 +408,7 @@ export class SttTtsPlugin implements Plugin {
 
         return [responseMemory];
       } catch (error) {
-        console.error('Error in voice message callback:', error);
+        console.error("Error in voice message callback:", error);
         return [];
       }
     };
@@ -398,33 +424,40 @@ export class SttTtsPlugin implements Plugin {
   /**
    * Convert MP3 => PCM via ffmpeg
    */
-  private convertMp3ToPcm(mp3Buf: Buffer, outRate: number): Promise<Int16Array> {
+  private convertMp3ToPcm(
+    mp3Buf: Buffer,
+    outRate: number
+  ): Promise<Int16Array> {
     return new Promise((resolve, reject) => {
-      const ff = spawn('ffmpeg', [
-        '-i',
-        'pipe:0',
-        '-f',
-        's16le',
-        '-ar',
+      const ff = spawn("ffmpeg", [
+        "-i",
+        "pipe:0",
+        "-f",
+        "s16le",
+        "-ar",
         outRate.toString(),
-        '-ac',
-        '1',
-        'pipe:1',
+        "-ac",
+        "1",
+        "pipe:1",
       ]);
       let raw = Buffer.alloc(0);
 
-      ff.stdout.on('data', (chunk: Buffer) => {
+      ff.stdout.on("data", (chunk: Buffer) => {
         raw = Buffer.concat([raw, chunk]);
       });
-      ff.stderr.on('data', () => {
+      ff.stderr.on("data", () => {
         // ignoring ffmpeg logs
       });
-      ff.on('close', (code) => {
+      ff.on("close", (code) => {
         if (code !== 0) {
           reject(new Error(`ffmpeg error code=${code}`));
           return;
         }
-        const samples = new Int16Array(raw.buffer, raw.byteOffset, raw.byteLength / 2);
+        const samples = new Int16Array(
+          raw.buffer,
+          raw.byteOffset,
+          raw.byteLength / 2
+        );
         resolve(samples);
       });
 
@@ -437,13 +470,20 @@ export class SttTtsPlugin implements Plugin {
    * Push PCM back to Janus in small frames
    * We'll do 10ms @48k => 960 samples per frame
    */
-  private async streamToJanus(samples: Int16Array, sampleRate: number): Promise<void> {
+  private async streamToJanus(
+    samples: Int16Array,
+    sampleRate: number
+  ): Promise<void> {
     // TODO: Check if better than 480 fixed
     const FRAME_SIZE = Math.floor(sampleRate * 0.01); // 10ms frames => 480 @48kHz
 
-    for (let offset = 0; offset + FRAME_SIZE <= samples.length; offset += FRAME_SIZE) {
+    for (
+      let offset = 0;
+      offset + FRAME_SIZE <= samples.length;
+      offset += FRAME_SIZE
+    ) {
       if (this.ttsAbortController?.signal.aborted) {
-        logger.log('[SttTtsPlugin] streamToJanus interrupted');
+        logger.log("[SttTtsPlugin] streamToJanus interrupted");
         return;
       }
       const frame = new Int16Array(FRAME_SIZE);
@@ -463,20 +503,20 @@ export class SttTtsPlugin implements Plugin {
     const chunks: Buffer[] = [];
 
     return new Promise((resolve, reject) => {
-      stream.on('data', (chunk: Buffer) => {
+      stream.on("data", (chunk: Buffer) => {
         if (signal.aborted) {
-          logger.log('[SttTtsPlugin] Stream aborted, stopping playback');
+          logger.log("[SttTtsPlugin] Stream aborted, stopping playback");
           stream.destroy();
-          reject(new Error('TTS streaming aborted'));
+          reject(new Error("TTS streaming aborted"));
           return;
         }
         chunks.push(chunk);
       });
 
-      stream.on('end', async () => {
+      stream.on("end", async () => {
         if (signal.aborted) {
-          logger.log('[SttTtsPlugin] Stream ended but was aborted');
-          return reject(new Error('TTS streaming aborted'));
+          logger.log("[SttTtsPlugin] Stream ended but was aborted");
+          return reject(new Error("TTS streaming aborted"));
         }
 
         const mp3Buffer = Buffer.concat(chunks);
@@ -493,15 +533,15 @@ export class SttTtsPlugin implements Plugin {
         }
       });
 
-      stream.on('error', (error) => {
-        logger.error('[SttTtsPlugin] Error in TTS stream', error);
+      stream.on("error", (error) => {
+        logger.error("[SttTtsPlugin] Error in TTS stream", error);
         reject(error);
       });
     });
   }
 
   cleanup(): void {
-    logger.log('[SttTtsPlugin] cleanup => releasing resources');
+    logger.log("[SttTtsPlugin] cleanup => releasing resources");
     this.pcmBuffers.clear();
     this.userSpeakingTimer = null;
     this.ttsQueue = [];
