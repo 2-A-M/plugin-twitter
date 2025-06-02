@@ -5,6 +5,7 @@ import * as OTPAuth from "otpauth";
 import { CookieJar } from "tough-cookie";
 import { requestApi } from "./api";
 import { TwitterGuestAuth } from "./auth";
+import { getTwitterApiHeaders } from "./browser-fingerprint";
 import type { TwitterApiErrorRaw } from "./errors";
 import { type LegacyUserRaw, type Profile, parseProfile } from "./profile";
 import { updateCookieJar } from "./requests";
@@ -395,13 +396,18 @@ export class TwitterUserAuth extends TwitterGuestAuth {
       authorization: `Bearer ${this.bearerToken}`,
       cookie: await this.getCookieString(),
       "content-type": "application/json",
-      "User-Agent":
-        "Mozilla/5.0 (Linux; Android 11; Nokia G20) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.88 Mobile Safari/537.36",
       "x-guest-token": token,
       "x-twitter-auth-type": "OAuth2Client",
-      "x-twitter-active-user": "yes",
-      "x-twitter-client-language": "en",
     });
+    
+    // Apply browser fingerprinting
+    const twitterHeaders = await getTwitterApiHeaders();
+    for (const [key, value] of twitterHeaders.entries()) {
+      if (!headers.has(key)) {
+        headers.set(key, value);
+      }
+    }
+    
     await this.installCsrfToken(headers);
 
     const res = await this.fetch(onboardingTaskUrl, {

@@ -1,4 +1,5 @@
 import type { TwitterAuth } from "./auth";
+import { getTwitterApiHeaders } from "./browser-fingerprint";
 import { updateCookieJar } from "./requests";
 import type {
   AudioSpace,
@@ -85,17 +86,17 @@ export async function fetchAudioSpaceById(
   const cookies = await auth.cookieJar().getCookies(onboardingTaskUrl);
   const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
+  const twitterHeaders = await getTwitterApiHeaders();
   const headers = new Headers({
     Accept: "*/*",
     Authorization: `Bearer ${(auth as any).bearerToken}`,
     "Content-Type": "application/json",
     Cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
-    "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     "x-guest-token": (auth as any).guestToken,
     "x-twitter-auth-type": "OAuth2Client",
     "x-twitter-active-user": "yes",
     "x-csrf-token": xCsrfToken?.value as string,
+    ...Object.fromEntries(twitterHeaders.entries()),
   });
 
   const response = await auth.fetch(url, {
@@ -145,17 +146,17 @@ export async function fetchBrowseSpaceTopics(
   const cookies = await auth.cookieJar().getCookies(onboardingTaskUrl);
   const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
+  const twitterHeaders = await getTwitterApiHeaders();
   const headers = new Headers({
     Accept: "*/*",
     Authorization: `Bearer ${(auth as any).bearerToken}`,
     "Content-Type": "application/json",
     Cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
-    "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     "x-guest-token": (auth as any).guestToken,
     "x-twitter-auth-type": "OAuth2Client",
     "x-twitter-active-user": "yes",
     "x-csrf-token": xCsrfToken?.value as string,
+    ...Object.fromEntries(twitterHeaders.entries()),
   });
 
   const response = await auth.fetch(url, {
@@ -208,17 +209,17 @@ export async function fetchCommunitySelectQuery(
   const cookies = await auth.cookieJar().getCookies(onboardingTaskUrl);
   const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
+  const twitterHeaders = await getTwitterApiHeaders();
   const headers = new Headers({
     Accept: "*/*",
     Authorization: `Bearer ${(auth as any).bearerToken}`,
     "Content-Type": "application/json",
     Cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
-    "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     "x-guest-token": (auth as any).guestToken,
     "x-twitter-auth-type": "OAuth2Client",
     "x-twitter-active-user": "yes",
     "x-csrf-token": xCsrfToken?.value as string,
+    ...Object.fromEntries(twitterHeaders.entries()),
   });
 
   const response = await auth.fetch(url, {
@@ -271,17 +272,17 @@ export async function fetchLiveVideoStreamStatus(
   const cookies = await auth.cookieJar().getCookies(onboardingTaskUrl);
   const xCsrfToken = cookies.find((cookie) => cookie.key === "ct0");
 
+  const twitterHeaders = await getTwitterApiHeaders();
   const headers = new Headers({
     Accept: "*/*",
     Authorization: `Bearer ${(auth as any).bearerToken}`,
     "Content-Type": "application/json",
     Cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
-    "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
     "x-guest-token": (auth as any).guestToken,
     "x-twitter-auth-type": "OAuth2Client",
     "x-twitter-active-user": "yes",
     "x-csrf-token": xCsrfToken?.value as string,
+    ...Object.fromEntries(twitterHeaders.entries()),
   });
 
   try {
@@ -340,13 +341,12 @@ export async function fetchAuthenticatePeriscope(
 
   const clientTransactionId = generateRandomId();
 
+  const twitterHeaders = await getTwitterApiHeaders();
   const headers = new Headers({
     Accept: "*/*",
     Authorization: `Bearer ${(auth as any).bearerToken}`,
     "Content-Type": "application/json",
     Cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
-    "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     "x-guest-token": (auth as any).guestToken,
     "x-twitter-auth-type": "OAuth2Session",
     "x-twitter-active-user": "yes",
@@ -358,6 +358,7 @@ export async function fetchAuthenticatePeriscope(
     "x-twitter-client-language": "en",
     "sec-ch-ua-mobile": "?0",
     Referer: "https://x.com/i/spaces/start",
+    ...Object.fromEntries(twitterHeaders.entries()),
   });
 
   try {
@@ -410,10 +411,9 @@ export async function fetchLoginTwitterToken(
     create_user: true,
   };
 
+  const twitterHeaders = await getTwitterApiHeaders();
   const headers = new Headers({
     "Content-Type": "application/json",
-    "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
     Referer: "https://x.com/",
     "sec-ch-ua":
       '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
@@ -422,6 +422,7 @@ export async function fetchLoginTwitterToken(
     "X-Periscope-User-Agent": "Twitter/m5",
     "X-Idempotence": idempotenceKey,
     "X-Attempt": "1",
+    ...Object.fromEntries(twitterHeaders.entries()),
   });
 
   try {

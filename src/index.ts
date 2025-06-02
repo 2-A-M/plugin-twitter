@@ -23,6 +23,10 @@ import { TwitterTimelineClient } from "./timeline";
 import { ClientBaseTestSuite } from "./tests";
 import { type ITwitterClient, TwitterEventTypes } from "./types";
 
+console.log(
+  `Twitter plugin loaded with service name: ${TWITTER_SERVICE_NAME}`
+);
+
 /**
  * A manager that orchestrates all specialized Twitter logic:
  * - client: base operations (login, timeline caching, etc.)
