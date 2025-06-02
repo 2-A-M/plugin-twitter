@@ -40,10 +40,10 @@ TWITTER_POLL_INTERVAL=120  # Poll interval in seconds
 TWITTER_TARGET_USERS=      # Comma-separated list of target users
 
 # Post Generation Settings
-ENABLE_TWITTER_POST_GENERATION=true
-POST_INTERVAL_MIN=90       # Minimum interval between posts (minutes)
-POST_INTERVAL_MAX=180      # Maximum interval between posts (minutes)
-POST_IMMEDIATELY=false     # Skip approval workflow
+TWITTER_ENABLE_POST_GENERATION=true
+TWITTER_POST_INTERVAL_MIN=90       # Minimum interval between posts (minutes)
+TWITTER_POST_POST_INTERVAL_MAX=180      # Maximum interval between posts (minutes)
+TWITTER_POST_IMMEDIATELY=false     # Skip approval workflow
 
 # Action Processing
 ENABLE_ACTION_PROCESSING=false
