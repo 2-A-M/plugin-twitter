@@ -1,5 +1,5 @@
 import { Headers } from "headers-polyfill";
-import { type Cookie, CookieJar, type MemoryCookieStore } from "tough-cookie";
+import { type Cookie, CookieJar } from "tough-cookie";
 import { TwitterApi } from "twitter-api-v2";
 import type { FetchTransformOptions } from "./api";
 import type { Profile } from "./profile";
@@ -231,7 +231,7 @@ export class TwitterGuestAuth implements TwitterAuth {
   }
 
   protected async removeCookie(key: string): Promise<void> {
-    const store: MemoryCookieStore = this.jar.store;
+    const store = this.jar.store;
     const cookies = await this.jar.getCookies(this.getCookieJarUrl());
     for (const cookie of cookies) {
       if (!cookie.domain || !cookie.path) continue;

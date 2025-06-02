@@ -6,21 +6,21 @@ import {
   type Memory,
   type State,
   logger,
-} from '@elizaos/core';
-import type { Tweet } from '../client';
-import { SpaceActivity } from '../spaces';
+} from "@elizaos/core";
+import type { Tweet } from "../client";
+import { SpaceActivity } from "../spaces";
 
 export default {
-  name: 'JOIN_TWITTER_SPACE',
+  name: "JOIN_TWITTER_SPACE",
   similes: [
-    'JOIN_TWITTER_SPACE',
-    'JOIN_SPACE',
-    'JOIN_TWITTER_AUDIO',
-    'JOIN_TWITTER_CALL',
-    'JOIN_LIVE_CONVERSATION',
+    "JOIN_TWITTER_SPACE",
+    "JOIN_SPACE",
+    "JOIN_TWITTER_AUDIO",
+    "JOIN_TWITTER_CALL",
+    "JOIN_LIVE_CONVERSATION",
   ],
   validate: async (runtime: IAgentRuntime, message: Memory, _state: State) => {
-    if (message?.content?.source !== 'twitter') {
+    if (message?.content?.source !== "twitter") {
       return false;
     }
 
@@ -28,10 +28,11 @@ export default {
       return false;
     }
 
-    const spaceEnable = runtime.getSetting('TWITTER_SPACES_ENABLE') === true;
+    const spaceEnable = runtime.getSetting("TWITTER_SPACES_ENABLE") === true;
     return spaceEnable;
   },
-  description: 'Join a Twitter Space to participate in live audio conversations.',
+  description:
+    "Join a Twitter Space to participate in live audio conversations.",
   handler: async (
     runtime: IAgentRuntime,
     message: Memory,
@@ -41,7 +42,7 @@ export default {
     responses: Memory[]
   ): Promise<boolean> => {
     if (!state) {
-      logger.error('State is not available.');
+      logger.error("State is not available.");
       return false;
     }
 
@@ -49,9 +50,9 @@ export default {
       await callback(response.content);
     }
 
-    const service = runtime.getService('twitter') as any;
+    const service = runtime.getService("twitter") as any;
     if (!service) {
-      throw new Error('Twitter service not found');
+      throw new Error("Twitter service not found");
     }
 
     const manager = service.getClient(runtime.agentId, runtime.agentId);
@@ -59,18 +60,18 @@ export default {
     const spaceManager = manager.space;
 
     if (!spaceManager) {
-      logger.error('space action - no space manager found');
+      logger.error("space action - no space manager found");
       return false;
     }
 
     if (spaceManager.spaceStatus !== SpaceActivity.IDLE) {
-      logger.warn('currently hosting/participating a space');
+      logger.warn("currently hosting/participating a space");
       return false;
     }
 
     const tweet = message.content.tweet as Tweet;
     if (!tweet) {
-      logger.warn('space action - no tweet found in message');
+      logger.warn("space action - no tweet found in message");
       return false;
     }
 
@@ -82,13 +83,14 @@ export default {
         if (match) {
           const spaceId = match[1];
           try {
-            const spaceInfo = await client.twitterClient.getAudioSpaceById(spaceId);
-            if (spaceInfo?.metadata?.state === 'Running') {
+            const spaceInfo =
+              await client.twitterClient.getAudioSpaceById(spaceId);
+            if (spaceInfo?.metadata?.state === "Running") {
               const spaceJoined = await spaceManager.startParticipant(spaceId);
               return !!spaceJoined;
             }
           } catch (error) {
-            logger.error('Error joining Twitter Space:', error);
+            logger.error("Error joining Twitter Space:", error);
           }
         }
       }
@@ -127,7 +129,7 @@ export default {
     }
     await callback({
       text: "I couldn't determine which Twitter Space to join.",
-      source: 'twitter',
+      source: "twitter",
     });
 
     return false;
@@ -135,31 +137,31 @@ export default {
   examples: [
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
           text: "Hey, let's join the 'Crypto Talk' Twitter Space!",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'On my way',
-          actions: ['JOIN_TWITTER_SPACE'],
+          text: "On my way",
+          actions: ["JOIN_TWITTER_SPACE"],
         },
       },
     ],
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
           text: "@{{name2}}, jump into the 'AI Revolution' Space!",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'Joining now!',
-          actions: ['JOIN_TWITTER_SPACE'],
+          text: "Joining now!",
+          actions: ["JOIN_TWITTER_SPACE"],
         },
       },
     ],
