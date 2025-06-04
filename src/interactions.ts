@@ -219,6 +219,28 @@ export class TwitterInteractionClient {
           logger.log(`Already responded to tweet ${tweet.id}, skipping`);
           continue;
         }
+
+        // Also check if we've already responded to this tweet (for chunked responses)
+        // by looking for any memory with inReplyTo pointing to this tweet
+        const conversationRoomId = createUniqueUuid(this.runtime, tweet.conversationId);
+        const existingReplies = await this.runtime.getMemories({
+          tableName: "messages",
+          roomId: conversationRoomId,
+          count: 10, // Check recent messages in this room
+        });
+
+        // Check if any of the found memories is a reply to this specific tweet
+        const hasExistingReply = existingReplies.some(memory => 
+          memory.content?.inReplyTo === tweetId || 
+          (memory.content?.source === "twitter" && 
+           memory.agentId === this.runtime.agentId &&
+           memory.content?.inReplyTo === tweetId)
+        );
+
+        if (hasExistingReply) {
+          logger.log(`Already replied to tweet ${tweet.id} (found existing reply), skipping`);
+          continue;
+        }
         logger.log("New Tweet found", tweet.permanentUrl);
 
         const entityId = createUniqueUuid(
