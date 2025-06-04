@@ -2,32 +2,6 @@ import { type IAgentRuntime, parseBooleanFromText } from "@elizaos/core";
 import { ZodError, z } from "zod";
 
 /**
- * Schema for validating an X/Twitter Username.
- *
- * Constraints:
- * - Must be at least 1 character long
- * - Cannot exceed 15 characters
- * - Can only contain letters, numbers, and underscores
- * - Special case allows wildcard '*' as value
- *
- * @type {import("zod").StringType}
- */
-const _twitterUsernameSchema = z
-  .string()
-  .min(1, "An X/Twitter Username must be at least 1 character long")
-  .max(15, "An X/Twitter Username cannot exceed 15 characters")
-  .refine((username) => {
-    // Allow wildcard '*' as a special case
-    if (username === "*") return true;
-
-    // Twitter usernames can:
-    // - Start with digits now
-    // - Contain letters, numbers, underscores
-    // - Must not be empty
-    return /^[A-Za-z0-9_]+$/.test(username);
-  }, "An X Username can only contain letters, numbers, and underscores");
-
-/**
  * This schema defines all required/optional environment settings,
  * including new fields like TWITTER_SPACES_ENABLE.
  */
@@ -42,34 +16,7 @@ export const twitterEnvSchema = z.object({
   TWITTER_2FA_SECRET: z.string().default(undefined),
   TWITTER_RETRY_LIMIT: z.number().int(),
   TWITTER_POLL_INTERVAL: z.number().int(),
-  // I guess it's possible to do the transformation with zod
-  // not sure it's preferable, maybe a readability issue
-  // since more people will know js/ts than zod
-  /*
-        z
-        .string()
-        .transform((val) => val.trim())
-        .pipe(
-            z.string()
-                .transform((val) =>
-                    val ? val.split(',').map((u) => u.trim()).filter(Boolean) : []
-                )
-                .pipe(
-                    z.array(
-                        z.string()
-                            .min(1)
-                            .max(15)
-                            .regex(
-                                /^[A-Za-z][A-Za-z0-9_]*[A-Za-z0-9]$|^[A-Za-z]$/,
-                                'Invalid Twitter username format'
-                            )
-                    )
-                )
-                .transform((users) => users.join(','))
-        )
-        .optional()
-        .default(''),
-    */
+  TWITTER_TARGET_USERS: z.string().default(""),
   TWITTER_ENABLE_POST_GENERATION: z.boolean(),
   TWITTER_POST_INTERVAL_MIN: z.number().int(),
   TWITTER_POST_INTERVAL_MAX: z.number().int(),
@@ -91,6 +38,32 @@ function parseTargetUsers(targetUsersStr?: string | null): string[] {
     .split(",")
     .map((user) => user.trim())
     .filter(Boolean);
+}
+
+/**
+ * Check if a user should be targeted for interactions based on TWITTER_TARGET_USERS
+ * Supports wildcard "*" to target all users
+ */
+export function shouldTargetUser(
+  username: string,
+  targetUsersConfig: string
+): boolean {
+  if (!targetUsersConfig?.trim()) {
+    return true; // If no target users specified, interact with everyone
+  }
+
+  const targetUsers = parseTargetUsers(targetUsersConfig);
+
+  // If wildcard is specified, target everyone
+  if (targetUsers.includes("*")) {
+    return true;
+  }
+
+  // Check if the username (without @) is in the target list
+  const normalizedUsername = username.toLowerCase().replace(/^@/, "");
+  return targetUsers.some(
+    (target) => target.toLowerCase().replace(/^@/, "") === normalizedUsername
+  );
 }
 
 function safeParseInt(
@@ -149,6 +122,12 @@ export async function validateTwitterConfig(
           process.env.TWITTER_POLL_INTERVAL,
         120 // 2m
       ),
+
+      // string - comma-separated list of target users
+      TWITTER_TARGET_USERS:
+        runtime.getSetting("TWITTER_TARGET_USERS") ||
+        process.env.TWITTER_TARGET_USERS ||
+        "",
 
       // bool
       TWITTER_ENABLE_POST_GENERATION:

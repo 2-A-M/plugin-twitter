@@ -24,6 +24,7 @@ import type {
 } from "./types";
 import { TwitterEventTypes } from "./types";
 import { sendTweet } from "./utils";
+import { shouldTargetUser } from "./environment";
 
 /**
  * Template for generating dialog and actions for a Twitter message handler.
@@ -202,6 +203,26 @@ export class TwitterInteractionClient {
     uniqueTweetCandidates = uniqueTweetCandidates
       .sort((a, b) => a.id.localeCompare(b.id))
       .filter((tweet) => tweet.userId !== this.client.profile.id);
+
+    // Get TWITTER_TARGET_USERS configuration
+    const targetUsersConfig =
+      (this.runtime.getSetting("TWITTER_TARGET_USERS") as string) || "";
+
+    // Filter tweets based on TWITTER_TARGET_USERS if configured
+    if (targetUsersConfig?.trim()) {
+      uniqueTweetCandidates = uniqueTweetCandidates.filter((tweet) => {
+        const shouldTarget = shouldTargetUser(
+          tweet.username || "",
+          targetUsersConfig
+        );
+        if (!shouldTarget) {
+          logger.log(
+            `Skipping tweet from @${tweet.username} - not in target users list`
+          );
+        }
+        return shouldTarget;
+      });
+    }
 
     // for each tweet candidate, handle the tweet
     for (const tweet of uniqueTweetCandidates) {
