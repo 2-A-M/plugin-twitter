@@ -683,7 +683,7 @@ export async function createCreateNoteTweetRequest(
 
   const baseHeaders = await getTwitterApiHeaders();
   const headers = new Headers({
-    ...baseHeaders,
+    ...Object.fromEntries(baseHeaders.entries()),,
     authorization: `Bearer ${(auth as any).bearerToken}`,
     cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
     "content-type": "application/json",
@@ -830,7 +830,7 @@ export async function deleteTweet(tweetId: string, auth: TwitterAuth) {
 
   const baseHeaders = await getTwitterApiHeaders();
   const headers = new Headers({
-    ...baseHeaders,
+    ...Object.fromEntries(baseHeaders.entries()),,
     authorization: `Bearer ${(auth as any).bearerToken}`,
     cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
     "content-type": "application/json",
@@ -1336,7 +1336,7 @@ export async function createQuoteTweetRequest(
 
   const baseHeaders = await getTwitterApiHeaders();
   const headers = new Headers({
-    ...baseHeaders,
+    ...Object.fromEntries(baseHeaders.entries()),,
     authorization: `Bearer ${(auth as any).bearerToken}`,
     cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
     "content-type": "application/json",
@@ -1552,7 +1552,7 @@ export async function createCreateLongTweetRequest(
   //@ ts-expect-error - This is a private API.
   const baseHeaders = await getTwitterApiHeaders();
   const headers = new Headers({
-    ...baseHeaders,
+    ...Object.fromEntries(baseHeaders.entries()),,
     authorization: `Bearer ${(auth as any).bearerToken}`,
     cookie: await auth.cookieJar().getCookieString(onboardingTaskUrl),
     "content-type": "application/json",
