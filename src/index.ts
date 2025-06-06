@@ -221,8 +221,6 @@ export class TwitterService extends Service {
         },
       };
 
-      console.log('twitterUser:::::::', twitterUser);
-
       // Emit the WORLD_JOINED event
       runtime.emitEvent([TwitterEventTypes.WORLD_JOINED, EventType.WORLD_JOINED], {
         runtime: runtime,
