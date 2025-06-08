@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-twitter",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -62,6 +62,207 @@
   },
   "agentConfig": {
     "pluginType": "elizaos:plugin:1.0.0",
-    "pluginParameters": {}
+    "pluginParameters": {
+      "TWITTER_SPACES_ENABLE": {
+        "type": "boolean",
+        "description": "Flag indicating whether the agent is allowed to join Twitter Spaces.",
+        "required": false,
+        "sensitive": false
+      },
+      "MAX_RETRIES": {
+        "type": "number",
+        "description": "Maximum number of times the system will attempt to log in to Twitter before giving up",
+        "required": false,
+        "default": 3,
+        "sensitive": false
+      },
+      "TWITTER_USERNAME": {
+        "type": "string",
+        "description": "Twitter account username used for authentication",
+        "required": true,
+        "sensitive": false
+      },
+      "TWITTER_PASSWORD": {
+        "type": "string",
+        "description": "Twitter account password used for authentication",
+        "required": true,
+        "sensitive": true
+      },
+      "TWITTER_EMAIL": {
+        "type": "string",
+        "description": "Email address associated with the Twitter account; used during login/verification",
+        "required": true,
+        "sensitive": false
+      },
+      "TWITTER_2FA_SECRET": {
+        "type": "string",
+        "description": "Time-based one-time password (2FA) secret used for two-factor authentication during login",
+        "required": false,
+        "sensitive": true
+      },
+      "TWITTER_COOKIES_AUTH_TOKEN": {
+        "type": "string",
+        "description": "Pre-existing Twitter auth_token cookie value used to bypass manual login",
+        "required": false,
+        "sensitive": true
+      },
+      "TWITTER_COOKIES_CT0": {
+        "type": "string",
+        "description": "Pre-existing Twitter ct0 (CSRF) cookie value used to bypass manual login",
+        "required": false,
+        "sensitive": true
+      },
+      "TWITTER_COOKIES_GUEST_ID": {
+        "type": "string",
+        "description": "Pre-existing Twitter guest_id cookie value used to bypass manual login",
+        "required": false,
+        "sensitive": true
+      },
+      "TWITTER_API_KEY": {
+        "type": "string",
+        "description": "Twitter API key used to authenticate with the Twitter API during tests.",
+        "required": false,
+        "sensitive": true
+      },
+      "TWITTER_API_SECRET_KEY": {
+        "type": "string",
+        "description": "Twitter API secret key paired with the API key for authentication.",
+        "required": false,
+        "sensitive": true
+      },
+      "TWITTER_ACCESS_TOKEN": {
+        "type": "string",
+        "description": "OAuth access token used for Twitter API requests in the tests.",
+        "required": false,
+        "sensitive": true
+      },
+      "TWITTER_ACCESS_TOKEN_SECRET": {
+        "type": "string",
+        "description": "OAuth access token secret used with the access token for authentication.",
+        "required": false,
+        "sensitive": true
+      },
+      "OPENAI_API_KEY": {
+        "type": "string",
+        "description": "OpenAI API key supplied to the SttTtsPlugin for GPT/STT/TTS functionality.",
+        "required": true,
+        "sensitive": true
+      },
+      "ELEVENLABS_API_KEY": {
+        "type": "string",
+        "description": "ElevenLabs API key for TTS provided to the SttTtsPlugin. Used if ELEVENLABS_XI_API_KEY is not set.",
+        "required": false,
+        "sensitive": true
+      },
+      "ELEVENLABS_XI_API_KEY": {
+        "type": "string",
+        "description": "Alternative ElevenLabs (Xi) API key for TTS; used as a fallback if ELEVENLABS_API_KEY is not provided.",
+        "required": false,
+        "sensitive": true
+      },
+      "PROXY_URL": {
+        "type": "string",
+        "description": "URL of the proxy server (may include credentials) through which HTTP requests are routed.",
+        "required": false,
+        "sensitive": true
+      },
+      "TWITTER_COOKIES": {
+        "type": "string",
+        "description": "Serialized Twitter session cookies; referenced for cookie-based authentication.",
+        "required": false,
+        "sensitive": true
+      },
+      "TWITTER_DRY_RUN": {
+        "type": "boolean",
+        "description": "When true, all Twitter actions are simulated and nothing is actually posted.",
+        "required": false,
+        "sensitive": false
+      },
+      "TWITTER_RETRY_LIMIT": {
+        "type": "number",
+        "description": "Maximum number of retry attempts when a Twitter action fails.",
+        "required": false,
+        "default": 5,
+        "sensitive": false
+      },
+      "TWITTER_POLL_INTERVAL": {
+        "type": "number",
+        "description": "Polling interval in seconds between checks for new Twitter events.",
+        "required": false,
+        "default": 120,
+        "sensitive": false
+      },
+      "TWITTER_TARGET_USERS": {
+        "type": "string",
+        "description": "Comma-separated list of Twitter usernames the bot should interact with. Supports '*' wildcard.",
+        "required": false,
+        "sensitive": false
+      },
+      "TWITTER_ENABLE_POST_GENERATION": {
+        "type": "boolean",
+        "description": "Toggle to enable or disable automatic tweet/post generation.",
+        "required": false,
+        "default": true,
+        "sensitive": false
+      },
+      "TWITTER_POST_INTERVAL_MIN": {
+        "type": "number",
+        "description": "Minimum interval in minutes between automatically generated posts.",
+        "required": false,
+        "default": 90,
+        "sensitive": false
+      },
+      "TWITTER_POST_INTERVAL_MAX": {
+        "type": "number",
+        "description": "Maximum interval in minutes between automatically generated posts.",
+        "required": false,
+        "default": 180,
+        "sensitive": false
+      },
+      "TWITTER_POST_IMMEDIATELY": {
+        "type": "boolean",
+        "description": "If true, posts are published immediately after generation, bypassing interval checks.",
+        "required": false,
+        "sensitive": false
+      },
+      "TWITTER_INTERACTION_ENABLE": {
+        "type": "boolean",
+        "description": "Controls whether mention and interaction handling is enabled. Defaults to true when not explicitly set to false.",
+        "required": false,
+        "default": true,
+        "sensitive": false
+      },
+      "TWITTER_TIMELINE_ENABLE": {
+        "type": "boolean",
+        "description": "Enables fetching and caching of the Twitter timeline.",
+        "required": false,
+        "sensitive": false
+      },
+      "TWITTER_API_SECRET": {
+        "type": "string",
+        "description": "Twitter API secret credential (referenced in comments for future API-based auth).",
+        "required": false,
+        "sensitive": true
+      },
+      "TWITTER_ENABLE_ACTION_PROCESSING": {
+        "type": "boolean",
+        "description": "Flag to enable or disable processing of Twitter actions",
+        "required": false,
+        "sensitive": false
+      },
+      "TWITTER_TIMELINE_MODE": {
+        "type": "string",
+        "description": "Specifies which Twitter timeline to monitor: 'foryou' (home) or 'following'.",
+        "required": false,
+        "sensitive": false
+      },
+      "TWITTER_TIMELINE_POLL_INTERVAL": {
+        "type": "number",
+        "description": "Polling interval (in seconds) between timeline checks.",
+        "required": false,
+        "default": 120,
+        "sensitive": false
+      }
+    }
   }
 }
