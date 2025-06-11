@@ -9,12 +9,14 @@ This guide explains how to test the refactored Twitter plugin after removing use
 ### 1. Twitter Developer Account
 
 You need a Twitter Developer account with:
+
 - API Key
 - API Secret Key
 - Access Token
 - Access Token Secret
 
 To get these credentials:
+
 1. Go to https://developer.twitter.com/
 2. Create a developer account (if you don't have one)
 3. Create a new app in the developer portal
@@ -66,6 +68,7 @@ npm test -- --run --exclude="**/e2e/**"
 ## Test Coverage
 
 ### 1. Authentication Tests (`auth.test.ts`)
+
 - ✅ Twitter API v2 initialization
 - ✅ Credential validation
 - ✅ Profile fetching
@@ -75,6 +78,7 @@ npm test -- --run --exclude="**/e2e/**"
 ### 2. Service Tests
 
 #### MessageService Tests
+
 - ✅ Fetching direct messages
 - ✅ Sending direct messages
 - ✅ Fetching mentions
@@ -82,6 +86,7 @@ npm test -- --run --exclude="**/e2e/**"
 - ✅ Error handling
 
 #### PostService Tests
+
 - ✅ Creating posts/tweets
 - ✅ Deleting posts
 - ✅ Fetching posts
@@ -91,6 +96,7 @@ npm test -- --run --exclude="**/e2e/**"
 - ❌ Unlike/unrepost (not implemented)
 
 ### 3. Environment Tests
+
 - ✅ Configuration validation
 - ✅ Target user filtering
 - ✅ Required credentials check
@@ -104,13 +110,13 @@ npm test -- --run --exclude="**/e2e/**"
 const post = await postService.createPost({
   text: "Hello from ElizaOS!",
   agentId: "agent-123",
-  roomId: "room-123"
+  roomId: "room-123",
 });
 
 // Test fetching tweets
 const posts = await postService.getPosts({
   agentId: "agent-123",
-  limit: 20
+  limit: 20,
 });
 
 // Test liking a tweet
@@ -122,7 +128,7 @@ await postService.likePost("tweet-id", "agent-123");
 ```typescript
 // Test fetching mentions
 const mentions = await messageService.getMentions("agent-123", {
-  limit: 10
+  limit: 10,
 });
 
 // Test sending a DM
@@ -131,7 +137,7 @@ const message = await messageService.sendMessage({
   text: "Hello!",
   type: MessageType.DM,
   agentId: "agent-123",
-  roomId: "room-123"
+  roomId: "room-123",
 });
 ```
 
@@ -156,15 +162,18 @@ DEBUG=elizaos:* npm test
 ### 3. Common Issues
 
 **Issue: "Missing required Twitter API credentials"**
+
 - Ensure all 4 credentials are set in environment
 - Check for typos in environment variable names
 
 **Issue: "401 Unauthorized"**
+
 - Verify credentials are correct
 - Check if tokens have proper permissions
 - Ensure app has read/write access
 
 **Issue: "Rate limit exceeded"**
+
 - Twitter API v2 has rate limits
 - Wait 15 minutes before retrying
 - Use pagination for large requests
@@ -174,6 +183,7 @@ DEBUG=elizaos:* npm test
 With Twitter API v2 only:
 
 ### Available Features
+
 - ✅ Create tweets
 - ✅ Delete tweets
 - ✅ Like tweets
@@ -183,9 +193,10 @@ With Twitter API v2 only:
 - ✅ Search tweets
 
 ### Unavailable Features
+
 - ❌ Twitter Spaces (removed)
 - ❌ Media upload (requires additional implementation)
-- ❌ Unlike/unretweet (requires additional implementation)  
+- ❌ Unlike/unretweet (requires additional implementation)
 - ❌ Fetch retweeters list
 - ❌ Trends API
 - ❌ Direct message conversations (requires additional permissions)
@@ -226,4 +237,4 @@ For GitHub Actions:
 
 - [Twitter API v2 Documentation](https://developer.twitter.com/en/docs/twitter-api)
 - [twitter-api-v2 Library](https://github.com/PLhery/node-twitter-api-v2)
-- [ElizaOS Documentation](https://github.com/elizaos/eliza) 
+- [ElizaOS Documentation](https://github.com/elizaos/eliza)

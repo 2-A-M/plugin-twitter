@@ -38,7 +38,7 @@ export interface ListTimeline {
  * @returns {QueryTweetsResponse} An object containing the parsed tweets, next cursor, and previous cursor.
  */
 export function parseListTimelineTweets(
-  timeline: ListTimeline
+  timeline: ListTimeline,
 ): QueryTweetsResponse {
   let bottomCursor: string | undefined;
   let topCursor: string | undefined;
@@ -77,7 +77,7 @@ export function parseListTimelineTweets(
             parseAndPush(
               tweets,
               contentItem.item.itemContent,
-              contentItem.entryId.split("tweet-")[1]
+              contentItem.entryId.split("tweet-")[1],
             );
           }
         }

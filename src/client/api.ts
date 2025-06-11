@@ -67,7 +67,7 @@ export async function requestApi<T>(
   url: string,
   auth: TwitterAuth,
   method: "GET" | "POST" = "GET",
-  body?: any
+  body?: any,
 ): Promise<RequestApiResult<T>> {
   const headers = new Headers({
     "Content-Type": "application/json",
@@ -215,7 +215,7 @@ export function addApiFeatures(o: object) {
 
 export function addApiParams(
   params: URLSearchParams,
-  includeTweetReplies: boolean
+  includeTweetReplies: boolean,
 ): URLSearchParams {
   params.set("include_profile_interstitial_type", "1");
   params.set("include_blocking", "1");
@@ -249,7 +249,7 @@ export function addApiParams(
   params.set("include_tweet_replies", `${includeTweetReplies}`);
   params.set(
     "ext",
-    "mediaStats,highlightedLabel,hasNftAvatar,voiceInfo,birdwatchPivot,enrichments,superFollowMetadata,unmentionInfo,editControl,collab_control,vibe"
+    "mediaStats,highlightedLabel,hasNftAvatar,voiceInfo,birdwatchPivot,enrichments,superFollowMetadata,unmentionInfo,editControl,collab_control,vibe",
   );
   return params;
 }

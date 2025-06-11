@@ -20,7 +20,7 @@ import type { QueryProfilesResponse } from "./timeline-v1";
 export function getFollowing(
   userId: string,
   maxProfiles: number,
-  auth: TwitterAuth
+  auth: TwitterAuth,
 ): AsyncGenerator<Profile, void> {
   return getUserTimeline(userId, maxProfiles, (q, mt, c) => {
     return fetchProfileFollowing(q, mt, auth, c);
@@ -37,7 +37,7 @@ export function getFollowing(
 export function getFollowers(
   userId: string,
   maxProfiles: number,
-  auth: TwitterAuth
+  auth: TwitterAuth,
 ): AsyncGenerator<Profile, void> {
   return getUserTimeline(userId, maxProfiles, (q, mt, c) => {
     return fetchProfileFollowers(q, mt, auth, c);
@@ -56,13 +56,13 @@ export async function fetchProfileFollowing(
   userId: string,
   maxProfiles: number,
   auth: TwitterAuth,
-  cursor?: string
+  cursor?: string,
 ): Promise<QueryProfilesResponse> {
   const timeline = await getFollowingTimeline(
     userId,
     maxProfiles,
     auth,
-    cursor
+    cursor,
   );
 
   return parseRelationshipTimeline(timeline);
@@ -81,13 +81,13 @@ export async function fetchProfileFollowers(
   userId: string,
   maxProfiles: number,
   auth: TwitterAuth,
-  cursor?: string
+  cursor?: string,
 ): Promise<QueryProfilesResponse> {
   const timeline = await getFollowersTimeline(
     userId,
     maxProfiles,
     auth,
-    cursor
+    cursor,
   );
 
   return parseRelationshipTimeline(timeline);
@@ -107,7 +107,7 @@ async function getFollowingTimeline(
   userId: string,
   maxItems: number,
   auth: TwitterAuth,
-  cursor?: string
+  cursor?: string,
 ): Promise<RelationshipTimeline> {
   if (!auth.isLoggedIn()) {
     throw new Error("Client is not logged-in for profile following.");
@@ -141,7 +141,7 @@ async function getFollowingTimeline(
 
   const res = await requestApi<RelationshipTimeline>(
     `https://twitter.com/i/api/graphql/iSicc7LrzWGBgDPL0tM_TQ/Following?${params.toString()}`,
-    auth
+    auth,
   );
 
   if (!res.success) {
@@ -164,7 +164,7 @@ async function getFollowersTimeline(
   userId: string,
   maxItems: number,
   auth: TwitterAuth,
-  cursor?: string
+  cursor?: string,
 ): Promise<RelationshipTimeline> {
   if (!auth.isLoggedIn()) {
     throw new Error("Client is not logged-in for profile followers.");
@@ -198,7 +198,7 @@ async function getFollowersTimeline(
 
   const res = await requestApi<RelationshipTimeline>(
     `https://twitter.com/i/api/graphql/rRXFSG5vR6drKr5M37YOTw/Followers?${params.toString()}`,
-    auth
+    auth,
   );
 
   if (!res.success) {
@@ -211,13 +211,17 @@ async function getFollowersTimeline(
 /**
  * Following users is not supported in the current Twitter API v2 implementation
  * This functionality requires additional OAuth scopes and endpoints not included in this client
- * 
+ *
  * @deprecated This function is not implemented for Twitter API v2
  */
 export async function followUser(
   username: string,
-  auth: TwitterAuth
+  auth: TwitterAuth,
 ): Promise<Response> {
-  console.warn("Follow user functionality is not supported in Twitter API v2 client");
-  throw new Error("Follow user functionality not implemented for Twitter API v2");
+  console.warn(
+    "Follow user functionality is not supported in Twitter API v2 client",
+  );
+  throw new Error(
+    "Follow user functionality not implemented for Twitter API v2",
+  );
 }

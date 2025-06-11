@@ -74,21 +74,31 @@ export class ClientBaseTestSuite implements TestSuite {
           TWITTER_API_KEY: this.mockConfig.TWITTER_API_KEY,
           TWITTER_API_SECRET_KEY: this.mockConfig.TWITTER_API_SECRET_KEY,
           TWITTER_ACCESS_TOKEN: this.mockConfig.TWITTER_ACCESS_TOKEN,
-          TWITTER_ACCESS_TOKEN_SECRET: this.mockConfig.TWITTER_ACCESS_TOKEN_SECRET,
+          TWITTER_ACCESS_TOKEN_SECRET:
+            this.mockConfig.TWITTER_ACCESS_TOKEN_SECRET,
         };
         const client = new ClientBase(this.mockRuntime, state);
-        
+
         // Verify API credentials are passed to state
         if (client.state.TWITTER_API_KEY !== this.mockConfig.TWITTER_API_KEY) {
           throw new Error("Client state TWITTER_API_KEY mismatch.");
         }
-        if (client.state.TWITTER_API_SECRET_KEY !== this.mockConfig.TWITTER_API_SECRET_KEY) {
+        if (
+          client.state.TWITTER_API_SECRET_KEY !==
+          this.mockConfig.TWITTER_API_SECRET_KEY
+        ) {
           throw new Error("Client state TWITTER_API_SECRET_KEY mismatch.");
         }
-        if (client.state.TWITTER_ACCESS_TOKEN !== this.mockConfig.TWITTER_ACCESS_TOKEN) {
+        if (
+          client.state.TWITTER_ACCESS_TOKEN !==
+          this.mockConfig.TWITTER_ACCESS_TOKEN
+        ) {
           throw new Error("Client state TWITTER_ACCESS_TOKEN mismatch.");
         }
-        if (client.state.TWITTER_ACCESS_TOKEN_SECRET !== this.mockConfig.TWITTER_ACCESS_TOKEN_SECRET) {
+        if (
+          client.state.TWITTER_ACCESS_TOKEN_SECRET !==
+          this.mockConfig.TWITTER_ACCESS_TOKEN_SECRET
+        ) {
           throw new Error("Client state TWITTER_ACCESS_TOKEN_SECRET mismatch.");
         }
       },
@@ -100,7 +110,8 @@ export class ClientBaseTestSuite implements TestSuite {
           TWITTER_API_KEY: this.mockConfig.TWITTER_API_KEY,
           TWITTER_API_SECRET_KEY: this.mockConfig.TWITTER_API_SECRET_KEY,
           TWITTER_ACCESS_TOKEN: this.mockConfig.TWITTER_ACCESS_TOKEN,
-          TWITTER_ACCESS_TOKEN_SECRET: this.mockConfig.TWITTER_ACCESS_TOKEN_SECRET,
+          TWITTER_ACCESS_TOKEN_SECRET:
+            this.mockConfig.TWITTER_ACCESS_TOKEN_SECRET,
           TWITTER_POST_INTERVAL_MIN: this.mockConfig.TWITTER_POST_INTERVAL_MIN,
           TWITTER_POST_INTERVAL_MAX: this.mockConfig.TWITTER_POST_INTERVAL_MAX,
         };

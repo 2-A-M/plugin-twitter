@@ -43,7 +43,7 @@ export const isValidTweet = (tweet: Tweet): boolean => {
  * @returns Promise that resolves with an array of MediaData objects containing the fetched media data and content type
  */
 export async function fetchMediaData(
-  attachments: Media[]
+  attachments: Media[],
 ): Promise<MediaData[]> {
   return Promise.all(
     attachments.map(async (attachment: Media) => {
@@ -60,15 +60,15 @@ export async function fetchMediaData(
       if (fs.existsSync(attachment.url)) {
         // Handle local file paths
         const mediaBuffer = await fs.promises.readFile(
-          path.resolve(attachment.url)
+          path.resolve(attachment.url),
         );
         const mediaType = attachment.contentType || "image/png";
         return { data: mediaBuffer, mediaType };
       }
       throw new Error(
-        `File not found: ${attachment.url}. Make sure the path is correct.`
+        `File not found: ${attachment.url}. Make sure the path is correct.`,
       );
-    })
+    }),
   );
 }
 
@@ -86,14 +86,14 @@ async function handleNoteTweet(
   client: ClientBase,
   content: string,
   tweetId?: string,
-  mediaData?: MediaData[]
+  mediaData?: MediaData[],
 ) {
   // Twitter API v2 handles long tweets automatically
   // Just use the regular sendTweet method
   const result = await client.twitterClient.sendTweet(
     content,
     tweetId,
-    mediaData
+    mediaData,
   );
 
   // Check if the result was successful
@@ -101,11 +101,11 @@ async function handleNoteTweet(
     // Tweet failed. Falling back to truncated Tweet.
     const truncateContent = truncateToCompleteSentence(
       content,
-      TWEET_MAX_LENGTH
+      TWEET_MAX_LENGTH,
     );
     return await sendStandardTweet(client, truncateContent, tweetId);
   }
-  
+
   // Return the result directly
   return result;
 }
@@ -117,14 +117,14 @@ export async function sendStandardTweet(
   client: ClientBase,
   content: string,
   tweetId?: string,
-  mediaData?: MediaData[]
+  mediaData?: MediaData[],
 ) {
   const standardTweetResult = await client.twitterClient.sendTweet(
     content,
     tweetId,
-    mediaData
+    mediaData,
   );
-  
+
   // The result is already the response object
   return standardTweetResult;
 }
@@ -133,7 +133,7 @@ export async function sendTweet(
   client: ClientBase,
   text: string,
   mediaData: MediaData[] = [],
-  tweetToReplyTo?: string
+  tweetToReplyTo?: string,
 ): Promise<any> {
   const isNoteTweet = text.length > TWEET_MAX_LENGTH;
   const postText = isNoteTweet
@@ -146,7 +146,7 @@ export async function sendTweet(
     result = await client.twitterClient.sendTweet(
       postText,
       tweetToReplyTo,
-      mediaData
+      mediaData,
     );
     logger.log("Successfully posted Tweet");
   } catch (error) {
@@ -157,7 +157,7 @@ export async function sendTweet(
   try {
     // The result from sendTweet should have the tweet data
     const tweetData = result?.data || result;
-    
+
     // Extract the tweet ID and other data
     const tweetResult = tweetData?.data || tweetData;
 
@@ -199,7 +199,7 @@ export async function sendChunkedTweet(
   content: Content,
   roomId: UUID,
   twitterUsername: string,
-  inReplyTo: string
+  inReplyTo: string,
 ): Promise<Memory[]> {
   const messages: Memory[] = [];
   const chunks = splitTweetContent(content.text, TWEET_MAX_LENGTH);
@@ -226,11 +226,11 @@ export async function sendChunkedTweet(
         client,
         tweetContent,
         mediaData,
-        previousTweetId
+        previousTweetId,
       );
 
-      const body = typeof result === 'object' ? result : await result.json();
-      
+      const body = typeof result === "object" ? result : await result.json();
+
       // Twitter API v2 response format
       const tweetResult = body?.data || body;
 
@@ -436,7 +436,7 @@ function deduplicateMentions(paragraph: string) {
  */
 function restoreUrls(
   chunks: string[],
-  placeholderMap: Map<string, string>
+  placeholderMap: Map<string, string>,
 ): string[] {
   return chunks.map((chunk) => {
     // Replace all <<URL_CONSIDERER_23_>> in chunk back to original URLs using regex
@@ -461,7 +461,7 @@ function splitParagraph(paragraph: string, maxLength: number): string[] {
   // 2) Use first section's logic to split by sentences first, then do secondary split
   const splittedChunks = splitSentencesAndWords(
     textWithPlaceholders,
-    maxLength
+    maxLength,
   );
 
   // 3) Replace placeholders back to original URLs
@@ -477,7 +477,7 @@ function splitParagraph(paragraph: string, maxLength: number): string[] {
  * @returns {{ actions: ActionResponse }} The parsed actions with boolean values indicating if each action is present in the text.
  */
 export const parseActionResponseFromText = (
-  text: string
+  text: string,
 ): { actions: ActionResponse } => {
   const actions: ActionResponse = {
     like: false,
@@ -510,5 +510,3 @@ export const parseActionResponseFromText = (
 
   return { actions };
 };
-
-

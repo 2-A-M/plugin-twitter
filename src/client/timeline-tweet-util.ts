@@ -56,7 +56,7 @@ export function parseMediaGroups(media: TimelineMediaExtendedRaw[]): {
  * @returns {Video} The parsed video object with id, preview, and URL.
  */
 function parseVideo(
-  m: NonNullableField<TimelineMediaExtendedRaw, "id_str" | "media_url_https">
+  m: NonNullableField<TimelineMediaExtendedRaw, "id_str" | "media_url_https">,
 ): Video {
   const video: Video = {
     id: m.id_str,
@@ -95,7 +95,7 @@ function parseVideo(
 export function reconstructTweetHtml(
   tweet: LegacyTweetRaw,
   photos: Photo[],
-  videos: Video[]
+  videos: Video[],
 ): string {
   const media: string[] = [];
 

@@ -1,10 +1,10 @@
 import { type UUID, createUniqueUuid, logger } from "@elizaos/core";
-import { 
-  type IMessageService, 
-  type Message, 
+import {
+  type IMessageService,
+  type Message,
   MessageType,
   type GetMessagesOptions,
-  type SendMessageOptions 
+  type SendMessageOptions,
 } from "./IMessageService";
 import type { ClientBase } from "../base";
 import { SearchMode } from "../client";
@@ -26,26 +26,31 @@ export class TwitterMessageService implements IMessageService {
       const searchResult = await this.client.fetchSearchTweets(
         `@${username}`,
         options.limit || 20,
-        SearchMode.Latest
+        SearchMode.Latest,
       );
 
       const messages: Message[] = searchResult.tweets
-        .filter(tweet => {
+        .filter((tweet) => {
           // Filter by room ID if specified
           if (options.roomId) {
-            const tweetRoomId = createUniqueUuid(this.client.runtime, tweet.conversationId);
+            const tweetRoomId = createUniqueUuid(
+              this.client.runtime,
+              tweet.conversationId,
+            );
             return tweetRoomId === options.roomId;
           }
           return true;
         })
-        .map(tweet => ({
+        .map((tweet) => ({
           id: tweet.id,
           agentId: this.client.runtime.agentId,
           roomId: createUniqueUuid(this.client.runtime, tweet.conversationId),
           userId: tweet.userId,
           username: tweet.username,
           text: tweet.text,
-          type: tweet.inReplyToStatusId ? MessageType.REPLY : MessageType.MENTION,
+          type: tweet.inReplyToStatusId
+            ? MessageType.REPLY
+            : MessageType.MENTION,
           timestamp: tweet.timestamp * 1000,
           inReplyTo: tweet.inReplyToStatusId,
           metadata: {
@@ -64,18 +69,18 @@ export class TwitterMessageService implements IMessageService {
   async sendMessage(options: SendMessageOptions): Promise<Message> {
     try {
       let result;
-      
+
       if (options.type === MessageType.DIRECT_MESSAGE) {
         // Send direct message using the roomId as conversationId
         result = await this.client.twitterClient.sendDirectMessage(
           options.roomId.toString(),
-          options.text
+          options.text,
         );
       } else {
         // Send tweet (reply, mention, or regular post)
         result = await this.client.twitterClient.sendTweet(
           options.text,
-          options.replyToId
+          options.replyToId,
         );
       }
 
@@ -114,7 +119,7 @@ export class TwitterMessageService implements IMessageService {
   async getMessage(messageId: string, agentId: UUID): Promise<Message | null> {
     try {
       const tweet = await this.client.twitterClient.getTweet(messageId);
-      
+
       if (!tweet) return null;
 
       const message: Message = {
@@ -154,4 +159,4 @@ export class TwitterMessageService implements IMessageService {
     // the mapping between UUIDs and tweet IDs in a cache
     return uuid.toString();
   }
-} 
+}

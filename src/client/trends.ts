@@ -14,6 +14,6 @@ import type { TwitterAuth } from "./auth";
 export async function getTrends(auth: TwitterAuth): Promise<string[]> {
   throw new Error(
     "Trends functionality is not supported in Twitter API v2. " +
-    "This feature requires access to internal Twitter APIs that are not publicly available."
+      "This feature requires access to internal Twitter APIs that are not publicly available.",
   );
 }

@@ -1,9 +1,9 @@
 import { type UUID, createUniqueUuid, logger } from "@elizaos/core";
-import { 
-  type IPostService, 
-  type Post, 
+import {
+  type IPostService,
+  type Post,
   type GetPostsOptions,
-  type CreatePostOptions
+  type CreatePostOptions,
 } from "./IPostService";
 import type { ClientBase } from "../base";
 import { SearchMode } from "../client";
@@ -15,7 +15,7 @@ export class TwitterPostService implements IPostService {
     try {
       // Handle media uploads if needed
       const mediaIds: string[] = [];
-      
+
       if (options.media && options.media.length > 0) {
         // TODO: Implement media upload when Twitter API v2 support is added
         logger.warn("Media upload not currently supported with Twitter API v2");
@@ -27,9 +27,10 @@ export class TwitterPostService implements IPostService {
         // TODO: Add media support when available
       );
 
-      const tweetId = (result as any).data?.create_tweet?.tweet_results?.result?.rest_id || 
-                      (result as any).id || 
-                      Date.now().toString();
+      const tweetId =
+        (result as any).data?.create_tweet?.tweet_results?.result?.rest_id ||
+        (result as any).id ||
+        Date.now().toString();
 
       const post: Post = {
         id: tweetId,
@@ -73,13 +74,16 @@ export class TwitterPostService implements IPostService {
   async getPost(postId: string, agentId: UUID): Promise<Post | null> {
     try {
       const tweet = await this.client.twitterClient.getTweet(postId);
-      
+
       if (!tweet) return null;
 
       const post: Post = {
         id: tweet.id,
         agentId: agentId,
-        roomId: createUniqueUuid(this.client.runtime, tweet.conversationId || tweet.id),
+        roomId: createUniqueUuid(
+          this.client.runtime,
+          tweet.conversationId || tweet.id,
+        ),
         userId: tweet.userId,
         username: tweet.username,
         text: tweet.text,
@@ -91,11 +95,12 @@ export class TwitterPostService implements IPostService {
           quotes: tweet.quotes || 0,
           views: tweet.views || 0,
         },
-        media: tweet.photos?.map(photo => ({
-          type: "image" as const,
-          url: photo.url,
-          metadata: { id: photo.id },
-        })) || [],
+        media:
+          tweet.photos?.map((photo) => ({
+            type: "image" as const,
+            url: photo.url,
+            metadata: { id: photo.id },
+          })) || [],
         metadata: {
           conversationId: tweet.conversationId,
           permanentUrl: tweet.permanentUrl,
@@ -118,21 +123,24 @@ export class TwitterPostService implements IPostService {
         const result = await this.client.twitterClient.getUserTweets(
           options.userId,
           options.limit || 20,
-          options.before
+          options.before,
         );
         tweets = result.tweets;
       } else {
         // Get home timeline or search results
         tweets = await this.client.fetchHomeTimeline(
           options.limit || 20,
-          false
+          false,
         );
       }
 
-      const posts: Post[] = tweets.map(tweet => ({
+      const posts: Post[] = tweets.map((tweet) => ({
         id: tweet.id,
         agentId: options.agentId,
-        roomId: createUniqueUuid(this.client.runtime, tweet.conversationId || tweet.id),
+        roomId: createUniqueUuid(
+          this.client.runtime,
+          tweet.conversationId || tweet.id,
+        ),
         userId: tweet.userId,
         username: tweet.username,
         text: tweet.text,
@@ -144,11 +152,12 @@ export class TwitterPostService implements IPostService {
           quotes: tweet.quotes || 0,
           views: tweet.views || 0,
         },
-        media: tweet.photos?.map(photo => ({
-          type: "image" as const,
-          url: photo.url,
-          metadata: { id: photo.id },
-        })) || [],
+        media:
+          tweet.photos?.map((photo) => ({
+            type: "image" as const,
+            url: photo.url,
+            metadata: { id: photo.id },
+          })) || [],
         metadata: {
           conversationId: tweet.conversationId,
           permanentUrl: tweet.permanentUrl,
@@ -180,7 +189,10 @@ export class TwitterPostService implements IPostService {
     }
   }
 
-  async getMentions(agentId: UUID, options?: Partial<GetPostsOptions>): Promise<Post[]> {
+  async getMentions(
+    agentId: UUID,
+    options?: Partial<GetPostsOptions>,
+  ): Promise<Post[]> {
     try {
       const username = this.client.profile?.username;
       if (!username) {
@@ -192,13 +204,16 @@ export class TwitterPostService implements IPostService {
         `@${username}`,
         options?.limit || 20,
         SearchMode.Latest,
-        options?.before
+        options?.before,
       );
 
-      const posts: Post[] = searchResult.tweets.map(tweet => ({
+      const posts: Post[] = searchResult.tweets.map((tweet) => ({
         id: tweet.id,
         agentId: agentId,
-        roomId: createUniqueUuid(this.client.runtime, tweet.conversationId || tweet.id),
+        roomId: createUniqueUuid(
+          this.client.runtime,
+          tweet.conversationId || tweet.id,
+        ),
         userId: tweet.userId,
         username: tweet.username,
         text: tweet.text,
@@ -210,11 +225,12 @@ export class TwitterPostService implements IPostService {
           quotes: tweet.quotes || 0,
           views: tweet.views || 0,
         },
-        media: tweet.photos?.map(photo => ({
-          type: "image" as const,
-          url: photo.url,
-          metadata: { id: photo.id },
-        })) || [],
+        media:
+          tweet.photos?.map((photo) => ({
+            type: "image" as const,
+            url: photo.url,
+            metadata: { id: photo.id },
+          })) || [],
         metadata: {
           conversationId: tweet.conversationId,
           permanentUrl: tweet.permanentUrl,
@@ -252,4 +268,4 @@ export class TwitterPostService implements IPostService {
       throw error;
     }
   }
-} 
+}

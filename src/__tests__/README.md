@@ -74,6 +74,7 @@ npm test e2e -- --reporter=verbose
 ### Unit Tests Cover:
 
 1. **MessageService**
+
    - Fetching messages/mentions
    - Sending messages (tweets and DMs)
    - Deleting messages
@@ -81,6 +82,7 @@ npm test e2e -- --reporter=verbose
    - Marking messages as read
 
 2. **PostService**
+
    - Creating posts (with replies)
    - Deleting posts
    - Fetching posts
@@ -89,6 +91,7 @@ npm test e2e -- --reporter=verbose
    - Getting mentions
 
 3. **Authentication**
+
    - API v2 client initialization
    - Login status verification
    - Profile fetching
@@ -103,10 +106,12 @@ npm test e2e -- --reporter=verbose
 ### E2E Tests Cover:
 
 1. **Authentication**
+
    - Real API authentication
    - Profile retrieval
 
 2. **Post Operations**
+
    - Creating posts
    - Creating replies
    - Fetching posts
@@ -114,11 +119,13 @@ npm test e2e -- --reporter=verbose
    - Liking posts
 
 3. **Message Operations**
+
    - Fetching mentions
    - Sending tweets
    - Retrieving specific messages
 
 4. **Search and Timeline**
+
    - Searching tweets
    - Fetching home timeline
 
@@ -150,6 +157,7 @@ E2E tests automatically clean up created tweets after all tests complete. Howeve
 ### Mocking
 
 Unit tests use Vitest's mocking capabilities to:
+
 - Mock the Twitter API client
 - Mock core dependencies
 - Isolate service logic
@@ -190,4 +198,4 @@ Example GitHub Actions setup:
     TWITTER_ACCESS_TOKEN: ${{ secrets.TWITTER_ACCESS_TOKEN }}
     TWITTER_ACCESS_TOKEN_SECRET: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
   run: npm test e2e
-``` 
+```

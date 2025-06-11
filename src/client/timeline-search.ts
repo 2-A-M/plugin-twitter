@@ -38,7 +38,7 @@ export interface SearchTimeline {
  * @returns {QueryTweetsResponse} An object containing an array of parsed Tweet objects, as well as the next and previous cursors for pagination.
  */
 export function parseSearchTimelineTweets(
-  timeline: SearchTimeline
+  timeline: SearchTimeline,
 ): QueryTweetsResponse {
   let bottomCursor: string | undefined;
   let topCursor: string | undefined;
@@ -67,7 +67,7 @@ export function parseSearchTimelineTweets(
           const tweetResultRaw = itemContent.tweet_results?.result;
           const tweetResult = parseLegacyTweet(
             tweetResultRaw?.core?.user_results?.result?.legacy,
-            tweetResultRaw?.legacy
+            tweetResultRaw?.legacy,
           );
 
           if (tweetResult.success) {
@@ -98,7 +98,7 @@ export function parseSearchTimelineTweets(
  * @returns {QueryProfilesResponse} An object containing the parsed profiles along with next and previous cursors.
  */
 export function parseSearchTimelineUsers(
-  timeline: SearchTimeline
+  timeline: SearchTimeline,
 ): QueryProfilesResponse {
   let bottomCursor: string | undefined;
   let topCursor: string | undefined;
@@ -130,7 +130,7 @@ export function parseSearchTimelineUsers(
           if (userResultRaw?.legacy) {
             const profile = parseProfile(
               userResultRaw.legacy,
-              userResultRaw.is_blue_verified
+              userResultRaw.is_blue_verified,
             );
 
             if (!profile.userId) {

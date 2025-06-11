@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { TwitterAuth } from '../auth';
-import { TwitterApi } from 'twitter-api-v2';
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { TwitterAuth } from "../auth";
+import { TwitterApi } from "twitter-api-v2";
 
 // Mock twitter-api-v2
-vi.mock('twitter-api-v2', () => ({
+vi.mock("twitter-api-v2", () => ({
   TwitterApi: vi.fn().mockImplementation(() => ({
     v2: {
       me: vi.fn(),
@@ -11,53 +11,53 @@ vi.mock('twitter-api-v2', () => ({
   })),
 }));
 
-describe('TwitterAuth', () => {
+describe("TwitterAuth", () => {
   let auth: TwitterAuth;
   let mockTwitterApi: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     mockTwitterApi = {
       v2: {
         me: vi.fn(),
       },
     };
-    
+
     (TwitterApi as any).mockImplementation(() => mockTwitterApi);
-    
+
     auth = new TwitterAuth(
-      'test-api-key',
-      'test-api-secret',
-      'test-access-token',
-      'test-access-secret'
+      "test-api-key",
+      "test-api-secret",
+      "test-access-token",
+      "test-access-secret",
     );
   });
 
-  describe('constructor', () => {
-    it('should initialize with API credentials', () => {
+  describe("constructor", () => {
+    it("should initialize with API credentials", () => {
       expect(TwitterApi).toHaveBeenCalledWith({
-        appKey: 'test-api-key',
-        appSecret: 'test-api-secret',
-        accessToken: 'test-access-token',
-        accessSecret: 'test-access-secret',
+        appKey: "test-api-key",
+        appSecret: "test-api-secret",
+        accessToken: "test-access-token",
+        accessSecret: "test-access-secret",
       });
     });
   });
 
-  describe('getV2Client', () => {
-    it('should return the Twitter API v2 client', () => {
+  describe("getV2Client", () => {
+    it("should return the Twitter API v2 client", () => {
       const client = auth.getV2Client();
       expect(client).toBe(mockTwitterApi);
     });
   });
 
-  describe('isLoggedIn', () => {
-    it('should return true when authenticated', async () => {
+  describe("isLoggedIn", () => {
+    it("should return true when authenticated", async () => {
       mockTwitterApi.v2.me.mockResolvedValue({
         data: {
-          id: '123456',
-          username: 'testuser',
+          id: "123456",
+          username: "testuser",
         },
       });
 
@@ -66,14 +66,14 @@ describe('TwitterAuth', () => {
       expect(mockTwitterApi.v2.me).toHaveBeenCalled();
     });
 
-    it('should return false when API call fails', async () => {
-      mockTwitterApi.v2.me.mockRejectedValue(new Error('Unauthorized'));
+    it("should return false when API call fails", async () => {
+      mockTwitterApi.v2.me.mockRejectedValue(new Error("Unauthorized"));
 
       const isLoggedIn = await auth.isLoggedIn();
       expect(isLoggedIn).toBe(false);
     });
 
-    it('should return false when no user data returned', async () => {
+    it("should return false when no user data returned", async () => {
       mockTwitterApi.v2.me.mockResolvedValue({});
 
       const isLoggedIn = await auth.isLoggedIn();
@@ -81,22 +81,22 @@ describe('TwitterAuth', () => {
     });
   });
 
-  describe('me', () => {
-    it('should return user profile', async () => {
+  describe("me", () => {
+    it("should return user profile", async () => {
       const mockUserData = {
         data: {
-          id: '123456',
-          username: 'testuser',
-          name: 'Test User',
-          description: 'Test bio',
-          profile_image_url: 'https://example.com/avatar.jpg',
+          id: "123456",
+          username: "testuser",
+          name: "Test User",
+          description: "Test bio",
+          profile_image_url: "https://example.com/avatar.jpg",
           public_metrics: {
             followers_count: 100,
             following_count: 50,
           },
           verified: true,
-          location: 'Test City',
-          created_at: '2020-01-01T00:00:00.000Z',
+          location: "Test City",
+          created_at: "2020-01-01T00:00:00.000Z",
         },
       };
 
@@ -105,39 +105,39 @@ describe('TwitterAuth', () => {
       const profile = await auth.me();
 
       expect(mockTwitterApi.v2.me).toHaveBeenCalledWith({
-        'user.fields': [
-          'id',
-          'name',
-          'username',
-          'description',
-          'profile_image_url',
-          'public_metrics',
-          'verified',
-          'location',
-          'created_at',
+        "user.fields": [
+          "id",
+          "name",
+          "username",
+          "description",
+          "profile_image_url",
+          "public_metrics",
+          "verified",
+          "location",
+          "created_at",
         ],
       });
 
       expect(profile).toEqual({
-        userId: '123456',
-        username: 'testuser',
-        name: 'Test User',
-        biography: 'Test bio',
-        avatar: 'https://example.com/avatar.jpg',
+        userId: "123456",
+        username: "testuser",
+        name: "Test User",
+        biography: "Test bio",
+        avatar: "https://example.com/avatar.jpg",
         followersCount: 100,
         followingCount: 50,
         isVerified: true,
-        location: 'Test City',
-        joined: new Date('2020-01-01T00:00:00.000Z'),
+        location: "Test City",
+        joined: new Date("2020-01-01T00:00:00.000Z"),
       });
     });
 
-    it('should cache profile after first fetch', async () => {
+    it("should cache profile after first fetch", async () => {
       const mockUserData = {
         data: {
-          id: '123456',
-          username: 'testuser',
-          name: 'Test User',
+          id: "123456",
+          username: "testuser",
+          name: "Test User",
         },
       };
 
@@ -153,12 +153,12 @@ describe('TwitterAuth', () => {
       expect(profile1).toBe(profile2);
     });
 
-    it('should handle missing optional fields', async () => {
+    it("should handle missing optional fields", async () => {
       const mockUserData = {
         data: {
-          id: '123456',
-          username: 'testuser',
-          name: 'Test User',
+          id: "123456",
+          username: "testuser",
+          name: "Test User",
           // No optional fields
         },
       };
@@ -168,21 +168,21 @@ describe('TwitterAuth', () => {
       const profile = await auth.me();
 
       expect(profile).toEqual({
-        userId: '123456',
-        username: 'testuser',
-        name: 'Test User',
+        userId: "123456",
+        username: "testuser",
+        name: "Test User",
         biography: undefined,
         avatar: undefined,
         followersCount: undefined,
         followingCount: undefined,
         isVerified: undefined,
-        location: '',
+        location: "",
         joined: undefined,
       });
     });
 
-    it('should return undefined on error', async () => {
-      mockTwitterApi.v2.me.mockRejectedValue(new Error('API Error'));
+    it("should return undefined on error", async () => {
+      mockTwitterApi.v2.me.mockRejectedValue(new Error("API Error"));
 
       const profile = await auth.me();
 
@@ -190,20 +190,22 @@ describe('TwitterAuth', () => {
     });
   });
 
-  describe('logout', () => {
-    it('should clear credentials and profile', async () => {
+  describe("logout", () => {
+    it("should clear credentials and profile", async () => {
       // First login and fetch profile
       mockTwitterApi.v2.me.mockResolvedValue({
-        data: { id: '123456', username: 'testuser' },
+        data: { id: "123456", username: "testuser" },
       });
-      
+
       await auth.me();
-      
+
       // Then logout
       await auth.logout();
 
       // Try to get client after logout
-      expect(() => auth.getV2Client()).toThrow('Twitter API client not initialized');
+      expect(() => auth.getV2Client()).toThrow(
+        "Twitter API client not initialized",
+      );
 
       // isLoggedIn should return false
       const isLoggedIn = await auth.isLoggedIn();
@@ -211,14 +213,14 @@ describe('TwitterAuth', () => {
     });
   });
 
-  describe('hasToken', () => {
-    it('should return true when authenticated', () => {
+  describe("hasToken", () => {
+    it("should return true when authenticated", () => {
       expect(auth.hasToken()).toBe(true);
     });
 
-    it('should return false after logout', async () => {
+    it("should return false after logout", async () => {
       await auth.logout();
       expect(auth.hasToken()).toBe(false);
     });
   });
-}); 
+});

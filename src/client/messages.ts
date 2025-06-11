@@ -129,15 +129,17 @@ export interface SendDirectMessageResponse {
 /**
  * Direct Message conversations are not supported in the current Twitter API v2 implementation
  * This functionality requires additional OAuth scopes and endpoints not included in this client
- * 
+ *
  * @deprecated This function is not implemented for Twitter API v2
  */
 export async function getDirectMessageConversations(
   userId: string,
   auth: TwitterAuth,
-  cursor?: string
+  cursor?: string,
 ): Promise<DirectMessagesResponse> {
-  console.warn("Direct message conversations are not supported in Twitter API v2 client");
+  console.warn(
+    "Direct message conversations are not supported in Twitter API v2 client",
+  );
   return {
     conversations: [],
     users: [],
@@ -148,14 +150,18 @@ export async function getDirectMessageConversations(
 /**
  * Sending direct messages is not supported in the current Twitter API v2 implementation
  * This functionality requires additional OAuth scopes and endpoints not included in this client
- * 
+ *
  * @deprecated This function is not implemented for Twitter API v2
  */
 export async function sendDirectMessage(
   auth: TwitterAuth,
   conversation_id: string,
-  text: string
+  text: string,
 ): Promise<SendDirectMessageResponse> {
-  console.warn("Sending direct messages is not supported in Twitter API v2 client");
-  throw new Error("Direct message functionality not implemented for Twitter API v2");
+  console.warn(
+    "Sending direct messages is not supported in Twitter API v2 client",
+  );
+  throw new Error(
+    "Direct message functionality not implemented for Twitter API v2",
+  );
 }

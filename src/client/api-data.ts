@@ -1,6 +1,6 @@
 /**
  * API data configuration
- * 
+ *
  * NOTE: The internal Twitter GraphQL endpoints are not supported in Twitter API v2.
  * This file is kept for backward compatibility but these endpoints should not be used.
  * Please use the official Twitter API v2 endpoints through the TwitterAuth class.
@@ -134,7 +134,7 @@ type ApiRequestFactory<Endpoints> = {
 };
 
 function createApiRequestFactory<Endpoints extends Record<string, string>>(
-  endpoints: Endpoints
+  endpoints: Endpoints,
 ): ApiRequestFactory<Endpoints> {
   type UntypedApiRequestFactory = ApiRequestFactory<Record<string, string>>;
 
@@ -160,24 +160,38 @@ function createApiRequestFactory<Endpoints extends Record<string, string>>(
  */
 export const apiRequestFactory = {
   createUserTweetsRequest: () => {
-    throw new Error("GraphQL endpoints not supported. Use Twitter API v2 instead.");
+    throw new Error(
+      "GraphQL endpoints not supported. Use Twitter API v2 instead.",
+    );
   },
   createUserTweetsAndRepliesRequest: () => {
-    throw new Error("GraphQL endpoints not supported. Use Twitter API v2 instead.");
+    throw new Error(
+      "GraphQL endpoints not supported. Use Twitter API v2 instead.",
+    );
   },
   createUserLikedTweetsRequest: () => {
-    throw new Error("GraphQL endpoints not supported. Use Twitter API v2 instead.");
+    throw new Error(
+      "GraphQL endpoints not supported. Use Twitter API v2 instead.",
+    );
   },
   createTweetDetailRequest: () => {
-    throw new Error("GraphQL endpoints not supported. Use Twitter API v2 instead.");
+    throw new Error(
+      "GraphQL endpoints not supported. Use Twitter API v2 instead.",
+    );
   },
   createTweetDetailArticleRequest: () => {
-    throw new Error("GraphQL endpoints not supported. Use Twitter API v2 instead.");
+    throw new Error(
+      "GraphQL endpoints not supported. Use Twitter API v2 instead.",
+    );
   },
   createTweetResultByRestIdRequest: () => {
-    throw new Error("GraphQL endpoints not supported. Use Twitter API v2 instead.");
+    throw new Error(
+      "GraphQL endpoints not supported. Use Twitter API v2 instead.",
+    );
   },
   createListTweetsRequest: () => {
-    throw new Error("GraphQL endpoints not supported. Use Twitter API v2 instead.");
+    throw new Error(
+      "GraphQL endpoints not supported. Use Twitter API v2 instead.",
+    );
   },
 };

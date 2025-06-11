@@ -17,11 +17,16 @@ export async function getClient(): Promise<Client> {
 
   if (!apiKey || !apiSecretKey || !accessToken || !accessTokenSecret) {
     throw new Error(
-      "TWITTER_API_KEY, TWITTER_API_SECRET_KEY, TWITTER_ACCESS_TOKEN, and TWITTER_ACCESS_TOKEN_SECRET must be defined."
+      "TWITTER_API_KEY, TWITTER_API_SECRET_KEY, TWITTER_ACCESS_TOKEN, and TWITTER_ACCESS_TOKEN_SECRET must be defined.",
     );
   }
 
-  const auth = new TwitterAuth(apiKey, apiSecretKey, accessToken, accessTokenSecret);
+  const auth = new TwitterAuth(
+    apiKey,
+    apiSecretKey,
+    accessToken,
+    accessTokenSecret,
+  );
   const loggedIn = await auth.isLoggedIn();
 
   if (!loggedIn) {
@@ -45,11 +50,16 @@ export async function getScraper(): Promise<TwitterAuth> {
 
   if (!apiKey || !apiSecretKey || !accessToken || !accessTokenSecret) {
     throw new Error(
-      "TWITTER_API_KEY, TWITTER_API_SECRET_KEY, TWITTER_ACCESS_TOKEN, and TWITTER_ACCESS_TOKEN_SECRET must be defined."
+      "TWITTER_API_KEY, TWITTER_API_SECRET_KEY, TWITTER_ACCESS_TOKEN, and TWITTER_ACCESS_TOKEN_SECRET must be defined.",
     );
   }
 
-  const auth = new TwitterAuth(apiKey, apiSecretKey, accessToken, accessTokenSecret);
+  const auth = new TwitterAuth(
+    apiKey,
+    apiSecretKey,
+    accessToken,
+    accessTokenSecret,
+  );
   const loggedIn = await auth.isLoggedIn();
 
   if (!loggedIn) {

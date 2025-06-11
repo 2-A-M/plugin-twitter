@@ -13,7 +13,7 @@ export class ApiError extends Error {
   private constructor(
     readonly response: Response,
     readonly data: any,
-    message: string
+    message: string,
   ) {
     super(message);
   }

@@ -91,7 +91,7 @@ export function convertClientTweetToCoreTweet(tweet: ClientTweet): Tweet {
           (mention): mention is Mention =>
             typeof mention === "object" &&
             mention !== null &&
-            typeof mention.username === "string"
+            typeof mention.username === "string",
         )
         .map((mention) => mention.username)
     : [];

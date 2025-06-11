@@ -190,7 +190,7 @@ export interface ThreadedConversation {
  */
 export function parseLegacyTweet(
   user?: LegacyUserRaw,
-  tweet?: LegacyTweetRaw
+  tweet?: LegacyTweetRaw,
 ): ParseTweetResult {
   if (tweet == null) {
     return {
@@ -221,7 +221,7 @@ export function parseLegacyTweet(
   const mentions = tweet.entities?.user_mentions ?? [];
   const media = tweet.extended_entities?.media ?? [];
   const pinnedTweets = new Set<string | undefined>(
-    user.pinned_tweet_ids_str ?? []
+    user.pinned_tweet_ids_str ?? [],
   );
   const urls = tweet.entities?.urls ?? [];
   const { photos, videos, sensitiveContent } = parseMediaGroups(media);
@@ -290,7 +290,7 @@ export function parseLegacyTweet(
     if (retweetedStatusResult) {
       const parsedResult = parseLegacyTweet(
         retweetedStatusResult?.core?.user_results?.result?.legacy,
-        retweetedStatusResult?.legacy
+        retweetedStatusResult?.legacy,
       );
 
       if (parsedResult.success) {
@@ -335,7 +335,7 @@ function parseResult(result?: TimelineResultRaw): ParseTweetResult {
 
   const tweetResult = parseLegacyTweet(
     result?.core?.user_results?.result?.legacy,
-    result?.legacy
+    result?.legacy,
   );
   if (!tweetResult.success) {
     return tweetResult;
@@ -371,7 +371,7 @@ const expectedEntryTypes = ["tweet", "profile-conversation"];
  * @returns {QueryTweetsResponse} The parsed tweets along with the next and previous cursors.
  */
 export function parseTimelineTweetsV2(
-  timeline: TimelineV2
+  timeline: TimelineV2,
 ): QueryTweetsResponse {
   let bottomCursor: string | undefined;
   let topCursor: string | undefined;
@@ -429,7 +429,7 @@ export function parseTimelineTweetsV2(
 export function parseTimelineEntryItemContentRaw(
   content: TimelineEntryItemContentRaw,
   entryId: string,
-  isConversation = false
+  isConversation = false,
 ) {
   let result = content.tweet_results?.result ?? content.tweetResult?.result;
   if (
@@ -472,12 +472,12 @@ export function parseAndPush(
   tweets: Tweet[],
   content: TimelineEntryItemContentRaw,
   entryId: string,
-  isConversation = false
+  isConversation = false,
 ) {
   const tweet = parseTimelineEntryItemContentRaw(
     content,
     entryId,
-    isConversation
+    isConversation,
   );
 
   if (tweet) {
@@ -491,7 +491,7 @@ export function parseAndPush(
  * @returns An array of Tweet objects parsed from the conversation
  */
 export function parseThreadedConversation(
-  conversation: ThreadedConversation
+  conversation: ThreadedConversation,
 ): Tweet[] {
   const tweets: Tweet[] = [];
   const instructions =
@@ -567,7 +567,7 @@ export interface TimelineArticle {
  * @returns {TimelineArticle[]} The extracted TimelineArticle objects.
  */
 export function parseArticle(
-  conversation: ThreadedConversation
+  conversation: ThreadedConversation,
 ): TimelineArticle[] {
   const articles: TimelineArticle[] = [];
   for (const instruction of conversation.data

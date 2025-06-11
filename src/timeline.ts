@@ -51,7 +51,7 @@ export class TwitterTimelineClient {
       const interactionInterval =
         (this.state?.TWITTER_TIMELINE_POLL_INTERVAL ||
           (this.runtime.getSetting(
-            "TWITTER_TIMELINE_POLL_INTERVAL"
+            "TWITTER_TIMELINE_POLL_INTERVAL",
           ) as unknown as number) ||
           120) * 1000;
 
@@ -93,7 +93,7 @@ export class TwitterTimelineClient {
         urls: tweet.legacy?.entities?.urls || [],
         videos:
           tweet.legacy?.entities?.media?.filter(
-            (media) => media.type === "video"
+            (media) => media.type === "video",
           ) || [],
       }))
       .filter((tweet) => tweet.username !== twitterUsername); // do not perform action on self-tweets
@@ -165,7 +165,7 @@ Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appro
           ModelType.TEXT_SMALL,
           {
             prompt: actionRespondPrompt,
-          }
+          },
         );
 
         if (!actionResponse) {
@@ -221,7 +221,7 @@ Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appro
       actionResponse: ActionResponse;
       tweetState: State;
       roomId: UUID;
-    }[]
+    }[],
   ): Promise<
     {
       tweetId: string;
@@ -274,7 +274,7 @@ Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appro
     tweet: Tweet,
     roomId: UUID,
     worldId: UUID,
-    entityId: UUID
+    entityId: UUID,
   ) {
     await this.runtime.ensureConnection({
       entityId,
@@ -343,13 +343,14 @@ ${tweet.text}`;
           async () =>
             await this.twitterClient.sendQuoteTweet(
               responseObject.post,
-              tweet.id
-            )
+              tweet.id,
+            ),
         );
 
         const body: any = await result.json();
 
-        const tweetResult = body?.data?.create_tweet?.tweet_results?.result || body?.data || body;
+        const tweetResult =
+          body?.data?.create_tweet?.tweet_results?.result || body?.data || body;
         if (tweetResult) {
           logger.log("Successfully posted quote tweet");
         } else {
@@ -357,7 +358,8 @@ ${tweet.text}`;
         }
 
         // Create memory for our response
-        const tweetId = tweetResult?.rest_id || tweetResult?.id || Date.now().toString();
+        const tweetId =
+          tweetResult?.rest_id || tweetResult?.id || Date.now().toString();
         const responseId = createUniqueUuid(this.runtime, tweetId);
         const responseMemory: Memory = {
           id: responseId,
@@ -406,7 +408,7 @@ ${tweet.text}`;
           this.client,
           responseObject.post,
           [],
-          tweet.id
+          tweet.id,
         );
 
         if (!tweetResult) {

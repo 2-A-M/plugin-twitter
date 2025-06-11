@@ -1,5 +1,5 @@
-import { TwitterApi } from 'twitter-api-v2';
-import { Profile } from './profile';
+import { TwitterApi } from "twitter-api-v2";
+import { Profile } from "./profile";
 
 /**
  * Twitter API v2 authentication using developer credentials
@@ -13,7 +13,7 @@ export class TwitterAuth {
     private appKey: string,
     private appSecret: string,
     private accessToken: string,
-    private accessSecret: string
+    private accessSecret: string,
   ) {
     this.initializeClient();
   }
@@ -33,7 +33,7 @@ export class TwitterAuth {
    */
   getV2Client(): TwitterApi {
     if (!this.v2Client) {
-      throw new Error('Twitter API client not initialized');
+      throw new Error("Twitter API client not initialized");
     }
     return this.v2Client;
   }
@@ -51,7 +51,7 @@ export class TwitterAuth {
       const me = await this.v2Client.v2.me();
       return !!me.data;
     } catch (error) {
-      console.error('Failed to verify authentication:', error);
+      console.error("Failed to verify authentication:", error);
       return false;
     }
   }
@@ -65,12 +65,22 @@ export class TwitterAuth {
     }
 
     if (!this.v2Client) {
-      throw new Error('Not authenticated');
+      throw new Error("Not authenticated");
     }
 
     try {
       const { data: user } = await this.v2Client.v2.me({
-        'user.fields': ['id', 'name', 'username', 'description', 'profile_image_url', 'public_metrics', 'verified', 'location', 'created_at']
+        "user.fields": [
+          "id",
+          "name",
+          "username",
+          "description",
+          "profile_image_url",
+          "public_metrics",
+          "verified",
+          "location",
+          "created_at",
+        ],
       });
 
       this.profile = {
@@ -82,13 +92,13 @@ export class TwitterAuth {
         followersCount: user.public_metrics?.followers_count,
         followingCount: user.public_metrics?.following_count,
         isVerified: user.verified,
-        location: user.location || '',
+        location: user.location || "",
         joined: user.created_at ? new Date(user.created_at) : undefined,
       };
 
       return this.profile;
     } catch (error) {
-      console.error('Failed to get user profile:', error);
+      console.error("Failed to get user profile:", error);
       return undefined;
     }
   }

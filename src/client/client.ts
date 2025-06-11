@@ -152,7 +152,7 @@ export class Client {
   public searchTweets(
     query: string,
     maxTweets: number,
-    searchMode: SearchMode = SearchMode.Top
+    searchMode: SearchMode = SearchMode.Top,
   ): AsyncGenerator<Tweet, void> {
     return searchTweets(query, maxTweets, searchMode, this.auth);
   }
@@ -165,7 +165,7 @@ export class Client {
    */
   public searchProfiles(
     query: string,
-    maxProfiles: number
+    maxProfiles: number,
   ): AsyncGenerator<Profile, void> {
     return searchProfiles(query, maxProfiles, this.auth);
   }
@@ -183,7 +183,7 @@ export class Client {
     query: string,
     maxTweets: number,
     searchMode: SearchMode,
-    cursor?: string
+    cursor?: string,
   ): Promise<QueryTweetsResponse> {
     return fetchSearchTweets(query, maxTweets, searchMode, this.auth, cursor);
   }
@@ -198,7 +198,7 @@ export class Client {
   public fetchSearchProfiles(
     query: string,
     maxProfiles: number,
-    cursor?: string
+    cursor?: string,
   ): Promise<QueryProfilesResponse> {
     return fetchSearchProfiles(query, maxProfiles, this.auth, cursor);
   }
@@ -213,7 +213,7 @@ export class Client {
   public fetchListTweets(
     listId: string,
     maxTweets: number,
-    cursor?: string
+    cursor?: string,
   ): Promise<QueryTweetsResponse> {
     return fetchListTweets(listId, maxTweets, cursor, this.auth);
   }
@@ -226,7 +226,7 @@ export class Client {
    */
   public getFollowing(
     userId: string,
-    maxProfiles: number
+    maxProfiles: number,
   ): AsyncGenerator<Profile, void> {
     return getFollowing(userId, maxProfiles, this.auth);
   }
@@ -239,7 +239,7 @@ export class Client {
    */
   public getFollowers(
     userId: string,
-    maxProfiles: number
+    maxProfiles: number,
   ): AsyncGenerator<Profile, void> {
     return getFollowers(userId, maxProfiles, this.auth);
   }
@@ -254,7 +254,7 @@ export class Client {
   public fetchProfileFollowing(
     userId: string,
     maxProfiles: number,
-    cursor?: string
+    cursor?: string,
   ): Promise<QueryProfilesResponse> {
     return fetchProfileFollowing(userId, maxProfiles, this.auth, cursor);
   }
@@ -269,7 +269,7 @@ export class Client {
   public fetchProfileFollowers(
     userId: string,
     maxProfiles: number,
-    cursor?: string
+    cursor?: string,
   ): Promise<QueryProfilesResponse> {
     return fetchProfileFollowers(userId, maxProfiles, this.auth, cursor);
   }
@@ -282,7 +282,7 @@ export class Client {
    */
   public async fetchHomeTimeline(
     count: number,
-    seenTweetIds: string[]
+    seenTweetIds: string[],
   ): Promise<any[]> {
     return await fetchHomeTimeline(count, seenTweetIds, this.auth);
   }
@@ -295,7 +295,7 @@ export class Client {
    */
   public async fetchFollowingTimeline(
     count: number,
-    seenTweetIds: string[]
+    seenTweetIds: string[],
   ): Promise<any[]> {
     return await fetchFollowingTimeline(count, seenTweetIds, this.auth);
   }
@@ -303,7 +303,7 @@ export class Client {
   async getUserTweets(
     userId: string,
     maxTweets = 200,
-    cursor?: string
+    cursor?: string,
   ): Promise<{ tweets: Tweet[]; next?: string }> {
     if (maxTweets > 200) {
       maxTweets = 200;
@@ -355,11 +355,11 @@ export class Client {
 
     const res = await requestApi<TimelineV2>(
       `${UserTweetsUrl}?variables=${encodeURIComponent(
-        JSON.stringify(variables)
+        JSON.stringify(variables),
       )}&features=${encodeURIComponent(JSON.stringify(features))}&fieldToggles=${encodeURIComponent(
-        JSON.stringify(fieldToggles)
+        JSON.stringify(fieldToggles),
       )}`,
-      this.auth
+      this.auth,
     );
 
     if (!res.success) {
@@ -375,7 +375,7 @@ export class Client {
 
   async *getUserTweetsIterator(
     userId: string,
-    maxTweets = 200
+    maxTweets = 200,
   ): AsyncGenerator<Tweet, void> {
     let cursor: string | undefined;
     let retrievedTweets = 0;
@@ -384,7 +384,7 @@ export class Client {
       const response = await this.getUserTweets(
         userId,
         maxTweets - retrievedTweets,
-        cursor
+        cursor,
       );
 
       for (const tweet of response.tweets) {
@@ -431,7 +431,7 @@ export class Client {
    */
   public getTweetsByUserId(
     userId: string,
-    maxTweets = 200
+    maxTweets = 200,
   ): AsyncGenerator<Tweet, void> {
     return getTweetsByUserId(userId, maxTweets, this.auth);
   }
@@ -448,7 +448,7 @@ export class Client {
     text: string,
     replyToTweetId?: string,
     mediaData?: { data: Buffer; mediaType: string }[],
-    hideLinkPreview?: boolean
+    hideLinkPreview?: boolean,
   ) {
     if (!text || text.trim().length === 0) {
       throw new Error("Text is required");
@@ -461,14 +461,14 @@ export class Client {
       this.auth,
       replyToTweetId,
       mediaData,
-      hideLinkPreview
+      hideLinkPreview,
     );
   }
 
   async sendNoteTweet(
     text: string,
     replyToTweetId?: string,
-    mediaData?: { data: Buffer; mediaType: string }[]
+    mediaData?: { data: Buffer; mediaType: string }[],
   ) {
     if (!text || text.trim().length === 0) {
       throw new Error("Text is required");
@@ -480,7 +480,7 @@ export class Client {
       text,
       this.auth,
       replyToTweetId,
-      mediaData
+      mediaData,
     );
   }
 
@@ -494,13 +494,13 @@ export class Client {
   async sendLongTweet(
     text: string,
     replyToTweetId?: string,
-    mediaData?: { data: Buffer; mediaType: string }[]
+    mediaData?: { data: Buffer; mediaType: string }[],
   ) {
     return await createCreateLongTweetRequest(
       text,
       this.auth,
       replyToTweetId,
-      mediaData
+      mediaData,
     );
   }
 
@@ -517,13 +517,13 @@ export class Client {
     replyToTweetId?: string,
     options?: {
       poll?: PollData;
-    }
+    },
   ) {
     return await createCreateTweetRequestV2(
       text,
       this.auth,
       replyToTweetId,
-      options
+      options,
     );
   }
 
@@ -535,7 +535,7 @@ export class Client {
    */
   public getTweetsAndReplies(
     user: string,
-    maxTweets = 200
+    maxTweets = 200,
   ): AsyncGenerator<Tweet> {
     return getTweetsAndReplies(user, maxTweets, this.auth);
   }
@@ -548,7 +548,7 @@ export class Client {
    */
   public getTweetsAndRepliesByUserId(
     userId: string,
-    maxTweets = 200
+    maxTweets = 200,
   ): AsyncGenerator<Tweet, void> {
     return getTweetsAndRepliesByUserId(userId, maxTweets, this.auth);
   }
@@ -571,7 +571,7 @@ export class Client {
    */
   public getTweetWhere(
     tweets: AsyncIterable<Tweet>,
-    query: TweetQuery
+    query: TweetQuery,
   ): Promise<Tweet | null> {
     return getTweetWhere(tweets, query);
   }
@@ -594,7 +594,7 @@ export class Client {
    */
   public getTweetsWhere(
     tweets: AsyncIterable<Tweet>,
-    query: TweetQuery
+    query: TweetQuery,
   ): Promise<Tweet[]> {
     return getTweetsWhere(tweets, query);
   }
@@ -608,7 +608,7 @@ export class Client {
   public getLatestTweet(
     user: string,
     includeRetweets = false,
-    max = 200
+    max = 200,
   ): Promise<Tweet | null | undefined> {
     return getLatestTweet(user, includeRetweets, max, this.auth);
   }
@@ -645,7 +645,7 @@ export class Client {
       mediaFields?: TTweetv2MediaField[];
       userFields?: TTweetv2UserField[];
       placeFields?: TTweetv2PlaceField[];
-    } = defaultOptions
+    } = defaultOptions,
   ): Promise<Tweet | null> {
     return await getTweetV2(id, this.auth, options);
   }
@@ -673,7 +673,7 @@ export class Client {
       mediaFields?: TTweetv2MediaField[];
       userFields?: TTweetv2UserField[];
       placeFields?: TTweetv2PlaceField[];
-    } = defaultOptions
+    } = defaultOptions,
   ): Promise<Tweet[]> {
     return await getTweetsV2(ids, this.auth, options);
   }
@@ -734,12 +734,12 @@ export class Client {
     appKey?: string,
     appSecret?: string,
     accessToken?: string,
-    accessSecret?: string
+    accessSecret?: string,
   ): Promise<void> {
     // Only use API credentials for v2 authentication
     if (!appKey || !appSecret || !accessToken || !accessSecret) {
       throw new Error(
-        "Twitter API v2 credentials are required for authentication"
+        "Twitter API v2 credentials are required for authentication",
       );
     }
 
@@ -753,7 +753,7 @@ export class Client {
   public async logout(): Promise<void> {
     // With API v2 credentials, there's no logout process
     console.warn(
-      "Logout is not applicable when using Twitter API v2 credentials"
+      "Logout is not applicable when using Twitter API v2 credentials",
     );
   }
 
@@ -766,7 +766,7 @@ export class Client {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public withCookie(_cookie: string): Client {
     console.warn(
-      "Warning: Client#withCookie is deprecated and will be removed in a later version. Use Client#login or Client#setCookies instead."
+      "Warning: Client#withCookie is deprecated and will be removed in a later version. Use Client#login or Client#setCookies instead.",
     );
     return this;
   }
@@ -780,7 +780,7 @@ export class Client {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public withXCsrfToken(_token: string): Client {
     console.warn(
-      "Warning: Client#withXCsrfToken is deprecated and will be removed in a later version."
+      "Warning: Client#withXCsrfToken is deprecated and will be removed in a later version.",
     );
     return this;
   }
@@ -797,13 +797,13 @@ export class Client {
     quotedTweetId: string,
     options?: {
       mediaData: { data: Buffer; mediaType: string }[];
-    }
+    },
   ) {
     return await createQuoteTweetRequest(
       text,
       quotedTweetId,
       this.auth,
-      options?.mediaData
+      options?.mediaData,
     );
   }
 
@@ -856,10 +856,10 @@ export class Client {
    */
   public async getDirectMessageConversations(
     userId: string,
-    cursor?: string
+    cursor?: string,
   ): Promise<any> {
     console.warn(
-      "Direct message conversations not implemented for Twitter API v2"
+      "Direct message conversations not implemented for Twitter API v2",
     );
     return { conversations: [] };
   }
@@ -873,7 +873,7 @@ export class Client {
    */
   public async sendDirectMessage(
     conversationId: string,
-    text: string
+    text: string,
   ): Promise<any> {
     console.warn("Sending direct messages not implemented for Twitter API v2");
     throw new Error("Direct message sending not implemented");
@@ -920,7 +920,7 @@ export class Client {
    */
   public async fetchAllQuotedTweets(
     tweetId: string,
-    maxQuotes: number = 100
+    maxQuotes: number = 100,
   ): Promise<Tweet[]> {
     const allQuotes: Tweet[] = [];
 
@@ -933,7 +933,7 @@ export class Client {
         const page = await this.fetchQuotedTweetsPage(
           tweetId,
           batchSize,
-          cursor
+          cursor,
         );
 
         if (!page.tweets || page.tweets.length === 0) {
@@ -969,7 +969,7 @@ export class Client {
   public async fetchQuotedTweetsPage(
     tweetId: string,
     maxQuotes: number = 40,
-    cursor?: string
+    cursor?: string,
   ): Promise<QueryTweetsResponse> {
     // For backward compatibility, collect quotes from the generator
     const quotes: Tweet[] = [];
@@ -979,7 +979,7 @@ export class Client {
     for await (const quote of searchQuotedTweets(
       tweetId,
       maxQuotes,
-      this.auth
+      this.auth,
     )) {
       quotes.push(quote);
       count++;

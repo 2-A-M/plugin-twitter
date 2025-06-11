@@ -144,7 +144,7 @@ function getAvatarOriginalSizeUrl(avatarUrl: string | undefined) {
 
 export function parseProfile(
   user: LegacyUserRaw,
-  isBlueVerified?: boolean
+  isBlueVerified?: boolean,
 ): Profile {
   const profile: Profile = {
     avatar: getAvatarOriginalSizeUrl(user.profile_image_url_https),
@@ -183,7 +183,7 @@ export function parseProfile(
 
 export async function getProfile(
   username: string,
-  auth: TwitterAuth
+  auth: TwitterAuth,
 ): Promise<RequestApiResult<Profile>> {
   const params = new URLSearchParams();
   params.set(
@@ -191,7 +191,7 @@ export async function getProfile(
     stringify({
       screen_name: username,
       withSafetyModeUserFields: true,
-    }) ?? ""
+    }) ?? "",
   );
 
   params.set(
@@ -207,17 +207,17 @@ export async function getProfile(
       creator_subscriptions_tweet_preview_api_enabled: true,
       responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
       responsive_web_graphql_timeline_navigation_enabled: true,
-    }) ?? ""
+    }) ?? "",
   );
 
   params.set(
     "fieldToggles",
-    stringify({ withAuxiliaryUserLabels: false }) ?? ""
+    stringify({ withAuxiliaryUserLabels: false }) ?? "",
   );
 
   const res = await requestApi<UserRaw>(
     `https://twitter.com/i/api/graphql/G3KGOASz96M-Qu0nwmGXNg/UserByScreenName?${params.toString()}`,
-    auth
+    auth,
   );
   if (!res.success) {
     return res as any;
@@ -267,7 +267,7 @@ const idCache = new Map<string, string>();
 
 export async function getScreenNameByUserId(
   userId: string,
-  auth: TwitterAuth
+  auth: TwitterAuth,
 ): Promise<RequestApiResult<string>> {
   const params = new URLSearchParams();
   params.set(
@@ -275,7 +275,7 @@ export async function getScreenNameByUserId(
     stringify({
       userId: userId,
       withSafetyModeUserFields: true,
-    }) ?? ""
+    }) ?? "",
   );
 
   params.set(
@@ -291,12 +291,12 @@ export async function getScreenNameByUserId(
       creator_subscriptions_tweet_preview_api_enabled: true,
       responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
       responsive_web_graphql_timeline_navigation_enabled: true,
-    }) ?? ""
+    }) ?? "",
   );
 
   const res = await requestApi<UserRaw>(
     `https://twitter.com/i/api/graphql/xf3jd90KKBCUxdlI_tNHZw/UserByRestId?${params.toString()}`,
-    auth
+    auth,
   );
 
   if (!res.success) {
@@ -326,7 +326,7 @@ export async function getScreenNameByUserId(
     return {
       success: false,
       err: new Error(
-        `Either user with ID ${userId} does not exist or is private.`
+        `Either user with ID ${userId} does not exist or is private.`,
       ),
     };
   }
@@ -339,7 +339,7 @@ export async function getScreenNameByUserId(
 
 export async function getEntityIdByScreenName(
   screenName: string,
-  auth: TwitterAuth
+  auth: TwitterAuth,
 ): Promise<RequestApiResult<string>> {
   const cached = idCache.get(screenName);
   if (cached != null) {

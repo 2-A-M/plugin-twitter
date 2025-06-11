@@ -31,7 +31,7 @@ export interface HomeTimelineResponse {
 export async function fetchHomeTimeline(
   count: number,
   seenTweetIds: string[],
-  auth: TwitterAuth
+  auth: TwitterAuth,
 ): Promise<any[]> {
   const variables = {
     count,
@@ -71,10 +71,10 @@ export async function fetchHomeTimeline(
 
   const res = await requestApi<HomeTimelineResponse>(
     `https://x.com/i/api/graphql/HJFjzBgCs16TqxewQOeLNg/HomeTimeline?variables=${encodeURIComponent(
-      JSON.stringify(variables)
+      JSON.stringify(variables),
     )}&features=${encodeURIComponent(JSON.stringify(features))}`,
     auth,
-    "GET"
+    "GET",
   );
 
   if (!res.success) {
