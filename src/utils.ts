@@ -14,9 +14,9 @@ import {
 } from "@elizaos/core";
 import type { ClientBase } from "./base";
 import type { Tweet } from "./client";
-import type { SttTtsPlugin } from "./sttTtsSpaces";
+
 import type { ActionResponse, MediaData } from "./types";
-import { TWEET_CHAR_LIMIT } from "./constants";
+import { TWEET_CHAR_LIMIT, TWEET_MAX_LENGTH } from "./constants";
 
 export const wait = (minTime = 1000, maxTime = 3000) => {
   const waitTime =
@@ -88,30 +88,30 @@ async function handleNoteTweet(
   tweetId?: string,
   mediaData?: MediaData[]
 ) {
-  const noteTweetResult = await client.requestQueue.add(
-    async () =>
-      await client.twitterClient.sendNoteTweet(content, tweetId, mediaData)
+  // Twitter API v2 handles long tweets automatically
+  // Just use the regular sendTweet method
+  const result = await client.twitterClient.sendTweet(
+    content,
+    tweetId,
+    mediaData
   );
 
-  if (noteTweetResult.errors && noteTweetResult.errors.length > 0) {
-    // Note Tweet failed due to authorization. Falling back to standard Tweet.
+  // Check if the result was successful
+  if (!result || !result.ok) {
+    // Tweet failed. Falling back to truncated Tweet.
     const truncateContent = truncateToCompleteSentence(
       content,
-      TWEET_CHAR_LIMIT - 1
+      TWEET_MAX_LENGTH
     );
     return await sendStandardTweet(client, truncateContent, tweetId);
   }
-  return noteTweetResult.data.notetweet_create.tweet_results.result;
+  
+  // Return the result directly
+  return result;
 }
 
 /**
- * Asynchronously sends a standard tweet using the provided Twitter client.
- *
- * @param {ClientBase} client - The client used to make the request.
- * @param {string} content - The content of the tweet.
- * @param {string} [tweetId] - Optional tweet ID to reply to.
- * @param {MediaData[]} [mediaData] - Optional array of media data to attach to the tweet.
- * @returns {Promise<string>} The result of sending the tweet.
+ * Send a standard tweet through the client
  */
 export async function sendStandardTweet(
   client: ClientBase,
@@ -119,16 +119,14 @@ export async function sendStandardTweet(
   tweetId?: string,
   mediaData?: MediaData[]
 ) {
-  const standardTweetResult = await client.requestQueue.add(
-    async () =>
-      await client.twitterClient.sendTweet(content, tweetId, mediaData)
+  const standardTweetResult = await client.twitterClient.sendTweet(
+    content,
+    tweetId,
+    mediaData
   );
-  const body = await standardTweetResult.json();
-  if (!body?.data?.create_tweet?.tweet_results?.result) {
-    logger.error("Error sending tweet; Bad response:", body);
-    return;
-  }
-  return body.data.create_tweet.tweet_results.result;
+  
+  // The result is already the response object
+  return standardTweetResult;
 }
 
 export async function sendTweet(
@@ -137,11 +135,53 @@ export async function sendTweet(
   mediaData: MediaData[] = [],
   tweetToReplyTo?: string
 ): Promise<any> {
-  if (text.length > TWEET_CHAR_LIMIT - 1) {
-    return await handleNoteTweet(client, text, tweetToReplyTo, mediaData);
-  } else {
-    return await sendStandardTweet(client, text, tweetToReplyTo, mediaData);
+  const isNoteTweet = text.length > TWEET_MAX_LENGTH;
+  const postText = isNoteTweet
+    ? truncateToCompleteSentence(text, TWEET_MAX_LENGTH)
+    : text;
+
+  let result;
+
+  try {
+    result = await client.twitterClient.sendTweet(
+      postText,
+      tweetToReplyTo,
+      mediaData
+    );
+    logger.log("Successfully posted Tweet");
+  } catch (error) {
+    logger.error("Error posting Tweet:", error);
+    throw error;
   }
+
+  try {
+    // The result from sendTweet should have the tweet data
+    const tweetData = result?.data || result;
+    
+    // Extract the tweet ID and other data
+    const tweetResult = tweetData?.data || tweetData;
+
+    // if we have a response
+    if (tweetResult && tweetResult.id) {
+      if (client.lastCheckedTweetId < BigInt(tweetResult.id)) {
+        client.lastCheckedTweetId = BigInt(tweetResult.id);
+      }
+      await client.cacheLatestCheckedTweetId();
+
+      // Cache the tweet
+      await client.cacheTweet(tweetResult);
+
+      logger.log("Successfully posted a tweet", tweetResult.id);
+
+      return tweetResult;
+    }
+  } catch (error) {
+    logger.error("Error parsing tweet response:", error);
+    throw error;
+  }
+
+  logger.error("No valid response from Twitter API");
+  throw new Error("Failed to send tweet - no valid response");
 }
 
 /**
@@ -161,86 +201,67 @@ export async function sendChunkedTweet(
   twitterUsername: string,
   inReplyTo: string
 ): Promise<Memory[]> {
-  const isLongTweet = content.text.length > TWEET_CHAR_LIMIT - 1;
+  const messages: Memory[] = [];
+  const chunks = splitTweetContent(content.text, TWEET_MAX_LENGTH);
 
-  const tweetChunks = splitTweetContent(content.text, TWEET_CHAR_LIMIT - 1);
-  const sentTweets: Tweet[] = [];
   let previousTweetId = inReplyTo;
 
-  for (const chunk of tweetChunks) {
-    let mediaData = null;
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    const isLastChunk = i === chunks.length - 1;
 
-    if (content.attachments && content.attachments.length > 0) {
-      mediaData = await fetchMediaData(content.attachments);
+    // Add the tweet number to the beginning of each chunk
+    const tweetContent = `${chunk}`;
+
+    logger.debug(`Sending tweet ${i + 1}/${chunks.length}: ${tweetContent}`);
+
+    try {
+      // Convert Media[] to MediaData[] if needed
+      let mediaData: MediaData[] = [];
+      if (content.attachments && content.attachments.length > 0) {
+        mediaData = await fetchMediaData(content.attachments);
+      }
+
+      const result = await sendTweet(
+        client,
+        tweetContent,
+        mediaData,
+        previousTweetId
+      );
+
+      const body = typeof result === 'object' ? result : await result.json();
+      
+      // Twitter API v2 response format
+      const tweetResult = body?.data || body;
+
+      // if we have a response
+      if (tweetResult && tweetResult.id) {
+        const tweetId = tweetResult.id;
+        const permanentUrl = `https://x.com/${twitterUsername}/status/${tweetId}`;
+
+        const memory: Memory = {
+          id: createUniqueUuid(client.runtime, tweetId),
+          entityId: client.runtime.agentId,
+          content: {
+            text: chunk,
+            url: permanentUrl,
+            source: "twitter",
+          },
+          agentId: client.runtime.agentId,
+          roomId,
+          createdAt: Date.now(),
+        };
+
+        messages.push(memory);
+        previousTweetId = tweetId;
+      }
+    } catch (error) {
+      logger.error(`Error sending chunk ${i + 1}:`, error);
+      throw error;
     }
-
-    const cleanChunk = deduplicateMentions(chunk.trim());
-
-    const result = await client.requestQueue.add(async () =>
-      isLongTweet
-        ? client.twitterClient.sendLongTweet(
-            cleanChunk,
-            previousTweetId,
-            mediaData
-          )
-        : client.twitterClient.sendTweet(cleanChunk, previousTweetId, mediaData)
-    );
-
-    const body = await result.json();
-    const tweetResult = isLongTweet
-      ? body?.data?.notetweet_create?.tweet_results?.result
-      : body?.data?.create_tweet?.tweet_results?.result;
-
-    // if we have a response
-    if (tweetResult) {
-      // Parse the response
-      const finalTweet: Tweet = {
-        id: tweetResult.rest_id,
-        text: tweetResult.legacy.full_text,
-        conversationId: tweetResult.legacy.conversation_id_str,
-        timestamp: new Date(tweetResult.legacy.created_at).getTime() / 1000,
-        userId: tweetResult.legacy.user_id_str,
-        inReplyToStatusId: tweetResult.legacy.in_reply_to_status_id_str,
-        permanentUrl: `https://twitter.com/${twitterUsername}/status/${tweetResult.rest_id}`,
-        hashtags: [],
-        mentions: [],
-        photos: [],
-        thread: [],
-        urls: [],
-        videos: [],
-      };
-      sentTweets.push(finalTweet);
-      previousTweetId = finalTweet.id;
-    } else {
-      logger.error("Error sending tweet chunk:", {
-        chunk,
-        response: body,
-      });
-    }
-
-    // Wait a bit between tweets to avoid rate limiting issues
-    await wait(1000, 2000);
   }
 
-  const memories: Memory[] = sentTweets.map((tweet) => ({
-    id: createUniqueUuid(client.runtime, tweet.id),
-    agentId: client.runtime.agentId,
-    entityId: client.runtime.agentId,
-    content: {
-      tweetId: tweet.id,
-      text: tweet.text,
-      source: "twitter",
-      url: tweet.permanentUrl,
-      imageUrls: tweet.photos.map((p) => p.url) || [],
-      inReplyTo: tweet.inReplyToStatusId
-        ? createUniqueUuid(client.runtime, tweet.inReplyToStatusId)
-        : undefined,
-    },
-    roomId,
-    createdAt: tweet.timestamp * 1000,
-  }));
-
-  return memories;
+  return messages;
 }
 
 /**
@@ -490,103 +511,4 @@ export const parseActionResponseFromText = (
   return { actions };
 };
 
-/**
- * Generate short filler text via GPT
- */
-/**
- * Generates a short filler message for a Twitter Space based on the specified filler type.
- *
- * @param {IAgentRuntime} runtime - The agent runtime instance to use for generating the filler.
- * @param {string} fillerType - The type of filler message to generate.
- * @returns {Promise<string>} The generated filler message as a string.
- */
-export async function generateFiller(
-  runtime: IAgentRuntime,
-  fillerType: string
-): Promise<string> {
-  const prompt = composePrompt({
-    state: {
-      values: {
-        fillerType,
-      },
-    } as any as State,
-    template: `
-# INSTRUCTIONS:
-You are generating a short filler message for a Twitter Space. The filler type is "{{fillerType}}".
-Keep it brief, friendly, and relevant. No more than two sentences.
-Only return the text, no additional formatting.
 
----
-`,
-  });
-  const output = await runtime.useModel(ModelType.TEXT_SMALL, {
-    prompt,
-  });
-  return output.trim();
-}
-
-/**
- * Speak a filler message if STT/TTS plugin is available. Sleep a bit after TTS to avoid cutoff.
- */
-export async function speakFiller(
-  runtime: IAgentRuntime,
-  sttTtsPlugin: SttTtsPlugin | undefined,
-  fillerType: string,
-  sleepAfterMs = 3000
-): Promise<void> {
-  if (!sttTtsPlugin) return;
-  const text = await generateFiller(runtime, fillerType);
-  if (!text) return;
-
-  logger.log(`[Space] Filler (${fillerType}) => ${text}`);
-  await sttTtsPlugin.speakText(text);
-
-  if (sleepAfterMs > 0) {
-    await new Promise((res) => setTimeout(res, sleepAfterMs));
-  }
-}
-
-/**
- * Generate topic suggestions via GPT if no topics are configured
- */
-export async function generateTopicsIfEmpty(
-  runtime: IAgentRuntime
-): Promise<string[]> {
-  const prompt = composePrompt({
-    state: {} as any,
-    template: `
-# INSTRUCTIONS:
-Please generate 5 short topic ideas for a Twitter Space about technology or random interesting subjects.
-Return them as a comma-separated list, no additional formatting or numbering.
-
-Example:
-"AI Advances, Futuristic Gadgets, Space Exploration, Quantum Computing, Digital Ethics"
----
-`,
-  });
-  const response = await runtime.useModel(ModelType.TEXT_SMALL, {
-    prompt,
-  });
-  const topics = response
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
-  return topics.length ? topics : ["Random Tech Chat", "AI Thoughts"];
-}
-
-export async function isAgentInSpace(
-  client: ClientBase,
-  spaceId: string
-): Promise<boolean> {
-  const space = await client.twitterClient.getAudioSpaceById(spaceId);
-  const agentName = client.state.TWITTER_USERNAME;
-
-  return (
-    space.participants.listeners.some(
-      (participant) => participant.twitter_screen_name === agentName
-    ) ||
-    space.participants.speakers.some(
-      (participant) => participant.twitter_screen_name === agentName
-    )
-  );
-}

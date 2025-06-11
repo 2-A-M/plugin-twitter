@@ -209,76 +209,15 @@ async function getFollowersTimeline(
 }
 
 /**
- * Makes a request to follow a user on Twitter.
- *
- * @param {string} username - The username of the user to follow.
- * @param {TwitterAuth} auth - Twitter authentication object.
- * @returns {Promise<Response>} - A Promise that resolves with the response data.
- * @throws {Error} - If the user is not logged in, or if an error occurs during the follow process.
+ * Following users is not supported in the current Twitter API v2 implementation
+ * This functionality requires additional OAuth scopes and endpoints not included in this client
+ * 
+ * @deprecated This function is not implemented for Twitter API v2
  */
 export async function followUser(
   username: string,
   auth: TwitterAuth
 ): Promise<Response> {
-  // Check if the user is logged in
-  if (!(await auth.isLoggedIn())) {
-    throw new Error("Must be logged in to follow users");
-  }
-  // Get user ID from username
-  const userIdResult = await getEntityIdByScreenName(username, auth);
-
-  if (!userIdResult.success) {
-    throw new Error(
-      `Failed to get user ID: ${(userIdResult as any).err.message}`
-    );
-  }
-
-  const userId = userIdResult.value;
-
-  // Prepare the request body
-  const requestBody = {
-    include_profile_interstitial_type: "1",
-    skip_status: "true",
-    user_id: userId,
-  };
-
-  // Prepare the headers
-  const headers = new Headers({
-    "Content-Type": "application/x-www-form-urlencoded",
-    Referer: `https://twitter.com/${username}`,
-    "X-Twitter-Active-User": "yes",
-    "X-Twitter-Auth-Type": "OAuth2Session",
-    "X-Twitter-Client-Language": "en",
-    Authorization: `Bearer ${bearerToken}`,
-  });
-
-  // Install auth headers
-  await auth.installTo(
-    headers,
-    "https://api.twitter.com/1.1/friendships/create.json"
-  );
-
-  // Make the follow request using auth.fetch
-  const res = await auth.fetch(
-    "https://api.twitter.com/1.1/friendships/create.json",
-    {
-      method: "POST",
-      headers,
-      body: new URLSearchParams(requestBody).toString(),
-      credentials: "include",
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error(`Failed to follow user: ${res.statusText}`);
-  }
-
-  const data = await res.json();
-
-  return new Response(JSON.stringify(data), {
-    status: 200,
-    headers: {
-      "Content-Type": "application/json",
-    },
-  });
+  console.warn("Follow user functionality is not supported in Twitter API v2 client");
+  throw new Error("Follow user functionality not implemented for Twitter API v2");
 }

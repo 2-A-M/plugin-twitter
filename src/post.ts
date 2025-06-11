@@ -33,16 +33,12 @@ export class TwitterPostClient {
     this.client = client;
     this.state = state;
     this.runtime = runtime;
-    this.twitterUsername =
-      state?.TWITTER_USERNAME ||
-      (this.runtime.getSetting("TWITTER_USERNAME") as string);
     this.isDryRun =
       this.state?.TWITTER_DRY_RUN ||
       (this.runtime.getSetting("TWITTER_DRY_RUN") as unknown as boolean);
 
     // Log configuration on initialization
     logger.log("Twitter Client Configuration:");
-    logger.log(`- Username: ${this.twitterUsername}`);
     logger.log(`- Dry Run Mode: ${this.isDryRun ? "Enabled" : "Disabled"}`);
 
     logger.log(

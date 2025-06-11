@@ -19,6 +19,11 @@
   ],
   "dependencies": {
     "@elizaos/core": "^1.0.2",
+    "@elizaos/plugin-anthropic": "1.0.0",
+    "@elizaos/plugin-bootstrap": "1.0.5",
+    "@elizaos/plugin-discord": "github:elizaos-plugins/plugin-discord#v1.0.6",
+    "@elizaos/plugin-knowledge": "1.0.1",
+    "@elizaos/plugin-telegram": "github:elizaos-plugins/plugin-telegram#v1.0.0",
     "@roamhq/wrtc": "^0.9.0",
     "@sinclair/typebox": "^0.34.33",
     "glob": "11.0.2",
@@ -42,7 +47,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "test": "vitest run",
+    "test": "tsup && elizaos test",
     "test:coverage": "vitest run --coverage",
     "lint": "prettier --write ./src",
     "clean": "rm -rf dist .turbo node_modules .turbo-tsconfig.json tsconfig.tsbuildinfo",

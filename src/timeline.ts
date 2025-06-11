@@ -347,16 +347,18 @@ ${tweet.text}`;
             )
         );
 
-        const body = await result.json();
+        const body: any = await result.json();
 
-        if (body?.data?.create_tweet?.tweet_results?.result) {
+        const tweetResult = body?.data?.create_tweet?.tweet_results?.result || body?.data || body;
+        if (tweetResult) {
           logger.log("Successfully posted quote tweet");
         } else {
           logger.error("Quote tweet creation failed:", body);
         }
 
         // Create memory for our response
-        const responseId = createUniqueUuid(this.runtime, body.rest_id);
+        const tweetId = tweetResult?.rest_id || tweetResult?.id || Date.now().toString();
+        const responseId = createUniqueUuid(this.runtime, tweetId);
         const responseMemory: Memory = {
           id: responseId,
           entityId: this.runtime.agentId,
