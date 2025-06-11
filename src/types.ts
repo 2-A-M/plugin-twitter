@@ -12,7 +12,6 @@ import type { ClientBase } from "./base";
 import type { Tweet as ClientTweet, Mention } from "./client/tweets";
 import type { TwitterInteractionClient } from "./interactions";
 import type { TwitterPostClient } from "./post";
-import type { TwitterSpaceClient } from "./spaces";
 
 /**
  * Defines a type for media data, which includes a Buffer representing the actual data
@@ -43,19 +42,17 @@ export interface ActionResponse {
 }
 
 /**
- * Interface for a Twitter client.
- *
- * @property {ClientBase} client - The base client for making requests.
- * @property {TwitterPostClient} post - The client for posting on Twitter.
- * @property {TwitterInteractionClient} interaction - The client for interacting with tweets.
- * @property {TwitterSpaceClient} [space] - The client for managing Twitter spaces (optional).
- * @property {TwitterService} service - The service provider for Twitter API.
+ * @interface ITwitterClient
+ * Represents the main Twitter client interface for interacting with Twitter's API.
+ * @property {ClientBase} client - The base client for Twitter operations.
+ * @property {TwitterPostClient} post - The client for managing Twitter posts.
+ * @property {TwitterInteractionClient} interaction - The client for managing Twitter interactions.
+ * @property {TwitterService} service - The main Twitter service instance.
  */
 export interface ITwitterClient {
   client: ClientBase;
   post: TwitterPostClient;
   interaction: TwitterInteractionClient;
-  space?: TwitterSpaceClient;
   service: TwitterService;
 }
 
@@ -94,7 +91,7 @@ export function convertClientTweetToCoreTweet(tweet: ClientTweet): Tweet {
           (mention): mention is Mention =>
             typeof mention === "object" &&
             mention !== null &&
-            typeof mention.username === "string"
+            typeof mention.username === "string",
         )
         .map((mention) => mention.username)
     : [];

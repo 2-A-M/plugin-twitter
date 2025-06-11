@@ -11,17 +11,15 @@ import {
   type World,
   createUniqueUuid,
   logger,
-} from '@elizaos/core';
-import spaceJoin from './actions/spaceJoin';
-import { ClientBase } from './base';
-import { TWITTER_SERVICE_NAME } from './constants';
-import type { TwitterConfig } from './environment';
-import { TwitterInteractionClient } from './interactions';
-import { TwitterPostClient } from './post';
-import { TwitterSpaceClient } from './spaces';
-import { TwitterTimelineClient } from './timeline';
-import { ClientBaseTestSuite } from './tests';
-import { type ITwitterClient, TwitterEventTypes } from './types';
+} from "@elizaos/core";
+import { ClientBase } from "./base";
+import { TWITTER_SERVICE_NAME } from "./constants";
+import type { TwitterConfig } from "./environment";
+import { TwitterInteractionClient } from "./interactions";
+import { TwitterPostClient } from "./post";
+import { TwitterTimelineClient } from "./timeline";
+import { ClientBaseTestSuite } from "./tests";
+import { type ITwitterClient, TwitterEventTypes } from "./types";
 
 console.log(`Twitter plugin loaded with service name: ${TWITTER_SERVICE_NAME}`);
 
@@ -45,31 +43,29 @@ export class TwitterClientInstance implements ITwitterClient {
   post: TwitterPostClient;
   interaction: TwitterInteractionClient;
   timeline?: TwitterTimelineClient;
-  space?: TwitterSpaceClient;
   service: TwitterService;
 
   constructor(runtime: IAgentRuntime, state: any) {
     // Pass twitterConfig to the base client
     this.client = new ClientBase(runtime, state);
 
-    // Posting logic
-    if (runtime.getSetting('TWITTER_ENABLE_POST_GENERATION') === true) {
+    // Posting logic - use TWITTER_POST_ENABLE instead
+    if (runtime.getSetting("TWITTER_POST_ENABLE") === "true") {
       this.post = new TwitterPostClient(this.client, runtime, state);
     }
 
-    // Mentions and interactions
-    if (runtime.getSetting('TWITTER_INTERACTION_ENABLE') !== false) {
-      this.interaction = new TwitterInteractionClient(this.client, runtime, state);
+    // Mentions and interactions - check for TWITTER_SEARCH_ENABLE
+    if (runtime.getSetting("TWITTER_SEARCH_ENABLE") !== "false") {
+      this.interaction = new TwitterInteractionClient(
+        this.client,
+        runtime,
+        state,
+      );
     }
 
-    // handle timeline
-    if (runtime.getSetting('TWITTER_TIMELINE_ENABLE') === true) {
+    // handle timeline - check if TWITTER_ENABLE_ACTION_PROCESSING is enabled
+    if (runtime.getSetting("TWITTER_ENABLE_ACTION_PROCESSING") === "true") {
       this.timeline = new TwitterTimelineClient(this.client, runtime, state);
-    }
-
-    // Optional Spaces logic (enabled if TWITTER_SPACES_ENABLE is true)
-    if (runtime.getSetting('TWITTER_SPACES_ENABLE') === true) {
-      this.space = new TwitterSpaceClient(this.client, runtime);
     }
 
     this.service = TwitterService.getInstance();
@@ -78,7 +74,8 @@ export class TwitterClientInstance implements ITwitterClient {
 
 export class TwitterService extends Service {
   static serviceType: string = TWITTER_SERVICE_NAME;
-  capabilityDescription = 'The agent is able to send and receive messages on twitter';
+  capabilityDescription =
+    "The agent is able to send and receive messages on twitter";
   private static instance: TwitterService;
   private clients: Map<string, TwitterClientInstance> = new Map();
 
@@ -92,11 +89,8 @@ export class TwitterService extends Service {
   async createClient(
     runtime: IAgentRuntime,
     clientId: string,
-    state: any
+    state: any,
   ): Promise<TwitterClientInstance> {
-    if (runtime.getSetting('TWITTER_2FA_SECRET') === null) {
-      runtime.setSetting('TWITTER_2FA_SECRET', undefined, false);
-    }
     try {
       // Check if client already exists
       const existingClient = this.getClient(clientId, runtime.agentId);
@@ -110,10 +104,6 @@ export class TwitterService extends Service {
 
       // Initialize the client
       await client.client.init();
-
-      if (client.space) {
-        client.space.startPeriodicSpaceCheck();
-      }
 
       if (client.post) {
         client.post.start();
@@ -148,11 +138,13 @@ export class TwitterService extends Service {
    */
   private async emitServerJoinedEvent(
     runtime: IAgentRuntime,
-    client: TwitterClientInstance
+    client: TwitterClientInstance,
   ): Promise<void> {
     try {
       if (!client.client.profile) {
-        logger.warn("Twitter profile not available yet, can't emit WORLD_JOINED event");
+        logger.warn(
+          "Twitter profile not available yet, can't emit WORLD_JOINED event",
+        );
         return;
       }
 
@@ -182,11 +174,14 @@ export class TwitterService extends Service {
       };
 
       // We'll create a "home timeline" room
-      const homeTimelineRoomId = createUniqueUuid(runtime, `${twitterId}-home`) as UUID;
+      const homeTimelineRoomId = createUniqueUuid(
+        runtime,
+        `${twitterId}-home`,
+      ) as UUID;
       const homeTimelineRoom: Room = {
         id: homeTimelineRoomId,
         name: `${username}'s Timeline`,
-        source: 'twitter',
+        source: "twitter",
         type: ChannelType.FEED,
         channelId: `${twitterId}-home`,
         serverId: twitterId,
@@ -194,11 +189,14 @@ export class TwitterService extends Service {
       };
 
       // Create a "mentions" room
-      const mentionsRoomId = createUniqueUuid(runtime, `${twitterId}-mentions`) as UUID;
+      const mentionsRoomId = createUniqueUuid(
+        runtime,
+        `${twitterId}-mentions`,
+      ) as UUID;
       const mentionsRoom: Room = {
         id: mentionsRoomId,
         name: `${username}'s Mentions`,
-        source: 'twitter',
+        source: "twitter",
         type: ChannelType.GROUP,
         channelId: `${twitterId}-mentions`,
         serverId: twitterId,
@@ -222,21 +220,27 @@ export class TwitterService extends Service {
       };
 
       // Emit the WORLD_JOINED event
-      runtime.emitEvent([TwitterEventTypes.WORLD_JOINED, EventType.WORLD_JOINED], {
-        runtime: runtime,
-        world: world,
-        rooms: [homeTimelineRoom, mentionsRoom],
-        entities: [twitterUser],
-        source: 'twitter',
-      });
+      runtime.emitEvent(
+        [TwitterEventTypes.WORLD_JOINED, EventType.WORLD_JOINED],
+        {
+          runtime: runtime,
+          world: world,
+          rooms: [homeTimelineRoom, mentionsRoom],
+          entities: [twitterUser],
+          source: "twitter",
+        },
+      );
 
       logger.info(`Emitted WORLD_JOINED event for Twitter account ${username}`);
     } catch (error) {
-      logger.error('Failed to emit WORLD_JOINED event for Twitter:', error);
+      logger.error("Failed to emit WORLD_JOINED event for Twitter:", error);
     }
   }
 
-  getClient(clientId: string, agentId: UUID): TwitterClientInstance | undefined {
+  getClient(
+    clientId: string,
+    agentId: UUID,
+  ): TwitterClientInstance | undefined {
     return this.clients.get(this.getClientKey(clientId, agentId));
   }
 
@@ -259,46 +263,46 @@ export class TwitterService extends Service {
 
     // Check for character-level Twitter credentials
     const twitterConfig: Partial<TwitterConfig> = {
-      TWITTER_USERNAME:
-        (runtime.getSetting('TWITTER_USERNAME') as string) ||
-        runtime.character.settings?.TWITTER_USERNAME ||
-        runtime.character.secrets?.TWITTER_USERNAME,
-      TWITTER_PASSWORD:
-        (runtime.getSetting('TWITTER_PASSWORD') as string) ||
-        runtime.character.settings?.TWITTER_PASSWORD ||
-        runtime.character.secrets?.TWITTER_PASSWORD,
-      TWITTER_EMAIL:
-        (runtime.getSetting('TWITTER_EMAIL') as string) ||
-        runtime.character.settings?.TWITTER_EMAIL ||
-        runtime.character.secrets?.TWITTER_EMAIL,
-      TWITTER_2FA_SECRET:
-        (runtime.getSetting('TWITTER_2FA_SECRET') as string) ||
-        runtime.character.settings?.TWITTER_2FA_SECRET ||
-        runtime.character.secrets?.TWITTER_2FA_SECRET,
+      TWITTER_API_KEY:
+        (runtime.getSetting("TWITTER_API_KEY") as string) ||
+        runtime.character.settings?.TWITTER_API_KEY ||
+        runtime.character.secrets?.TWITTER_API_KEY,
+      TWITTER_API_SECRET_KEY:
+        (runtime.getSetting("TWITTER_API_SECRET_KEY") as string) ||
+        runtime.character.settings?.TWITTER_API_SECRET_KEY ||
+        runtime.character.secrets?.TWITTER_API_SECRET_KEY,
+      TWITTER_ACCESS_TOKEN:
+        (runtime.getSetting("TWITTER_ACCESS_TOKEN") as string) ||
+        runtime.character.settings?.TWITTER_ACCESS_TOKEN ||
+        runtime.character.secrets?.TWITTER_ACCESS_TOKEN,
+      TWITTER_ACCESS_TOKEN_SECRET:
+        (runtime.getSetting("TWITTER_ACCESS_TOKEN_SECRET") as string) ||
+        runtime.character.settings?.TWITTER_ACCESS_TOKEN_SECRET ||
+        runtime.character.secrets?.TWITTER_ACCESS_TOKEN_SECRET,
     };
 
     // Filter out undefined values
     const config = Object.fromEntries(
-      Object.entries(twitterConfig).filter(([_, v]) => v !== undefined)
+      Object.entries(twitterConfig).filter(([_, v]) => v !== undefined),
     ) as TwitterConfig;
 
     // If we have enough settings to create a client, do so
     try {
       if (
-        config.TWITTER_USERNAME &&
-        // Basic auth
-        config.TWITTER_PASSWORD &&
-        config.TWITTER_EMAIL
-        // ||
-        // // API auth
-        // (config.TWITTER_API_KEY && config.TWITTER_API_SECRET &&
-        //  config.TWITTER_ACCESS_TOKEN && config.TWITTER_ACCESS_TOKEN_SECRET)
+        config.TWITTER_API_KEY &&
+        config.TWITTER_API_SECRET_KEY &&
+        config.TWITTER_ACCESS_TOKEN &&
+        config.TWITTER_ACCESS_TOKEN_SECRET
       ) {
-        logger.info('Creating default Twitter client from character settings');
-        await twitterClientManager.createClient(runtime, runtime.agentId, config);
+        logger.info("Creating default Twitter client from character settings");
+        await twitterClientManager.createClient(
+          runtime,
+          runtime.agentId,
+          config,
+        );
       }
     } catch (error) {
-      logger.error('Failed to create default Twitter client:', error);
+      logger.error("Failed to create default Twitter client:", error);
       throw error;
     }
 
@@ -327,9 +331,9 @@ export class TwitterService extends Service {
 
 const twitterPlugin: Plugin = {
   name: TWITTER_SERVICE_NAME,
-  description: 'Twitter client with per-server instance management',
+  description: "Twitter client with per-server instance management",
   services: [TwitterService],
-  actions: [spaceJoin],
+  actions: [],
   tests: [new ClientBaseTestSuite()],
 };
 

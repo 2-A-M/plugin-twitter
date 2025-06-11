@@ -1,4 +1,3 @@
-import type { Cookie } from "tough-cookie";
 import type {
   TTweetv2Expansion,
   TTweetv2MediaField,
@@ -10,27 +9,10 @@ import type {
 import {
   type FetchTransformOptions,
   type RequestApiResult,
-  bearerToken,
   requestApi,
 } from "./api";
-import {
-  type TwitterAuth,
-  type TwitterAuthOptions,
-  TwitterGuestAuth,
-} from "./auth";
-import { TwitterUserAuth } from "./auth-user";
-import {
-  type GrokChatOptions,
-  type GrokChatResponse,
-  createGrokConversation,
-  grokChat,
-} from "./grok";
-import {
-  type DirectMessagesResponse,
-  type SendDirectMessageResponse,
-  getDirectMessageConversations,
-  sendDirectMessage,
-} from "./messages";
+import { TwitterAuth } from "./auth";
+// Removed messages imports - using Twitter API v2 instead
 import {
   type Profile,
   getEntityIdByScreenName,
@@ -46,20 +28,12 @@ import {
 } from "./relationships";
 import {
   SearchMode,
-  fetchQuotedTweetsPage,
   fetchSearchProfiles,
   fetchSearchTweets,
   searchProfiles,
   searchTweets,
+  searchQuotedTweets,
 } from "./search";
-import {
-  fetchAudioSpaceById,
-  fetchAuthenticatePeriscope,
-  fetchBrowseSpaceTopics,
-  fetchCommunitySelectQuery,
-  fetchLiveVideoStreamStatus,
-  fetchLoginTwitterToken,
-} from "./spaces";
 import { fetchFollowingTimeline } from "./timeline-following";
 import { fetchHomeTimeline } from "./timeline-home";
 import type { QueryProfilesResponse, QueryTweetsResponse } from "./timeline-v1";
@@ -68,7 +42,6 @@ import {
   type TimelineV2,
   parseTimelineTweetsV2,
 } from "./timeline-v2";
-import { getTrends } from "./trends";
 import {
   type PollData,
   type Retweeter,
@@ -86,9 +59,7 @@ import {
   getArticle,
   getLatestTweet,
   getTweet,
-  getTweetAnonymous,
   getTweetV2,
-  getTweetWhere,
   getTweets,
   getTweetsAndReplies,
   getTweetsAndRepliesByUserId,
@@ -97,14 +68,8 @@ import {
   getTweetsWhere,
   likeTweet,
   retweet,
+  getTweetWhere,
 } from "./tweets";
-import type {
-  AudioSpace,
-  Community,
-  LiveVideoStreamStatus,
-  LoginTwitterTokenResponse,
-  Subtopic,
-} from "./types/spaces";
 
 const twUrl = "https://twitter.com";
 const UserTweetsUrl =
@@ -134,33 +99,17 @@ export interface ClientOptions {
 }
 
 /**
- * An interface to Twitter's undocumented API.
+ * An interface to Twitter's API v2.
  * - Reusing Client objects is recommended to minimize the time spent authenticating unnecessarily.
  */
 export class Client {
-  private auth!: TwitterAuth;
-  private authTrends!: TwitterAuth;
-  private token: string;
+  private auth?: TwitterAuth;
 
   /**
    * Creates a new Client object.
-   * - Clients maintain their own guest tokens for Twitter's internal API.
    * - Reusing Client objects is recommended to minimize the time spent authenticating unnecessarily.
    */
-  constructor(private readonly options?: Partial<ClientOptions>) {
-    this.token = bearerToken;
-    this.useGuestAuth();
-  }
-
-  /**
-   * Initializes auth properties using a guest token.
-   * Used when creating a new instance of this class, and when logging out.
-   * @internal
-   */
-  private useGuestAuth() {
-    this.auth = new TwitterGuestAuth(this.token, this.getAuthOptions());
-    this.authTrends = new TwitterGuestAuth(this.token, this.getAuthOptions());
-  }
+  constructor(private readonly options?: Partial<ClientOptions>) {}
 
   /**
    * Fetches a Twitter profile.
@@ -203,7 +152,7 @@ export class Client {
   public searchTweets(
     query: string,
     maxTweets: number,
-    searchMode: SearchMode = SearchMode.Top
+    searchMode: SearchMode = SearchMode.Top,
   ): AsyncGenerator<Tweet, void> {
     return searchTweets(query, maxTweets, searchMode, this.auth);
   }
@@ -216,7 +165,7 @@ export class Client {
    */
   public searchProfiles(
     query: string,
-    maxProfiles: number
+    maxProfiles: number,
   ): AsyncGenerator<Profile, void> {
     return searchProfiles(query, maxProfiles, this.auth);
   }
@@ -234,7 +183,7 @@ export class Client {
     query: string,
     maxTweets: number,
     searchMode: SearchMode,
-    cursor?: string
+    cursor?: string,
   ): Promise<QueryTweetsResponse> {
     return fetchSearchTweets(query, maxTweets, searchMode, this.auth, cursor);
   }
@@ -249,7 +198,7 @@ export class Client {
   public fetchSearchProfiles(
     query: string,
     maxProfiles: number,
-    cursor?: string
+    cursor?: string,
   ): Promise<QueryProfilesResponse> {
     return fetchSearchProfiles(query, maxProfiles, this.auth, cursor);
   }
@@ -264,7 +213,7 @@ export class Client {
   public fetchListTweets(
     listId: string,
     maxTweets: number,
-    cursor?: string
+    cursor?: string,
   ): Promise<QueryTweetsResponse> {
     return fetchListTweets(listId, maxTweets, cursor, this.auth);
   }
@@ -277,7 +226,7 @@ export class Client {
    */
   public getFollowing(
     userId: string,
-    maxProfiles: number
+    maxProfiles: number,
   ): AsyncGenerator<Profile, void> {
     return getFollowing(userId, maxProfiles, this.auth);
   }
@@ -290,7 +239,7 @@ export class Client {
    */
   public getFollowers(
     userId: string,
-    maxProfiles: number
+    maxProfiles: number,
   ): AsyncGenerator<Profile, void> {
     return getFollowers(userId, maxProfiles, this.auth);
   }
@@ -305,7 +254,7 @@ export class Client {
   public fetchProfileFollowing(
     userId: string,
     maxProfiles: number,
-    cursor?: string
+    cursor?: string,
   ): Promise<QueryProfilesResponse> {
     return fetchProfileFollowing(userId, maxProfiles, this.auth, cursor);
   }
@@ -320,7 +269,7 @@ export class Client {
   public fetchProfileFollowers(
     userId: string,
     maxProfiles: number,
-    cursor?: string
+    cursor?: string,
   ): Promise<QueryProfilesResponse> {
     return fetchProfileFollowers(userId, maxProfiles, this.auth, cursor);
   }
@@ -333,7 +282,7 @@ export class Client {
    */
   public async fetchHomeTimeline(
     count: number,
-    seenTweetIds: string[]
+    seenTweetIds: string[],
   ): Promise<any[]> {
     return await fetchHomeTimeline(count, seenTweetIds, this.auth);
   }
@@ -346,7 +295,7 @@ export class Client {
    */
   public async fetchFollowingTimeline(
     count: number,
-    seenTweetIds: string[]
+    seenTweetIds: string[],
   ): Promise<any[]> {
     return await fetchFollowingTimeline(count, seenTweetIds, this.auth);
   }
@@ -354,7 +303,7 @@ export class Client {
   async getUserTweets(
     userId: string,
     maxTweets = 200,
-    cursor?: string
+    cursor?: string,
   ): Promise<{ tweets: Tweet[]; next?: string }> {
     if (maxTweets > 200) {
       maxTweets = 200;
@@ -406,11 +355,11 @@ export class Client {
 
     const res = await requestApi<TimelineV2>(
       `${UserTweetsUrl}?variables=${encodeURIComponent(
-        JSON.stringify(variables)
+        JSON.stringify(variables),
       )}&features=${encodeURIComponent(JSON.stringify(features))}&fieldToggles=${encodeURIComponent(
-        JSON.stringify(fieldToggles)
+        JSON.stringify(fieldToggles),
       )}`,
-      this.auth
+      this.auth,
     );
 
     if (!res.success) {
@@ -426,7 +375,7 @@ export class Client {
 
   async *getUserTweetsIterator(
     userId: string,
-    maxTweets = 200
+    maxTweets = 200,
   ): AsyncGenerator<Tweet, void> {
     let cursor: string | undefined;
     let retrievedTweets = 0;
@@ -435,7 +384,7 @@ export class Client {
       const response = await this.getUserTweets(
         userId,
         maxTweets - retrievedTweets,
-        cursor
+        cursor,
       );
 
       for (const tweet of response.tweets) {
@@ -459,7 +408,9 @@ export class Client {
    * @returns The current list of trends.
    */
   public getTrends(): Promise<string[]> {
-    return getTrends(this.authTrends);
+    // Trends API not available in Twitter API v2 with current implementation
+    console.warn("Trends API not available in Twitter API v2");
+    return Promise.resolve([]);
   }
 
   /**
@@ -480,7 +431,7 @@ export class Client {
    */
   public getTweetsByUserId(
     userId: string,
-    maxTweets = 200
+    maxTweets = 200,
   ): AsyncGenerator<Tweet, void> {
     return getTweetsByUserId(userId, maxTweets, this.auth);
   }
@@ -497,7 +448,7 @@ export class Client {
     text: string,
     replyToTweetId?: string,
     mediaData?: { data: Buffer; mediaType: string }[],
-    hideLinkPreview?: boolean
+    hideLinkPreview?: boolean,
   ) {
     if (!text || text.trim().length === 0) {
       throw new Error("Text is required");
@@ -510,14 +461,14 @@ export class Client {
       this.auth,
       replyToTweetId,
       mediaData,
-      hideLinkPreview
+      hideLinkPreview,
     );
   }
 
   async sendNoteTweet(
     text: string,
     replyToTweetId?: string,
-    mediaData?: { data: Buffer; mediaType: string }[]
+    mediaData?: { data: Buffer; mediaType: string }[],
   ) {
     if (!text || text.trim().length === 0) {
       throw new Error("Text is required");
@@ -529,7 +480,7 @@ export class Client {
       text,
       this.auth,
       replyToTweetId,
-      mediaData
+      mediaData,
     );
   }
 
@@ -543,13 +494,13 @@ export class Client {
   async sendLongTweet(
     text: string,
     replyToTweetId?: string,
-    mediaData?: { data: Buffer; mediaType: string }[]
+    mediaData?: { data: Buffer; mediaType: string }[],
   ) {
     return await createCreateLongTweetRequest(
       text,
       this.auth,
       replyToTweetId,
-      mediaData
+      mediaData,
     );
   }
 
@@ -566,13 +517,13 @@ export class Client {
     replyToTweetId?: string,
     options?: {
       poll?: PollData;
-    }
+    },
   ) {
     return await createCreateTweetRequestV2(
       text,
       this.auth,
       replyToTweetId,
-      options
+      options,
     );
   }
 
@@ -584,7 +535,7 @@ export class Client {
    */
   public getTweetsAndReplies(
     user: string,
-    maxTweets = 200
+    maxTweets = 200,
   ): AsyncGenerator<Tweet> {
     return getTweetsAndReplies(user, maxTweets, this.auth);
   }
@@ -597,7 +548,7 @@ export class Client {
    */
   public getTweetsAndRepliesByUserId(
     userId: string,
-    maxTweets = 200
+    maxTweets = 200,
   ): AsyncGenerator<Tweet, void> {
     return getTweetsAndRepliesByUserId(userId, maxTweets, this.auth);
   }
@@ -620,7 +571,7 @@ export class Client {
    */
   public getTweetWhere(
     tweets: AsyncIterable<Tweet>,
-    query: TweetQuery
+    query: TweetQuery,
   ): Promise<Tweet | null> {
     return getTweetWhere(tweets, query);
   }
@@ -643,7 +594,7 @@ export class Client {
    */
   public getTweetsWhere(
     tweets: AsyncIterable<Tweet>,
-    query: TweetQuery
+    query: TweetQuery,
   ): Promise<Tweet[]> {
     return getTweetsWhere(tweets, query);
   }
@@ -657,7 +608,7 @@ export class Client {
   public getLatestTweet(
     user: string,
     includeRetweets = false,
-    max = 200
+    max = 200,
   ): Promise<Tweet | null | undefined> {
     return getLatestTweet(user, includeRetweets, max, this.auth);
   }
@@ -668,10 +619,7 @@ export class Client {
    * @returns The {@link Tweet} object, or `null` if it couldn't be fetched.
    */
   public getTweet(id: string): Promise<Tweet | null> {
-    if (this.auth instanceof TwitterUserAuth) {
-      return getTweet(id, this.auth);
-    }
-    return getTweetAnonymous(id, this.auth);
+    return getTweet(id, this.auth);
   }
 
   /**
@@ -697,7 +645,7 @@ export class Client {
       mediaFields?: TTweetv2MediaField[];
       userFields?: TTweetv2UserField[];
       placeFields?: TTweetv2PlaceField[];
-    } = defaultOptions
+    } = defaultOptions,
   ): Promise<Tweet | null> {
     return await getTweetV2(id, this.auth, options);
   }
@@ -725,17 +673,34 @@ export class Client {
       mediaFields?: TTweetv2MediaField[];
       userFields?: TTweetv2UserField[];
       placeFields?: TTweetv2PlaceField[];
-    } = defaultOptions
+    } = defaultOptions,
   ): Promise<Tweet[]> {
     return await getTweetsV2(ids, this.auth, options);
   }
 
   /**
-   * Returns if the client has a guest token. The token may not be valid.
-   * @returns `true` if the client has a guest token; otherwise `false`.
+   * Updates the authentication state for the client.
+   * @param auth The new authentication.
    */
-  public hasGuestToken(): boolean {
-    return this.auth.hasToken() || this.authTrends.hasToken();
+  public updateAuth(auth: TwitterAuth) {
+    this.auth = auth;
+  }
+
+  /**
+   * Get current authentication credentials
+   * @returns {TwitterAuth | null} Current authentication or null if not authenticated
+   */
+  public getAuth(): TwitterAuth | null {
+    return this.auth;
+  }
+
+  /**
+   * Check if client is properly authenticated with Twitter API v2 credentials
+   * @returns {boolean} True if authenticated
+   */
+  public isAuthenticated(): boolean {
+    if (!this.auth) return false;
+    return this.auth.hasToken();
   }
 
   /**
@@ -743,9 +708,7 @@ export class Client {
    * @returns `true` if the client is logged in with a real user account; otherwise `false`.
    */
   public async isLoggedIn(): Promise<boolean> {
-    return (
-      (await this.auth.isLoggedIn()) && (await this.authTrends.isLoggedIn())
-    );
+    return await this.auth.isLoggedIn();
   }
 
   /**
@@ -757,12 +720,11 @@ export class Client {
   }
 
   /**
-   * Login to Twitter as a real Twitter account. This enables running
-   * searches.
-   * @param username The username of the Twitter account to login with.
-   * @param password The password of the Twitter account to login with.
-   * @param email The email to log in with, if you have email confirmation enabled.
-   * @param twoFactorSecret The secret to generate two factor authentication tokens with, if you have two factor authentication enabled.
+   * Login to Twitter using API v2 credentials only.
+   * @param appKey The API key
+   * @param appSecret The API secret key
+   * @param accessToken The access token
+   * @param accessSecret The access token secret
    */
   public async login(
     username: string,
@@ -772,67 +734,27 @@ export class Client {
     appKey?: string,
     appSecret?: string,
     accessToken?: string,
-    accessSecret?: string
+    accessSecret?: string,
   ): Promise<void> {
-    // Swap in a real authorizer for all requests
-    const userAuth = new TwitterUserAuth(this.token, this.getAuthOptions());
-    await userAuth.login(
-      username,
-      password,
-      email,
-      twoFactorSecret,
-      appKey,
-      appSecret,
-      accessToken,
-      accessSecret
-    );
-    this.auth = userAuth;
-    this.authTrends = userAuth;
+    // Only use API credentials for v2 authentication
+    if (!appKey || !appSecret || !accessToken || !accessSecret) {
+      throw new Error(
+        "Twitter API v2 credentials are required for authentication",
+      );
+    }
+
+    this.auth = new TwitterAuth(appKey, appSecret, accessToken, accessSecret);
   }
 
   /**
    * Log out of Twitter.
+   * Note: With API v2, logout is not applicable as we use API credentials.
    */
   public async logout(): Promise<void> {
-    await this.auth.logout();
-    await this.authTrends.logout();
-
-    // Swap in guest authorizers for all requests
-    this.useGuestAuth();
-  }
-
-  /**
-   * Retrieves all cookies for the current session.
-   * @returns All cookies for the current session.
-   */
-  public async getCookies(): Promise<Cookie[]> {
-    return await this.authTrends
-      .cookieJar()
-      .getCookies(
-        typeof document !== "undefined" ? document.location.toString() : twUrl
-      );
-  }
-
-  /**
-   * Set cookies for the current session.
-   * @param cookies The cookies to set for the current session.
-   */
-  public async setCookies(cookies: (string | Cookie)[]): Promise<void> {
-    const userAuth = new TwitterUserAuth(this.token, this.getAuthOptions());
-    for (const cookie of cookies) {
-      await userAuth.cookieJar().setCookie(cookie, twUrl);
-    }
-
-    this.auth = userAuth;
-    this.authTrends = userAuth;
-  }
-
-  /**
-   * Clear all cookies for the current session.
-   */
-  public async clearCookies(): Promise<void> {
-    await this.auth.cookieJar().removeAllCookies();
-    await this.authTrends.cookieJar().removeAllCookies();
+    // With API v2 credentials, there's no logout process
+    console.warn(
+      "Logout is not applicable when using Twitter API v2 credentials",
+    );
   }
 
   /**
@@ -844,7 +766,7 @@ export class Client {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public withCookie(_cookie: string): Client {
     console.warn(
-      "Warning: Client#withCookie is deprecated and will be removed in a later version. Use Client#login or Client#setCookies instead."
+      "Warning: Client#withCookie is deprecated and will be removed in a later version. Use Client#login or Client#setCookies instead.",
     );
     return this;
   }
@@ -858,7 +780,7 @@ export class Client {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public withXCsrfToken(_token: string): Client {
     console.warn(
-      "Warning: Client#withXCsrfToken is deprecated and will be removed in a later version."
+      "Warning: Client#withXCsrfToken is deprecated and will be removed in a later version.",
     );
     return this;
   }
@@ -875,13 +797,13 @@ export class Client {
     quotedTweetId: string,
     options?: {
       mediaData: { data: Buffer; mediaType: string }[];
-    }
+    },
   ) {
     return await createQuoteTweetRequest(
       text,
       quotedTweetId,
       this.auth,
-      options?.mediaData
+      options?.mediaData,
     );
   }
 
@@ -890,7 +812,7 @@ export class Client {
    * @param tweetId The ID of the tweet to delete.
    * @returns A promise that resolves when the tweet is deleted.
    */
-  public async deleteTweet(tweetId: string): Promise<Response> {
+  public async deleteTweet(tweetId: string): Promise<any> {
     // Call the deleteTweet function from tweets.ts
     return await deleteTweet(tweetId, this.auth);
   }
@@ -927,31 +849,37 @@ export class Client {
 
   /**
    * Fetches direct message conversations
-   * @param count Number of conversations to fetch (default: 50)
-   * @param cursor Pagination cursor for fetching more conversations
-   * @returns Array of DM conversations and other details
+   * Note: This functionality requires additional permissions and is not implemented in the current Twitter API v2 wrapper
+   * @param userId User ID
+   * @param cursor Pagination cursor
+   * @returns Array of DM conversations
    */
   public async getDirectMessageConversations(
     userId: string,
-    cursor?: string
-  ): Promise<DirectMessagesResponse> {
-    return await getDirectMessageConversations(userId, this.auth, cursor);
+    cursor?: string,
+  ): Promise<any> {
+    console.warn(
+      "Direct message conversations not implemented for Twitter API v2",
+    );
+    return { conversations: [] };
   }
 
   /**
    * Sends a direct message to a user.
-   * @param conversationId The ID of the conversation to send the message to.
-   * @param text The text of the message to send.
-   * @returns The response from the Twitter API.
+   * Note: This functionality requires additional permissions and is not implemented in the current Twitter API v2 wrapper
+   * @param conversationId The ID of the conversation
+   * @param text The text of the message
+   * @returns The response from the Twitter API
    */
   public async sendDirectMessage(
     conversationId: string,
-    text: string
-  ): Promise<SendDirectMessageResponse> {
-    return await sendDirectMessage(this.auth, conversationId, text);
+    text: string,
+  ): Promise<any> {
+    console.warn("Sending direct messages not implemented for Twitter API v2");
+    throw new Error("Direct message sending not implemented");
   }
 
-  private getAuthOptions(): Partial<TwitterAuthOptions> {
+  private getAuthOptions(): Partial<{ fetch?: typeof fetch; transform?: any }> {
     return {
       fetch: this.options?.fetch,
       transform: this.options?.transform,
@@ -967,126 +895,12 @@ export class Client {
   }
 
   /**
-   * Retrieves the details of an Audio Space by its ID.
-   * @param id The ID of the Audio Space.
-   * @returns The details of the Audio Space.
-   */
-  public async getAudioSpaceById(id: string): Promise<AudioSpace> {
-    const variables = {
-      id,
-      isMetatagsQuery: false,
-      withReplays: true,
-      withListeners: true,
-    };
-
-    return await fetchAudioSpaceById(variables, this.auth);
-  }
-
-  /**
-   * Retrieves available space topics.
-   * @returns An array of space topics.
-   */
-  public async browseSpaceTopics(): Promise<Subtopic[]> {
-    return await fetchBrowseSpaceTopics(this.auth);
-  }
-
-  /**
-   * Retrieves available communities.
-   * @returns An array of communities.
-   */
-  public async communitySelectQuery(): Promise<Community[]> {
-    return await fetchCommunitySelectQuery(this.auth);
-  }
-
-  /**
-   * Retrieves the status of an Audio Space stream by its media key.
-   * @param mediaKey The media key of the Audio Space.
-   * @returns The status of the Audio Space stream.
-   */
-  public async getAudioSpaceStreamStatus(
-    mediaKey: string
-  ): Promise<LiveVideoStreamStatus> {
-    return await fetchLiveVideoStreamStatus(mediaKey, this.auth);
-  }
-
-  /**
-   * Retrieves the status of an Audio Space by its ID.
-   * This method internally fetches the Audio Space to obtain the media key,
-   * then retrieves the stream status using the media key.
-   * @param audioSpaceId The ID of the Audio Space.
-   * @returns The status of the Audio Space stream.
-   */
-  public async getAudioSpaceStatus(
-    audioSpaceId: string
-  ): Promise<LiveVideoStreamStatus> {
-    const audioSpace = await this.getAudioSpaceById(audioSpaceId);
-
-    const mediaKey = audioSpace.metadata.media_key;
-    if (!mediaKey) {
-      throw new Error("Media Key not found in Audio Space metadata.");
-    }
-
-    return await this.getAudioSpaceStreamStatus(mediaKey);
-  }
-
-  /**
-   * Authenticates Periscope to obtain a token.
-   * @returns The Periscope authentication token.
-   */
-  public async authenticatePeriscope(): Promise<string> {
-    return await fetchAuthenticatePeriscope(this.auth);
-  }
-
-  /**
-   * Logs in to Twitter via Proxsee using the Periscope JWT.
-   * @param jwt The JWT obtained from AuthenticatePeriscope.
-   * @returns The response containing the cookie and user information.
-   */
-  public async loginTwitterToken(
-    jwt: string
-  ): Promise<LoginTwitterTokenResponse> {
-    return await fetchLoginTwitterToken(jwt, this.auth);
-  }
-
-  /**
-   * Orchestrates the flow: get token -> login -> return Periscope cookie
-   */
-  public async getPeriscopeCookie(): Promise<string> {
-    const periscopeToken = await this.authenticatePeriscope();
-
-    const loginResponse = await this.loginTwitterToken(periscopeToken);
-
-    return loginResponse.cookie;
-  }
-
-  /**
    * Fetches a article (long form tweet) by its ID.
    * @param id The ID of the article to fetch. In the format of (http://x.com/i/article/id)
    * @returns The {@link TimelineArticle} object, or `null` if it couldn't be fetched.
    */
   public getArticle(id: string): Promise<TimelineArticle | null> {
     return getArticle(id, this.auth);
-  }
-
-  /**
-   * Creates a new conversation with Grok.
-   * @returns A promise that resolves to the conversation ID string.
-   */
-  public async createGrokConversation(): Promise<string> {
-    return await createGrokConversation(this.auth);
-  }
-
-  /**
-   * Interact with Grok in a chat-like manner.
-   * @param options The options for the Grok chat interaction.
-   * @param {GrokMessage[]} options.messages - Array of messages in the conversation.
-   * @param {string} [options.conversationId] - Optional ID of an existing conversation.
-   * @param {boolean} [options.returnSearchResults] - Whether to return search results.
-   * @param {boolean} [options.returnCitations] - Whether to return citations.
-   * @returns A promise that resolves to the Grok chat response.
-   */
-  public async grokChat(options: GrokChatOptions): Promise<GrokChatResponse> {
-    return await grokChat(options, this.auth);
   }
 
   /**
@@ -1099,45 +913,82 @@ export class Client {
   }
 
   /**
-   * Fetches all tweets quoting a given tweet ID by chaining requests
-   * until no more pages are available.
-   * @param quotedTweetId The tweet ID to find quotes of.
-   * @param maxTweetsPerPage Max tweets per page (default 20).
-   * @returns An array of all Tweet objects referencing the given tweet.
+   * Fetches all quoted tweets for a given tweet ID, handling pagination automatically.
+   * @param tweetId The ID of the tweet to fetch quotes for.
+   * @param maxQuotes Maximum number of quotes to return (default: 100).
+   * @returns An array of all quoted tweets.
    */
-  public async getAllQuotedTweets(
-    quotedTweetId: string,
-    maxTweetsPerPage = 20
+  public async fetchAllQuotedTweets(
+    tweetId: string,
+    maxQuotes: number = 100,
   ): Promise<Tweet[]> {
     const allQuotes: Tweet[] = [];
-    let cursor: string | undefined;
-    let prevCursor: string | undefined;
 
-    while (true) {
-      const page = await fetchQuotedTweetsPage(
-        quotedTweetId,
-        maxTweetsPerPage,
-        this.auth,
-        cursor
-      );
+    try {
+      let cursor: string | undefined;
+      let totalFetched = 0;
 
-      // If there's no new tweets, stop
-      if (!page.tweets || page.tweets.length === 0) {
-        break;
+      while (totalFetched < maxQuotes) {
+        const batchSize = Math.min(40, maxQuotes - totalFetched);
+        const page = await this.fetchQuotedTweetsPage(
+          tweetId,
+          batchSize,
+          cursor,
+        );
+
+        if (!page.tweets || page.tweets.length === 0) {
+          break;
+        }
+
+        allQuotes.push(...page.tweets);
+        totalFetched += page.tweets.length;
+
+        // Check if there's a next page
+        if (!page.next) {
+          break;
+        }
+
+        cursor = page.next;
       }
 
-      allQuotes.push(...page.tweets);
+      return allQuotes.slice(0, maxQuotes);
+    } catch (error) {
+      console.error("Error fetching quoted tweets:", error);
+      throw error;
+    }
+  }
 
-      // If next is missing or same => stop
-      if (!page.next || page.next === cursor || page.next === prevCursor) {
-        break;
-      }
+  /**
+   * Fetches quoted tweets for a given tweet ID.
+   * This method now uses a generator function internally but maintains backward compatibility.
+   * @param tweetId The ID of the tweet to fetch quotes for.
+   * @param maxQuotes Maximum number of quotes to return.
+   * @param cursor Optional cursor for pagination.
+   * @returns A promise that resolves to a QueryTweetsResponse containing tweets and the next cursor.
+   */
+  public async fetchQuotedTweetsPage(
+    tweetId: string,
+    maxQuotes: number = 40,
+    cursor?: string,
+  ): Promise<QueryTweetsResponse> {
+    // For backward compatibility, collect quotes from the generator
+    const quotes: Tweet[] = [];
+    let count = 0;
 
-      // Move cursors
-      prevCursor = cursor;
-      cursor = page.next;
+    // searchQuotedTweets doesn't support cursor, so we'll collect all quotes up to maxQuotes
+    for await (const quote of searchQuotedTweets(
+      tweetId,
+      maxQuotes,
+      this.auth,
+    )) {
+      quotes.push(quote);
+      count++;
+      if (count >= maxQuotes) break;
     }
 
-    return allQuotes;
+    return {
+      tweets: quotes,
+      next: undefined, // Twitter API v2 doesn't provide cursor for quote search
+    };
   }
 }

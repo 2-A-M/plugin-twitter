@@ -1,8 +1,6 @@
 import { Headers } from "headers-polyfill";
 import type { TwitterAuth } from "./auth";
 import { ApiError } from "./errors";
-import { Platform, type PlatformExtensions } from "./platform";
-import { updateCookieJar } from "./requests";
 
 // For some reason using Parameters<typeof fetch> reduces the request transform function to
 // `(url: string) => string` in tests.
@@ -69,17 +67,17 @@ export async function requestApi<T>(
   url: string,
   auth: TwitterAuth,
   method: "GET" | "POST" = "GET",
-  platform: PlatformExtensions = new Platform(),
-  body?: any
+  body?: any,
 ): Promise<RequestApiResult<T>> {
-  const headers = new Headers();
-  await auth.installTo(headers, url);
-  await platform.randomizeCiphers();
+  const headers = new Headers({
+    "Content-Type": "application/json",
+  });
 
   let res: Response;
   do {
     try {
-      res = await auth.fetch(url, {
+      // Use global fetch instead of auth.fetch since TwitterAuth v2 doesn't have it
+      res = await fetch(url, {
         method,
         headers: headers as any,
         credentials: "include",
@@ -94,8 +92,6 @@ export async function requestApi<T>(
         err: new Error("Failed to perform request."),
       };
     }
-
-    await updateCookieJar(auth.cookieJar(), res.headers);
 
     if (res.status === 429) {
       /*
@@ -172,9 +168,10 @@ export async function requestApi<T>(
   const contentType = res.headers.get("content-type");
   if (contentType?.includes("application/json")) {
     const value: T = await res.json();
-    if (res.headers.get("x-rate-limit-incoming") === "0") {
-      auth.deleteToken();
-    }
+    // Skip deleteToken since TwitterAuth v2 doesn't have it
+    // if (res.headers.get("x-rate-limit-incoming") === "0") {
+    //   auth.deleteToken();
+    // }
     return { success: true, value };
   }
 
@@ -218,7 +215,7 @@ export function addApiFeatures(o: object) {
 
 export function addApiParams(
   params: URLSearchParams,
-  includeTweetReplies: boolean
+  includeTweetReplies: boolean,
 ): URLSearchParams {
   params.set("include_profile_interstitial_type", "1");
   params.set("include_blocking", "1");
@@ -252,7 +249,7 @@ export function addApiParams(
   params.set("include_tweet_replies", `${includeTweetReplies}`);
   params.set(
     "ext",
-    "mediaStats,highlightedLabel,hasNftAvatar,voiceInfo,birdwatchPivot,enrichments,superFollowMetadata,unmentionInfo,editControl,collab_control,vibe"
+    "mediaStats,highlightedLabel,hasNftAvatar,voiceInfo,birdwatchPivot,enrichments,superFollowMetadata,unmentionInfo,editControl,collab_control,vibe",
   );
   return params;
 }

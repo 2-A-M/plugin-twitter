@@ -1,116 +1,183 @@
 # Eliza Twitter/X Client
 
-This package provides Twitter/X integration for the Eliza AI agent.
+This package provides Twitter/X integration for the Eliza AI agent using Twitter API v2.
 
 ## Features
 
-- Post generation and management
-- Interaction handling (mentions, replies)
+- Autonomous tweet posting with configurable intervals
+- Timeline monitoring and interaction
+- Mention and reply handling
 - Search functionality
-- Twitter Spaces support with STT/TTS capabilities
-- Media handling (images, videos)
-- Approval workflow via Discord (optional)
+- Direct message support
+- Advanced timeline algorithms with weighted scoring
+- Action processing and automated responses
+- Comprehensive caching system
 
 ## Setup Guide
 
 ### Prerequisites
 
-- A Twitter/X Developer Account with API access
-- Node.js and pnpm installed
-- Discord bot (if using approval workflow)
-- ElevenLabs API key (if using Spaces with TTS)
+- Twitter Developer Account with API v2 access
+- Twitter API v2 credentials (API Key, API Secret, Access Token, Access Token Secret)
+- Node.js and bun installed
 
 ### Step 1: Configure Environment Variables
 
 Create or edit `.env` file in your project root:
 
 ```bash
-# Twitter API Credentials
-TWITTER_USERNAME=           # Your Twitter/X username
-TWITTER_PASSWORD=           # Your Twitter/X password
-TWITTER_EMAIL=              # Your Twitter/X email
-TWITTER_2FA_SECRET=         # Optional: 2FA secret for login
+# Required Twitter API v2 Credentials
+TWITTER_API_KEY=                    # Your Twitter API Key
+TWITTER_API_SECRET_KEY=             # Your Twitter API Secret Key  
+TWITTER_ACCESS_TOKEN=               # Your Access Token
+TWITTER_ACCESS_TOKEN_SECRET=        # Your Access Token Secret
 
-# Twitter Client Configuration
-TWITTER_DRY_RUN=false      # Set to true for testing without posting
-MAX_TWEET_LENGTH=280       # Default tweet length limit
-TWITTER_SEARCH_ENABLE=false # Enable search functionality
-TWITTER_RETRY_LIMIT=5      # Login retry attempts
-TWITTER_POLL_INTERVAL=120  # Poll interval in seconds
-TWITTER_TARGET_USERS=      # Comma-separated list of target users
+# Basic Configuration
+TWITTER_DRY_RUN=false              # Set to true for testing without posting
+TWITTER_TARGET_USERS=              # Comma-separated usernames to target (use "*" for all)
+TWITTER_RETRY_LIMIT=5              # Maximum retry attempts for failed operations
+TWITTER_POLL_INTERVAL=120          # Timeline polling interval (seconds)
 
 # Post Generation Settings
-TWITTER_ENABLE_POST_GENERATION=true
+TWITTER_POST_ENABLE=false          # Enable autonomous tweet posting
 TWITTER_POST_INTERVAL_MIN=90       # Minimum interval between posts (minutes)
-TWITTER_POST_POST_INTERVAL_MAX=180      # Maximum interval between posts (minutes)
-TWITTER_POST_IMMEDIATELY=false     # Skip approval workflow
+TWITTER_POST_INTERVAL_MAX=180      # Maximum interval between posts (minutes)
+TWITTER_POST_IMMEDIATELY=false     # Skip intervals and post immediately
+TWITTER_POST_INTERVAL_VARIANCE=0.2 # Random variance factor for posting intervals
 
-# Action Processing
-ENABLE_ACTION_PROCESSING=false
-ACTION_INTERVAL=5          # Action check interval (minutes)
-MAX_ACTIONS_PROCESSING=1   # Maximum concurrent actions
+# Interaction Settings
+TWITTER_SEARCH_ENABLE=true         # Enable timeline monitoring and interactions
+TWITTER_INTERACTION_INTERVAL_MIN=15    # Minimum interval between interactions (minutes)
+TWITTER_INTERACTION_INTERVAL_MAX=30    # Maximum interval between interactions (minutes)
+TWITTER_INTERACTION_INTERVAL_VARIANCE=0.3  # Random variance for interaction intervals
+TWITTER_AUTO_RESPOND_MENTIONS=true     # Automatically respond to mentions
+TWITTER_AUTO_RESPOND_REPLIES=true      # Automatically respond to replies
+TWITTER_MAX_INTERACTIONS_PER_RUN=10    # Maximum interactions processed per cycle
 
-# Spaces Configuration (Optional)
-TWITTER_SPACES_ENABLE=false
-ELEVENLABS_XI_API_KEY=     # Required for TTS in Spaces
+# Timeline Algorithm Configuration
+TWITTER_TIMELINE_ALGORITHM=weighted    # Algorithm: "weighted" or "latest"
+TWITTER_TIMELINE_USER_BASED_WEIGHT=3   # Weight for user-based scoring
+TWITTER_TIMELINE_TIME_BASED_WEIGHT=2   # Weight for time-based scoring  
+TWITTER_TIMELINE_RELEVANCE_WEIGHT=5    # Weight for relevance scoring
 
-# Approval Workflow (Optional)
-TWITTER_APPROVAL_DISCORD_BOT_TOKEN=
-TWITTER_APPROVAL_DISCORD_CHANNEL_ID=
-TWITTER_APPROVAL_CHECK_INTERVAL=300000  # 5 minutes in milliseconds
+# Advanced Settings
+TWITTER_MAX_TWEET_LENGTH=4000      # Maximum tweet length (for threads)
+TWITTER_DM_ONLY=false             # Only interact via direct messages
+TWITTER_ENABLE_ACTION_PROCESSING=false  # Enable timeline action processing
+TWITTER_ACTION_INTERVAL=240       # Action processing interval (minutes)
 ```
 
 ### Step 2: Initialize the Client
 
 ```typescript
-import { TwitterClientInterface } from "@elizaos/twitter";
+import { TwitterClientInterface } from "@elizaos/plugin-twitter";
 
 const twitterPlugin = {
     name: "twitter",
     description: "Twitter client",
-    clients: [TwitterClientInterface],
+    services: [TwitterService],
 };
 
 // Register with your Eliza runtime
 runtime.registerPlugin(twitterPlugin);
 ```
 
+## Authentication
+
+This plugin uses **Twitter API v2** with OAuth 1.0a authentication. You need:
+
+1. **Twitter Developer Account**: Apply at https://developer.twitter.com
+2. **API v2 Access**: Ensure your app has API v2 access enabled
+3. **Credentials**: Generate API Key, API Secret, Access Token, and Access Token Secret
+
+### Getting Twitter API Credentials
+
+1. Go to https://developer.twitter.com/en/portal/dashboard
+2. Create a new app or use an existing one
+3. Navigate to "Keys and tokens"
+4. Generate/copy:
+   - API Key (`TWITTER_API_KEY`)
+   - API Secret Key (`TWITTER_API_SECRET_KEY`)
+   - Access Token (`TWITTER_ACCESS_TOKEN`)
+   - Access Token Secret (`TWITTER_ACCESS_TOKEN_SECRET`)
+
 ## Features
 
-### Post Generation
+### Autonomous Posting
 
-The client can automatically generate and post tweets based on your agent's character profile and topics. Posts can be:
-- Regular tweets (≤280 characters)
-- Long-form tweets (Note Tweets)
-- Media tweets (with images/videos)
+When `TWITTER_POST_ENABLE=true`, the client automatically generates and posts tweets:
+- Configurable posting intervals with randomization
+- Character-based content generation
+- Support for long-form tweets (up to 4000 characters)
+- Dry-run mode for testing
 
-### Interactions
+### Timeline Monitoring
 
-Handles:
-- Mentions
-- Replies
-- Quote tweets
-- Direct messages
+The client monitors and processes the Twitter timeline:
+- **Weighted Algorithm**: Scores tweets based on user relationships, time, and relevance
+- **Latest Algorithm**: Processes tweets in chronological order
+- Configurable interaction limits and intervals
+- Smart caching to avoid duplicate processing
 
-### Search
+### Interaction Handling
 
-When enabled, periodically searches Twitter for relevant topics and engages with found content.
+Automatically handles:
+- **Mentions**: Responds to tweets mentioning the bot
+- **Replies**: Handles replies to the bot's tweets
+- **Direct Messages**: Processes DMs when enabled
+- **Target Users**: Can be configured to only interact with specific users
 
-### Twitter Spaces
+### Search and Discovery
 
-Supports creating and managing Twitter Spaces with:
-- Speech-to-Text (STT) for transcription
-- Text-to-Speech (TTS) via ElevenLabs
-- Speaker management
-- Idle monitoring
-- Recording capabilities
+- Timeline-based search and interaction
+- Configurable search intervals
+- Relevance-based filtering
+- User targeting with wildcard support
 
-### Approval Workflow
+### Advanced Features
 
-Optional Discord-based approval system for tweets:
-1. Generated tweets are sent to a Discord channel
-2. Moderators can approve/reject via reactions
-3. Approved tweets are automatically posted
+- **Request Queue**: Manages API rate limiting with exponential backoff
+- **Tweet Caching**: Efficient caching system for processed tweets
+- **Error Handling**: Robust retry mechanisms with configurable limits
+- **State Management**: Persistent state tracking across restarts
+
+## Configuration Options
+
+### Timeline Algorithms
+
+**Weighted Algorithm** (default):
+- Combines user relationship, time, and relevance scores
+- Prioritizes tweets from important users
+- Balances recent content with relevant older content
+
+**Latest Algorithm**:
+- Processes tweets in chronological order
+- Simpler, more predictable behavior
+- Good for high-volume timelines
+
+### Target User Configuration
+
+```bash
+# Interact with everyone (default)
+TWITTER_TARGET_USERS=
+
+# Interact with specific users
+TWITTER_TARGET_USERS=user1,user2,user3
+
+# Interact with everyone (explicit wildcard)
+TWITTER_TARGET_USERS=*
+```
+
+### Interval Configuration
+
+All intervals support variance for more natural behavior:
+```bash
+# Base interval: 90-180 minutes
+TWITTER_POST_INTERVAL_MIN=90
+TWITTER_POST_INTERVAL_MAX=180
+# With 20% variance: actual range ~72-216 minutes
+TWITTER_POST_INTERVAL_VARIANCE=0.2
+```
 
 ## Development
 
@@ -118,42 +185,65 @@ Optional Discord-based approval system for tweets:
 
 ```bash
 # Run tests
-pnpm test
+bun test
 
-# Run with debug logging
-DEBUG=eliza:* pnpm start
+# Run with debug logging  
+DEBUG=eliza:* bun start
+
+# Test without posting
+TWITTER_DRY_RUN=true bun start
 ```
 
 ### Common Issues
 
-#### Login Failures
-- Verify credentials in .env
-- Check 2FA configuration
-- Ensure no rate limiting
+#### Authentication Failures
+- Verify all four API credentials are correctly set
+- Ensure your Twitter app has API v2 access enabled
+- Check that Access Token permissions match your use case
+- Verify your developer account is in good standing
 
-#### Post Generation Issues
-- Verify character profile configuration
-- Check MAX_TWEET_LENGTH setting
-- Monitor approval workflow logs
+#### Rate Limiting
+- The client includes built-in rate limiting and retry mechanisms
+- Adjust `TWITTER_RETRY_LIMIT` if experiencing frequent failures
+- Consider increasing polling intervals for high-volume accounts
 
-#### Spaces Issues
-- Verify ELEVENLABS_XI_API_KEY if using TTS
-- Check space configuration in character profile
-- Monitor idle timeout settings
+#### No Interactions
+- Verify `TWITTER_SEARCH_ENABLE=true`
+- Check `TWITTER_TARGET_USERS` configuration
+- Ensure the timeline contains relevant content
+- Review `TWITTER_MAX_INTERACTIONS_PER_RUN` setting
+
+#### Timeline Issues
+- Try switching between "weighted" and "latest" algorithms
+- Adjust timeline weight parameters for better relevance
+- Check `TWITTER_POLL_INTERVAL` for timeline refresh rate
 
 ## Security Notes
 
-- Never commit .env or credential files
-- Use environment variables for sensitive data
-- Implement proper rate limiting
-- Monitor API usage and costs (especially for ElevenLabs)
+- Store credentials in environment variables, never in code
+- Use `.env.local` or similar for local development
+- Regularly rotate API keys and tokens
+- Monitor API usage in Twitter Developer Portal
+- Enable only necessary permissions for Access Tokens
+
+## API Usage
+
+This plugin uses Twitter API v2 endpoints:
+- **Timeline endpoints**: For fetching home timeline and user tweets
+- **Tweet endpoints**: For posting tweets and fetching individual tweets
+- **User endpoints**: For user profile information
+- **Search endpoints**: For content discovery
+
+Monitor your API usage in the Twitter Developer Portal to avoid rate limits.
 
 ## Support
 
 For issues or questions:
-1. Check the Common Issues section
-2. Review debug logs (enable with DEBUG=eliza:*)
-3. Open an issue with:
-   - Error messages
-   - Configuration details
+1. Check the Common Issues section above
+2. Enable debug logging: `DEBUG=eliza:*`
+3. Verify your API credentials and permissions
+4. Check Twitter API v2 status and limits
+5. Open an issue with:
+   - Error messages and logs
+   - Configuration details (without credentials)
    - Steps to reproduce

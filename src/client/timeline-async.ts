@@ -23,7 +23,7 @@ export interface FetchProfilesResponse {
 export type FetchProfiles = (
   query: string,
   maxProfiles: number,
-  cursor: string | undefined
+  cursor: string | undefined,
 ) => Promise<FetchProfilesResponse>;
 
 /**
@@ -47,7 +47,7 @@ export interface FetchTweetsResponse {
 export type FetchTweets = (
   query: string,
   maxTweets: number,
-  cursor: string | undefined
+  cursor: string | undefined,
 ) => Promise<FetchTweetsResponse>;
 
 /**
@@ -60,7 +60,7 @@ export type FetchTweets = (
 export async function* getUserTimeline(
   query: string,
   maxProfiles: number,
-  fetchFunc: FetchProfiles
+  fetchFunc: FetchProfiles,
 ): AsyncGenerator<Profile, void> {
   let nProfiles = 0;
   let cursor: string | undefined = undefined;
@@ -69,7 +69,7 @@ export async function* getUserTimeline(
     const batch: FetchProfilesResponse = await fetchFunc(
       query,
       maxProfiles,
-      cursor
+      cursor,
     );
 
     const { profiles, next } = batch;
@@ -101,7 +101,7 @@ export async function* getUserTimeline(
 export async function* getTweetTimeline(
   query: string,
   maxTweets: number,
-  fetchFunc: FetchTweets
+  fetchFunc: FetchTweets,
 ): AsyncGenerator<Tweet, void> {
   let nTweets = 0;
   let cursor: string | undefined = undefined;
@@ -109,7 +109,7 @@ export async function* getTweetTimeline(
     const batch: FetchTweetsResponse = await fetchFunc(
       query,
       maxTweets,
-      cursor
+      cursor,
     );
 
     const { tweets, next } = batch;

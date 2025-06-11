@@ -78,7 +78,7 @@ export interface RelationshipTimeline {
  * @returns The QueryProfilesResponse object containing profiles, next cursor, and previous cursor.
  */
 export function parseRelationshipTimeline(
-  timeline: RelationshipTimeline
+  timeline: RelationshipTimeline,
 ): QueryProfilesResponse {
   let bottomCursor: string | undefined;
   let topCursor: string | undefined;
@@ -110,7 +110,7 @@ export function parseRelationshipTimeline(
           if (userResultRaw?.legacy) {
             const profile = parseProfile(
               userResultRaw.legacy,
-              userResultRaw.is_blue_verified
+              userResultRaw.is_blue_verified,
             );
 
             if (!profile.userId) {

@@ -523,7 +523,7 @@ export type ParseTweetResult =
  */
 function parseTimelineTweet(
   timeline: TimelineV1,
-  id: string
+  id: string,
 ): ParseTweetResult {
   const tweets = timeline.globalObjects?.tweets ?? {};
   const tweet = tweets[id];
@@ -547,7 +547,7 @@ function parseTimelineTweet(
   const mentions = tweet.entities?.user_mentions ?? [];
   const media = tweet.extended_entities?.media ?? [];
   const pinnedTweets = new Set<string | undefined>(
-    user.pinned_tweet_ids_str ?? []
+    user.pinned_tweet_ids_str ?? [],
   );
   const urls = tweet.entities?.urls ?? [];
   const { photos, videos, sensitiveContent } = parseMediaGroups(media);
@@ -594,7 +594,7 @@ function parseTimelineTweet(
 
     const quotedStatusResult = parseTimelineTweet(
       timeline,
-      tweet.quoted_status_id_str
+      tweet.quoted_status_id_str,
     );
     if (quotedStatusResult.success) {
       tw.quotedStatus = quotedStatusResult.tweet;
@@ -607,7 +607,7 @@ function parseTimelineTweet(
 
     const replyStatusResult = parseTimelineTweet(
       timeline,
-      tweet.in_reply_to_status_id_str
+      tweet.in_reply_to_status_id_str,
     );
     if (replyStatusResult.success) {
       tw.inReplyToStatus = replyStatusResult.tweet;
@@ -620,7 +620,7 @@ function parseTimelineTweet(
 
     const retweetedStatusResult = parseTimelineTweet(
       timeline,
-      tweet.retweeted_status_id_str
+      tweet.retweeted_status_id_str,
     );
     if (retweetedStatusResult.success) {
       tw.retweetedStatus = retweetedStatusResult.tweet;
@@ -666,7 +666,7 @@ export interface QueryTweetsResponse {
 }
 
 export function parseTimelineTweetsV1(
-  timeline: TimelineV1
+  timeline: TimelineV1,
 ): QueryTweetsResponse {
   let bottomCursor: string | undefined;
   let topCursor: string | undefined;
