@@ -1,4 +1,3 @@
-import type { Cookie } from "tough-cookie";
 import type {
   TTweetv2Expansion,
   TTweetv2MediaField,
@@ -10,7 +9,6 @@ import type {
 import {
   type FetchTransformOptions,
   type RequestApiResult,
-  bearerToken,
   requestApi,
 } from "./api";
 import { TwitterAuth } from "./auth";
@@ -44,7 +42,6 @@ import {
   type TimelineV2,
   parseTimelineTweetsV2,
 } from "./timeline-v2";
-import { getTrends } from "./trends";
 import {
   type PollData,
   type Retweeter,
@@ -62,7 +59,6 @@ import {
   getArticle,
   getLatestTweet,
   getTweet,
-  getTweetAnonymous,
   getTweetV2,
   getTweets,
   getTweetsAndReplies,
@@ -113,8 +109,7 @@ export class Client {
    * Creates a new Client object.
    * - Reusing Client objects is recommended to minimize the time spent authenticating unnecessarily.
    */
-  constructor(private readonly options?: Partial<ClientOptions>) {
-  }
+  constructor(private readonly options?: Partial<ClientOptions>) {}
 
   /**
    * Fetches a Twitter profile.
@@ -743,15 +738,12 @@ export class Client {
   ): Promise<void> {
     // Only use API credentials for v2 authentication
     if (!appKey || !appSecret || !accessToken || !accessSecret) {
-      throw new Error("Twitter API v2 credentials are required for authentication");
+      throw new Error(
+        "Twitter API v2 credentials are required for authentication"
+      );
     }
-    
-    this.auth = new TwitterAuth(
-      appKey,
-      appSecret,
-      accessToken,
-      accessSecret
-    );
+
+    this.auth = new TwitterAuth(appKey, appSecret, accessToken, accessSecret);
   }
 
   /**
@@ -760,7 +752,9 @@ export class Client {
    */
   public async logout(): Promise<void> {
     // With API v2 credentials, there's no logout process
-    console.warn("Logout is not applicable when using Twitter API v2 credentials");
+    console.warn(
+      "Logout is not applicable when using Twitter API v2 credentials"
+    );
   }
 
   /**
@@ -864,7 +858,9 @@ export class Client {
     userId: string,
     cursor?: string
   ): Promise<any> {
-    console.warn("Direct message conversations not implemented for Twitter API v2");
+    console.warn(
+      "Direct message conversations not implemented for Twitter API v2"
+    );
     return { conversations: [] };
   }
 
@@ -978,17 +974,21 @@ export class Client {
     // For backward compatibility, collect quotes from the generator
     const quotes: Tweet[] = [];
     let count = 0;
-    
+
     // searchQuotedTweets doesn't support cursor, so we'll collect all quotes up to maxQuotes
-    for await (const quote of searchQuotedTweets(tweetId, maxQuotes, this.auth)) {
+    for await (const quote of searchQuotedTweets(
+      tweetId,
+      maxQuotes,
+      this.auth
+    )) {
       quotes.push(quote);
       count++;
       if (count >= maxQuotes) break;
     }
-    
+
     return {
       tweets: quotes,
-      next: undefined // Twitter API v2 doesn't provide cursor for quote search
+      next: undefined, // Twitter API v2 doesn't provide cursor for quote search
     };
   }
 }
