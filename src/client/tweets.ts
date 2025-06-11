@@ -12,21 +12,14 @@ import type {
   TweetV2,
   UserV2,
 } from "twitter-api-v2";
-import { addApiFeatures, requestApi } from "./api";
+import { addApiFeatures } from "./api";
 import type { TwitterAuth } from "./auth";
 import { getEntityIdByScreenName } from "./profile";
 import { getTweetTimeline } from "./timeline-async";
-import { type ListTimeline, parseListTimelineTweets } from "./timeline-list";
 import type { QueryTweetsResponse } from "./timeline-v1";
 import {
-  type ThreadedConversation,
   type TimelineArticle,
   type TimelineEntryItemContentRaw,
-  type TimelineV2,
-  parseArticle,
-  parseThreadedConversation,
-  parseTimelineEntryItemContentRaw,
-  parseTimelineTweetsV2,
 } from "./timeline-v2";
 
 /**

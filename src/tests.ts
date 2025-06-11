@@ -4,7 +4,6 @@ import type { TestSuite } from "@elizaos/core";
 import type { IAgentRuntime } from "@elizaos/core";
 import type { TwitterConfig } from "./environment";
 import { ClientBase } from "./base";
-import { logger } from "@elizaos/core";
 
 /**
  * Test suite for Twitter client base functionality

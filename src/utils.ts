@@ -1,13 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { Media, State } from "@elizaos/core";
+import type { Media } from "@elizaos/core";
 import {
   type Content,
-  type IAgentRuntime,
   type Memory,
-  ModelType,
   type UUID,
-  composePrompt,
   createUniqueUuid,
   logger,
   truncateToCompleteSentence,
@@ -16,7 +13,7 @@ import type { ClientBase } from "./base";
 import type { Tweet } from "./client";
 
 import type { ActionResponse, MediaData } from "./types";
-import { TWEET_CHAR_LIMIT, TWEET_MAX_LENGTH } from "./constants";
+import { TWEET_MAX_LENGTH } from "./constants";
 
 export const wait = (minTime = 1000, maxTime = 3000) => {
   const waitTime =

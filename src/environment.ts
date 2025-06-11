@@ -1,5 +1,5 @@
-import { type IAgentRuntime, parseBooleanFromText } from "@elizaos/core";
-import { ZodError, z } from "zod";
+import { type IAgentRuntime } from "@elizaos/core";
+import { z } from "zod";
 
 /**
  * This schema defines all required/optional environment settings.
