@@ -264,26 +264,26 @@ export class TwitterService extends Service {
     // Check for character-level Twitter credentials
     const twitterConfig: Partial<TwitterConfig> = {
       TWITTER_API_KEY:
-        (runtime.getSetting("TWITTER_API_KEY") as string) ||
-        runtime.character.settings?.TWITTER_API_KEY ||
-        runtime.character.secrets?.TWITTER_API_KEY,
+        String(runtime.getSetting("TWITTER_API_KEY") || "") ||
+        String(runtime.character.settings?.TWITTER_API_KEY || "") ||
+        String(runtime.character.secrets?.TWITTER_API_KEY || ""),
       TWITTER_API_SECRET_KEY:
-        (runtime.getSetting("TWITTER_API_SECRET_KEY") as string) ||
-        runtime.character.settings?.TWITTER_API_SECRET_KEY ||
-        runtime.character.secrets?.TWITTER_API_SECRET_KEY,
+        String(runtime.getSetting("TWITTER_API_SECRET_KEY") || "") ||
+        String(runtime.character.settings?.TWITTER_API_SECRET_KEY || "") ||
+        String(runtime.character.secrets?.TWITTER_API_SECRET_KEY || ""),
       TWITTER_ACCESS_TOKEN:
-        (runtime.getSetting("TWITTER_ACCESS_TOKEN") as string) ||
-        runtime.character.settings?.TWITTER_ACCESS_TOKEN ||
-        runtime.character.secrets?.TWITTER_ACCESS_TOKEN,
+        String(runtime.getSetting("TWITTER_ACCESS_TOKEN") || "") ||
+        String(runtime.character.settings?.TWITTER_ACCESS_TOKEN || "") ||
+        String(runtime.character.secrets?.TWITTER_ACCESS_TOKEN || ""),
       TWITTER_ACCESS_TOKEN_SECRET:
-        (runtime.getSetting("TWITTER_ACCESS_TOKEN_SECRET") as string) ||
-        runtime.character.settings?.TWITTER_ACCESS_TOKEN_SECRET ||
-        runtime.character.secrets?.TWITTER_ACCESS_TOKEN_SECRET,
+        String(runtime.getSetting("TWITTER_ACCESS_TOKEN_SECRET") || "") ||
+        String(runtime.character.settings?.TWITTER_ACCESS_TOKEN_SECRET || "") ||
+        String(runtime.character.secrets?.TWITTER_ACCESS_TOKEN_SECRET || ""),
     };
 
     // Filter out undefined values
     const config = Object.fromEntries(
-      Object.entries(twitterConfig).filter(([_, v]) => v !== undefined),
+      Object.entries(twitterConfig).filter(([_, v]) => v !== undefined && v !== ""),
     ) as TwitterConfig;
 
     // If we have enough settings to create a client, do so
