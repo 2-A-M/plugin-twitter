@@ -85,7 +85,7 @@ export class TwitterMessageService implements IMessageService {
       }
 
       const message: Message = {
-        id: result.id || result.rest_id,
+        id: result.id,
         agentId: options.agentId,
         roomId: options.roomId,
         userId: this.client.profile?.id || "",

@@ -28,7 +28,6 @@ export class TwitterPostService implements IPostService {
       );
 
       const tweetId =
-        (result as any).data?.create_tweet?.tweet_results?.result?.rest_id ||
         (result as any).id ||
         Date.now().toString();
 

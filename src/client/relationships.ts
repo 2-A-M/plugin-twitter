@@ -1,14 +1,34 @@
 import { Headers } from "headers-polyfill";
-import stringify from "json-stable-stringify";
-import { addApiFeatures, bearerToken, requestApi } from "./api";
 import type { TwitterAuth } from "./auth";
-import { type Profile, getEntityIdByScreenName } from "./profile";
-import { getUserTimeline } from "./timeline-async";
-import {
-  type RelationshipTimeline,
-  parseRelationshipTimeline,
-} from "./timeline-relationship";
-import type { QueryProfilesResponse } from "./timeline-v1";
+import { type Profile } from "./profile";
+import type { QueryProfilesResponse } from "./api-types";
+
+/**
+ * Convert Twitter API v2 user data to Profile format
+ */
+function parseV2UserToProfile(user: any): Profile {
+  return {
+    avatar: user.profile_image_url?.replace("_normal", ""),
+    biography: user.description,
+    followersCount: user.public_metrics?.followers_count,
+    followingCount: user.public_metrics?.following_count,
+    friendsCount: user.public_metrics?.following_count,
+    tweetsCount: user.public_metrics?.tweet_count,
+    isPrivate: user.protected ?? false,
+    isVerified: user.verified ?? false,
+    likesCount: user.public_metrics?.like_count,
+    listedCount: user.public_metrics?.listed_count,
+    location: user.location || "",
+    name: user.name,
+    pinnedTweetIds: user.pinned_tweet_id ? [user.pinned_tweet_id] : [],
+    url: `https://twitter.com/${user.username}`,
+    userId: user.id,
+    username: user.username,
+    isBlueVerified: user.verified_type === "blue",
+    joined: user.created_at ? new Date(user.created_at) : undefined,
+    website: user.entities?.url?.urls?.[0]?.expanded_url,
+  };
+}
 
 /**
  * Function to get the following profiles of a user.
@@ -17,14 +37,59 @@ import type { QueryProfilesResponse } from "./timeline-v1";
  * @param {TwitterAuth} auth - The Twitter authentication credentials.
  * @returns {AsyncGenerator<Profile, void>} An async generator that yields Profile objects.
  */
-export function getFollowing(
+export async function* getFollowing(
   userId: string,
   maxProfiles: number,
   auth: TwitterAuth,
 ): AsyncGenerator<Profile, void> {
-  return getUserTimeline(userId, maxProfiles, (q, mt, c) => {
-    return fetchProfileFollowing(q, mt, auth, c);
-  });
+  if (!auth) {
+    throw new Error("Not authenticated");
+  }
+
+  const client = auth.getV2Client();
+  let count = 0;
+  let paginationToken: string | undefined;
+
+  try {
+    while (count < maxProfiles) {
+      const response = await client.v2.following(userId, {
+        max_results: Math.min(maxProfiles - count, 100),
+        pagination_token: paginationToken,
+        "user.fields": [
+          "id",
+          "name",
+          "username",
+          "created_at",
+          "description",
+          "entities",
+          "location",
+          "pinned_tweet_id",
+          "profile_image_url",
+          "protected",
+          "public_metrics",
+          "url",
+          "verified",
+          "verified_type",
+        ],
+      });
+
+      if (!response.data || response.data.length === 0) {
+        break;
+      }
+
+      for (const user of response.data) {
+        if (count >= maxProfiles) break;
+        yield parseV2UserToProfile(user);
+        count++;
+      }
+
+      paginationToken = response.meta?.next_token;
+      if (!paginationToken) break;
+    }
+  } catch (error) {
+    console.error("Error fetching following:", error);
+    throw error;
+  }
 }
 
 /**
@@ -34,14 +99,59 @@ export function getFollowing(
  * @param {TwitterAuth} auth - The authentication credentials for the Twitter API.
  * @returns {AsyncGenerator<Profile, void>} - An async generator that yields Profile objects representing followers.
  */
-export function getFollowers(
+export async function* getFollowers(
   userId: string,
   maxProfiles: number,
   auth: TwitterAuth,
 ): AsyncGenerator<Profile, void> {
-  return getUserTimeline(userId, maxProfiles, (q, mt, c) => {
-    return fetchProfileFollowers(q, mt, auth, c);
-  });
+  if (!auth) {
+    throw new Error("Not authenticated");
+  }
+
+  const client = auth.getV2Client();
+  let count = 0;
+  let paginationToken: string | undefined;
+
+  try {
+    while (count < maxProfiles) {
+      const response = await client.v2.followers(userId, {
+        max_results: Math.min(maxProfiles - count, 100),
+        pagination_token: paginationToken,
+        "user.fields": [
+          "id",
+          "name",
+          "username",
+          "created_at",
+          "description",
+          "entities",
+          "location",
+          "pinned_tweet_id",
+          "profile_image_url",
+          "protected",
+          "public_metrics",
+          "url",
+          "verified",
+          "verified_type",
+        ],
+      });
+
+      if (!response.data || response.data.length === 0) {
+        break;
+      }
+
+      for (const user of response.data) {
+        if (count >= maxProfiles) break;
+        yield parseV2UserToProfile(user);
+        count++;
+      }
+
+      paginationToken = response.meta?.next_token;
+      if (!paginationToken) break;
+    }
+  } catch (error) {
+    console.error("Error fetching followers:", error);
+    throw error;
+  }
 }
 
 /**
@@ -58,14 +168,44 @@ export async function fetchProfileFollowing(
   auth: TwitterAuth,
   cursor?: string,
 ): Promise<QueryProfilesResponse> {
-  const timeline = await getFollowingTimeline(
-    userId,
-    maxProfiles,
-    auth,
-    cursor,
-  );
+  if (!auth) {
+    throw new Error("Not authenticated");
+  }
 
-  return parseRelationshipTimeline(timeline);
+  const client = auth.getV2Client();
+
+  try {
+    const response = await client.v2.following(userId, {
+      max_results: Math.min(maxProfiles, 100),
+      pagination_token: cursor,
+      "user.fields": [
+        "id",
+        "name",
+        "username",
+        "created_at",
+        "description",
+        "entities",
+        "location",
+        "pinned_tweet_id",
+        "profile_image_url",
+        "protected",
+        "public_metrics",
+        "url",
+        "verified",
+        "verified_type",
+      ],
+    });
+
+    const profiles = response.data?.map(parseV2UserToProfile) || [];
+
+    return {
+      profiles,
+      next: response.meta?.next_token,
+    };
+  } catch (error) {
+    console.error("Error fetching following profiles:", error);
+    throw error;
+  }
 }
 
 /**
@@ -83,145 +223,86 @@ export async function fetchProfileFollowers(
   auth: TwitterAuth,
   cursor?: string,
 ): Promise<QueryProfilesResponse> {
-  const timeline = await getFollowersTimeline(
-    userId,
-    maxProfiles,
-    auth,
-    cursor,
-  );
+  if (!auth) {
+    throw new Error("Not authenticated");
+  }
 
-  return parseRelationshipTimeline(timeline);
+  const client = auth.getV2Client();
+
+  try {
+    const response = await client.v2.followers(userId, {
+      max_results: Math.min(maxProfiles, 100),
+      pagination_token: cursor,
+      "user.fields": [
+        "id",
+        "name",
+        "username",
+        "created_at",
+        "description",
+        "entities",
+        "location",
+        "pinned_tweet_id",
+        "profile_image_url",
+        "protected",
+        "public_metrics",
+        "url",
+        "verified",
+        "verified_type",
+      ],
+    });
+
+    const profiles = response.data?.map(parseV2UserToProfile) || [];
+
+    return {
+      profiles,
+      next: response.meta?.next_token,
+    };
+  } catch (error) {
+    console.error("Error fetching follower profiles:", error);
+    throw error;
+  }
 }
 
 /**
- * Asynchronously fetches the timeline of accounts that a user is following.
+ * Follow a user using Twitter API v2
  *
- * @param {string} userId - The ID of the user whose following timeline is to be retrieved.
- * @param {number} maxItems - The maximum number of items to fetch (limited to 50).
- * @param {TwitterAuth} auth - The authentication information for making the API request.
- * @param {string} [cursor] - Optional cursor to paginate the results.
- * @returns {Promise<RelationshipTimeline>} A Promise that resolves to the RelationshipTimeline object representing the following timeline.
- * @throws {Error} If the client is not logged-in for profile following.
- */
-async function getFollowingTimeline(
-  userId: string,
-  maxItems: number,
-  auth: TwitterAuth,
-  cursor?: string,
-): Promise<RelationshipTimeline> {
-  if (!auth.isLoggedIn()) {
-    throw new Error("Client is not logged-in for profile following.");
-  }
-
-  if (maxItems > 50) {
-    maxItems = 50;
-  }
-
-  const variables: Record<string, any> = {
-    userId,
-    count: maxItems,
-    includePromotedContent: false,
-  };
-
-  const features = addApiFeatures({
-    responsive_web_twitter_article_tweet_consumption_enabled: false,
-    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled:
-      true,
-    longform_notetweets_inline_media_enabled: true,
-    responsive_web_media_download_video_enabled: false,
-  });
-
-  if (cursor != null && cursor !== "") {
-    variables.cursor = cursor;
-  }
-
-  const params = new URLSearchParams();
-  params.set("features", stringify(features) ?? "");
-  params.set("variables", stringify(variables) ?? "");
-
-  const res = await requestApi<RelationshipTimeline>(
-    `https://twitter.com/i/api/graphql/iSicc7LrzWGBgDPL0tM_TQ/Following?${params.toString()}`,
-    auth,
-  );
-
-  if (!res.success) {
-    throw (res as any).err;
-  }
-
-  return res.value;
-}
-
-/**
- * Retrieves the followers timeline for a specific user.
- * @param userId The ID of the user whose followers timeline will be retrieved.
- * @param maxItems The maximum number of items to retrieve (up to 50).
- * @param auth The Twitter authentication credentials.
- * @param cursor (Optional) The cursor for pagination.
- * @returns A Promise that resolves with the RelationshipTimeline object.
- * @throws Error if the client is not logged in or if the API request fails.
- */
-async function getFollowersTimeline(
-  userId: string,
-  maxItems: number,
-  auth: TwitterAuth,
-  cursor?: string,
-): Promise<RelationshipTimeline> {
-  if (!auth.isLoggedIn()) {
-    throw new Error("Client is not logged-in for profile followers.");
-  }
-
-  if (maxItems > 50) {
-    maxItems = 50;
-  }
-
-  const variables: Record<string, any> = {
-    userId,
-    count: maxItems,
-    includePromotedContent: false,
-  };
-
-  const features = addApiFeatures({
-    responsive_web_twitter_article_tweet_consumption_enabled: false,
-    tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled:
-      true,
-    longform_notetweets_inline_media_enabled: true,
-    responsive_web_media_download_video_enabled: false,
-  });
-
-  if (cursor != null && cursor !== "") {
-    variables.cursor = cursor;
-  }
-
-  const params = new URLSearchParams();
-  params.set("features", stringify(features) ?? "");
-  params.set("variables", stringify(variables) ?? "");
-
-  const res = await requestApi<RelationshipTimeline>(
-    `https://twitter.com/i/api/graphql/rRXFSG5vR6drKr5M37YOTw/Followers?${params.toString()}`,
-    auth,
-  );
-
-  if (!res.success) {
-    throw (res as any).err;
-  }
-
-  return res.value;
-}
-
-/**
- * Following users is not supported in the current Twitter API v2 implementation
- * This functionality requires additional OAuth scopes and endpoints not included in this client
- *
- * @deprecated This function is not implemented for Twitter API v2
+ * @param {string} username - The username to follow
+ * @param {TwitterAuth} auth - The authentication credentials
+ * @returns {Promise<Response>} Response from the API
  */
 export async function followUser(
   username: string,
   auth: TwitterAuth,
 ): Promise<Response> {
-  console.warn(
-    "Follow user functionality is not supported in Twitter API v2 client",
-  );
-  throw new Error(
-    "Follow user functionality not implemented for Twitter API v2",
-  );
+  if (!auth) {
+    throw new Error("Not authenticated");
+  }
+
+  const client = auth.getV2Client();
+
+  try {
+    // First get the user ID from username
+    const userResponse = await client.v2.userByUsername(username);
+    if (!userResponse.data) {
+      throw new Error(`User ${username} not found`);
+    }
+
+    // Get the authenticated user's ID
+    const meResponse = await client.v2.me();
+    if (!meResponse.data) {
+      throw new Error("Failed to get authenticated user");
+    }
+
+    // Follow the user
+    const result = await client.v2.follow(meResponse.data.id, userResponse.data.id);
+
+    // Return a Response-like object for compatibility
+    return new Response(JSON.stringify(result), {
+      status: result.data?.following ? 200 : 400,
+      headers: new Headers({ "Content-Type": "application/json" }),
+    });
+  } catch (error) {
+    console.error("Error following user:", error);
+    throw error;
+  }
 }

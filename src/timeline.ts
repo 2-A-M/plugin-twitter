@@ -68,34 +68,8 @@ export class TwitterTimelineClient {
         ? await this.twitterClient.fetchFollowingTimeline(count, [])
         : await this.twitterClient.fetchHomeTimeline(count, []);
 
+    // The timeline methods now return Tweet objects directly from v2 API
     return homeTimeline
-      .map((tweet) => ({
-        id: tweet.rest_id,
-        name: tweet.core?.user_results?.result?.legacy?.name,
-        username: tweet.core?.user_results?.result?.legacy?.screen_name,
-        text: tweet.legacy?.full_text,
-        inReplyToStatusId: tweet.legacy?.in_reply_to_status_id_str,
-        timestamp: new Date(tweet.legacy?.created_at).getTime() / 1000,
-        userId: tweet.legacy?.user_id_str,
-        conversationId: tweet.legacy?.conversation_id_str,
-        permanentUrl: `https://twitter.com/${tweet.core?.user_results?.result?.legacy?.screen_name}/status/${tweet.rest_id}`,
-        hashtags: tweet.legacy?.entities?.hashtags || [],
-        mentions: tweet.legacy?.entities?.user_mentions || [],
-        photos:
-          tweet.legacy?.entities?.media
-            ?.filter((media) => media.type === "photo")
-            .map((media) => ({
-              id: media.id_str,
-              url: media.media_url_https, // Store media_url_https as url
-              alt_text: media.alt_text,
-            })) || [],
-        thread: tweet.thread || [],
-        urls: tweet.legacy?.entities?.urls || [],
-        videos:
-          tweet.legacy?.entities?.media?.filter(
-            (media) => media.type === "video",
-          ) || [],
-      }))
       .filter((tweet) => tweet.username !== twitterUsername); // do not perform action on self-tweets
   }
 
@@ -359,7 +333,7 @@ ${tweet.text}`;
 
         // Create memory for our response
         const tweetId =
-          tweetResult?.rest_id || tweetResult?.id || Date.now().toString();
+          tweetResult?.id || Date.now().toString();
         const responseId = createUniqueUuid(this.runtime, tweetId);
         const responseMemory: Memory = {
           id: responseId,
@@ -416,7 +390,7 @@ ${tweet.text}`;
         }
 
         // Create memory for our response
-        const responseId = createUniqueUuid(this.runtime, tweetResult.rest_id);
+        const responseId = createUniqueUuid(this.runtime, tweetResult.id);
         const responseMemory: Memory = {
           id: responseId,
           entityId: this.runtime.agentId,
