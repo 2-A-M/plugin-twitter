@@ -603,9 +603,9 @@ export class TwitterInteractionClient {
           throw new Error("Failed to get tweet result from response");
         }
 
-        // Create memory for our response
-        const responseId = createUniqueUuid(this.runtime, tweetResult.rest_id);
-        const responseMemory: Memory = {
+                    // Create memory for our response
+            const responseId = createUniqueUuid(this.runtime, tweetResult.id);
+            const responseMemory: Memory = {
           id: responseId,
           entityId: this.runtime.agentId,
           agentId: this.runtime.agentId,

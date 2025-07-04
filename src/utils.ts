@@ -507,3 +507,6 @@ export const parseActionResponseFromText = (
 
   return { actions };
 };
+
+// Export error handler utilities
+export * from "./utils/error-handler";

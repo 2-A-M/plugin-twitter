@@ -1,5 +1,5 @@
 import stringify from "json-stable-stringify";
-import { type RequestApiResult, requestApi } from "./api";
+import { type RequestApiResult } from "./api-types";
 import type { TwitterAuth } from "./auth";
 import type { TwitterApiErrorRaw } from "./errors";
 
@@ -181,86 +181,90 @@ export function parseProfile(
   return profile;
 }
 
+/**
+ * Convert Twitter API v2 user data to Profile format
+ */
+function parseV2Profile(user: any): Profile {
+  const profile: Profile = {
+    avatar: getAvatarOriginalSizeUrl(user.profile_image_url),
+    biography: user.description,
+    followersCount: user.public_metrics?.followers_count,
+    followingCount: user.public_metrics?.following_count,
+    friendsCount: user.public_metrics?.following_count,
+    tweetsCount: user.public_metrics?.tweet_count,
+    isPrivate: user.protected ?? false,
+    isVerified: user.verified ?? false,
+    likesCount: user.public_metrics?.like_count,
+    listedCount: user.public_metrics?.listed_count,
+    location: user.location || "",
+    name: user.name,
+    pinnedTweetIds: user.pinned_tweet_id ? [user.pinned_tweet_id] : [],
+    url: `https://twitter.com/${user.username}`,
+    userId: user.id,
+    username: user.username,
+    isBlueVerified: user.verified_type === "blue",
+  };
+
+  if (user.created_at) {
+    profile.joined = new Date(user.created_at);
+  }
+
+  if (user.entities?.url?.urls?.length > 0) {
+    profile.website = user.entities.url.urls[0].expanded_url;
+  }
+
+  return profile;
+}
+
 export async function getProfile(
   username: string,
   auth: TwitterAuth,
 ): Promise<RequestApiResult<Profile>> {
-  const params = new URLSearchParams();
-  params.set(
-    "variables",
-    stringify({
-      screen_name: username,
-      withSafetyModeUserFields: true,
-    }) ?? "",
-  );
-
-  params.set(
-    "features",
-    stringify({
-      hidden_profile_likes_enabled: false,
-      hidden_profile_subscriptions_enabled: false, // Auth-restricted
-      responsive_web_graphql_exclude_directive_enabled: true,
-      verified_phone_label_enabled: false,
-      subscriptions_verification_info_is_identity_verified_enabled: false,
-      subscriptions_verification_info_verified_since_enabled: true,
-      highlights_tweets_tab_ui_enabled: true,
-      creator_subscriptions_tweet_preview_api_enabled: true,
-      responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
-      responsive_web_graphql_timeline_navigation_enabled: true,
-    }) ?? "",
-  );
-
-  params.set(
-    "fieldToggles",
-    stringify({ withAuxiliaryUserLabels: false }) ?? "",
-  );
-
-  const res = await requestApi<UserRaw>(
-    `https://twitter.com/i/api/graphql/G3KGOASz96M-Qu0nwmGXNg/UserByScreenName?${params.toString()}`,
-    auth,
-  );
-  if (!res.success) {
-    return res as any;
-  }
-
-  const { value } = res;
-  const { errors } = value;
-  if (errors != null && errors.length > 0) {
+  if (!auth) {
     return {
       success: false,
-      err: new Error(errors[0].message),
+      err: new Error("Not authenticated"),
     };
   }
 
-  if (!value.data || !value.data.user || !value.data.user.result) {
+  try {
+    const client = auth.getV2Client();
+    const user = await client.v2.userByUsername(username, {
+      "user.fields": [
+        "id",
+        "name",
+        "username",
+        "created_at",
+        "description",
+        "entities",
+        "location",
+        "pinned_tweet_id",
+        "profile_image_url",
+        "protected",
+        "public_metrics",
+        "url",
+        "verified",
+        "verified_type",
+      ],
+    });
+
+    if (!user.data) {
+      return {
+        success: false,
+        err: new Error(`User ${username} not found`),
+      };
+    }
+
+    return {
+      success: true,
+      value: parseV2Profile(user.data),
+    };
+  } catch (error: any) {
     return {
       success: false,
-      err: new Error("User not found."),
+      err: new Error(error.message || "Failed to fetch profile"),
     };
   }
-  const { result: user } = value.data.user;
-  const { legacy } = user;
-
-  if (user.rest_id == null || user.rest_id.length === 0) {
-    return {
-      success: false,
-      err: new Error("rest_id not found."),
-    };
-  }
-
-  legacy.id_str = user.rest_id;
-
-  if (legacy.screen_name == null || legacy.screen_name.length === 0) {
-    return {
-      success: false,
-      err: new Error(`Either ${username} does not exist or is private.`),
-    };
-  }
-
-  return {
-    success: true,
-    value: parseProfile(user.legacy, user.is_blue_verified),
-  };
 }
 
 const idCache = new Map<string, string>();
@@ -269,72 +273,36 @@ export async function getScreenNameByUserId(
   userId: string,
   auth: TwitterAuth,
 ): Promise<RequestApiResult<string>> {
-  const params = new URLSearchParams();
-  params.set(
-    "variables",
-    stringify({
-      userId: userId,
-      withSafetyModeUserFields: true,
-    }) ?? "",
-  );
-
-  params.set(
-    "features",
-    stringify({
-      hidden_profile_subscriptions_enabled: true,
-      rweb_tipjar_consumption_enabled: true,
-      responsive_web_graphql_exclude_directive_enabled: true,
-      verified_phone_label_enabled: false,
-      highlights_tweets_tab_ui_enabled: true,
-      responsive_web_twitter_article_notes_tab_enabled: true,
-      subscriptions_feature_can_gift_premium: false,
-      creator_subscriptions_tweet_preview_api_enabled: true,
-      responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
-      responsive_web_graphql_timeline_navigation_enabled: true,
-    }) ?? "",
-  );
-
-  const res = await requestApi<UserRaw>(
-    `https://twitter.com/i/api/graphql/xf3jd90KKBCUxdlI_tNHZw/UserByRestId?${params.toString()}`,
-    auth,
-  );
-
-  if (!res.success) {
-    return res as any;
-  }
-
-  const { value } = res;
-  const { errors } = value;
-  if (errors != null && errors.length > 0) {
+  if (!auth) {
     return {
       success: false,
-      err: new Error(errors[0].message),
+      err: new Error("Not authenticated"),
     };
   }
 
-  if (!value.data || !value.data.user || !value.data.user.result) {
+  try {
+    const client = auth.getV2Client();
+    const user = await client.v2.user(userId, {
+      "user.fields": ["username"],
+    });
+
+    if (!user.data || !user.data.username) {
+      return {
+        success: false,
+        err: new Error(`User with ID ${userId} not found`),
+      };
+    }
+
+    return {
+      success: true,
+      value: user.data.username,
+    };
+  } catch (error: any) {
     return {
       success: false,
-      err: new Error("User not found."),
+      err: new Error(error.message || "Failed to fetch user"),
     };
   }
-
-  const { result: user } = value.data.user;
-  const { legacy } = user;
-
-  if (legacy.screen_name == null || legacy.screen_name.length === 0) {
-    return {
-      success: false,
-      err: new Error(
-        `Either user with ID ${userId} does not exist or is private.`,
-      ),
-    };
-  }
-
-  return {
-    success: true,
-    value: legacy.screen_name,
-  };
 }
 
 export async function getEntityIdByScreenName(

@@ -50,22 +50,46 @@ export class TwitterClientInstance implements ITwitterClient {
     this.client = new ClientBase(runtime, state);
 
     // Posting logic - use TWITTER_POST_ENABLE instead
-    if (runtime.getSetting("TWITTER_POST_ENABLE") === "true") {
+    const postEnableSetting = runtime.getSetting("TWITTER_POST_ENABLE");
+    logger.info(`TWITTER_POST_ENABLE raw value: "${postEnableSetting}"`);
+    logger.info(`TWITTER_POST_ENABLE type: ${typeof postEnableSetting}`);
+    
+    // Handle both boolean and string values
+    const postEnabled = postEnableSetting === true || 
+                       postEnableSetting === "true" || 
+                       (typeof postEnableSetting === "string" && postEnableSetting.toLowerCase() === "true");
+    
+    if (postEnabled) {
+      logger.info("Twitter posting is ENABLED - creating post client");
       this.post = new TwitterPostClient(this.client, runtime, state);
+    } else {
+      logger.info("Twitter posting is DISABLED - set TWITTER_POST_ENABLE=true to enable automatic posting");
     }
 
     // Mentions and interactions - check for TWITTER_SEARCH_ENABLE
-    if (runtime.getSetting("TWITTER_SEARCH_ENABLE") !== "false") {
+    const searchEnabledSetting = runtime.getSetting("TWITTER_SEARCH_ENABLE");
+    logger.info(`TWITTER_SEARCH_ENABLE raw value: "${searchEnabledSetting}"`);
+    
+    // Handle both boolean and string values
+    const searchEnabled = searchEnabledSetting !== false && searchEnabledSetting !== "false";
+    if (searchEnabled) {
+      logger.info("Twitter search/interactions are ENABLED");
       this.interaction = new TwitterInteractionClient(
         this.client,
         runtime,
         state,
       );
+    } else {
+      logger.info("Twitter search/interactions are DISABLED");
     }
 
     // handle timeline - check if TWITTER_ENABLE_ACTION_PROCESSING is enabled
-    if (runtime.getSetting("TWITTER_ENABLE_ACTION_PROCESSING") === "true") {
+    const actionProcessingEnabled = runtime.getSetting("TWITTER_ENABLE_ACTION_PROCESSING") === "true";
+    if (actionProcessingEnabled) {
+      logger.info("Twitter action processing is ENABLED");
       this.timeline = new TwitterTimelineClient(this.client, runtime, state);
+    } else {
+      logger.info("Twitter action processing is DISABLED");
     }
 
     this.service = TwitterService.getInstance();

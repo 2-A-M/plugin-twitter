@@ -33,9 +33,9 @@ export class TwitterPostClient {
     this.client = client;
     this.state = state;
     this.runtime = runtime;
-    this.isDryRun =
-      this.state?.TWITTER_DRY_RUN ||
-      (this.runtime.getSetting("TWITTER_DRY_RUN") as unknown as boolean);
+    const dryRunSetting = this.state?.TWITTER_DRY_RUN ?? this.runtime.getSetting("TWITTER_DRY_RUN");
+    this.isDryRun = dryRunSetting === true || dryRunSetting === "true" || 
+                    (typeof dryRunSetting === "string" && dryRunSetting.toLowerCase() === "true");
 
     // Log configuration on initialization
     logger.log("Twitter Client Configuration:");
@@ -44,13 +44,11 @@ export class TwitterPostClient {
     logger.log(
       `- Post Interval: ${this.state?.TWITTER_POST_INTERVAL_MIN || this.runtime.getSetting("TWITTER_POST_INTERVAL_MIN") || 90}-${this.state?.TWITTER_POST_INTERVAL_MAX || this.runtime.getSetting("TWITTER_POST_INTERVAL_MAX") || 180} minutes`,
     );
+    const postImmediatelySetting = this.state?.TWITTER_POST_IMMEDIATELY ?? this.runtime.getSetting("TWITTER_POST_IMMEDIATELY");
+    const isPostImmediately = postImmediatelySetting === true || postImmediatelySetting === "true" || 
+                             (typeof postImmediatelySetting === "string" && postImmediatelySetting.toLowerCase() === "true");
     logger.log(
-      `- Post Immediately: ${
-        this.state?.TWITTER_POST_IMMEDIATELY ||
-        this.runtime.getSetting("TWITTER_POST_IMMEDIATELY")
-          ? "enabled"
-          : "disabled"
-      }`,
+      `- Post Immediately: ${isPostImmediately ? "enabled" : "disabled"}`,
     );
 
     if (this.isDryRun) {
@@ -86,10 +84,11 @@ export class TwitterPostClient {
 
     // Start the loop after a 1 minute delay to allow other services to initialize
     setTimeout(generateNewTweetLoop, 60 * 1000);
-    if (
-      this.state?.TWITTER_POST_IMMEDIATELY ||
-      this.runtime.getSetting("TWITTER_POST_IMMEDIATELY")
-    ) {
+    const postImmediately = this.state?.TWITTER_POST_IMMEDIATELY ?? this.runtime.getSetting("TWITTER_POST_IMMEDIATELY");
+    const shouldPostImmediately = postImmediately === true || postImmediately === "true" || 
+                                  (typeof postImmediately === "string" && postImmediately.toLowerCase() === "true");
+    
+    if (shouldPostImmediately) {
       // await 1 second
       await new Promise((resolve) => setTimeout(resolve, 1000));
       await this.generateNewTweet();
@@ -101,6 +100,8 @@ export class TwitterPostClient {
    * This approach aligns with our platform-independent architecture.
    */
   async generateNewTweet() {
+    logger.info("Attempting to generate new tweet...");
+    
     try {
       // Create the timeline room ID for storing the post
       const userId = this.client.profile?.id;
@@ -109,11 +110,16 @@ export class TwitterPostClient {
         return;
       }
 
+      logger.info(`Generating tweet for user: ${this.client.profile?.username} (${userId})`);
+
       // Create standardized world and room IDs
       const worldId = createUniqueUuid(this.runtime, userId) as UUID;
       const roomId = createUniqueUuid(this.runtime, `${userId}-home`) as UUID;
+      
       // Create a callback for handling the actual posting
       const callback: HandlerCallback = async (content: Content) => {
+        logger.info("Tweet generation callback triggered");
+        
         try {
           if (this.isDryRun) {
             logger.info(`[DRY RUN] Would post tweet: ${content.text}`);
@@ -124,6 +130,8 @@ export class TwitterPostClient {
             logger.error("Error: Missing some context", content);
             return [];
           }
+
+          logger.info(`Posting tweet: ${content.text}`);
 
           // Post the tweet
           const result = await this.postToTwitter(
@@ -137,10 +145,8 @@ export class TwitterPostClient {
             return [];
           }
 
-          const tweetId =
-            (result as any).rest_id ||
-            (result as any).id_str ||
-            (result as any).legacy?.id_str;
+          const tweetId = (result as any).id;
+          logger.info(`Tweet posted successfully! ID: ${tweetId}`);
 
           if (result) {
             const postedTweetId = createUniqueUuid(this.runtime, tweetId);
@@ -176,6 +182,8 @@ export class TwitterPostClient {
         }
       };
 
+      logger.info("Emitting POST_GENERATED event to trigger content generation...");
+      
       // Emit event to handle the post generation using standard handlers
       this.runtime.emitEvent(
         [EventType.POST_GENERATED, TwitterEventTypes.POST_GENERATED],
@@ -188,6 +196,8 @@ export class TwitterPostClient {
           source: "twitter",
         },
       );
+      
+      logger.info("POST_GENERATED event emitted successfully");
     } catch (error) {
       logger.error("Error generating tweet:", error);
     }

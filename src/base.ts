@@ -222,103 +222,7 @@ export class ClientBase {
    * @param {number} [maxDepth=3] - The maximum depth allowed for parsing nested quotes/retweets.
    * @returns {Tweet} The parsed Tweet object.
    */
-  parseTweet(raw: any, depth = 0, maxDepth = 3): Tweet {
-    // If we've reached maxDepth, don't parse nested quotes/retweets further
-    const canRecurse = depth < maxDepth;
 
-    const quotedStatus =
-      raw.quoted_status_result?.result && canRecurse
-        ? this.parseTweet(raw.quoted_status_result.result, depth + 1, maxDepth)
-        : undefined;
-
-    const retweetedStatus =
-      raw.retweeted_status_result?.result && canRecurse
-        ? this.parseTweet(
-            raw.retweeted_status_result.result,
-            depth + 1,
-            maxDepth,
-          )
-        : undefined;
-
-    const t: Tweet = {
-      bookmarkCount:
-        raw.bookmarkCount ?? raw.legacy?.bookmark_count ?? undefined,
-      conversationId: raw.conversationId ?? raw.legacy?.conversation_id_str,
-      hashtags: raw.hashtags ?? raw.legacy?.entities?.hashtags ?? [],
-      html: raw.html,
-      id: raw.id ?? raw.rest_id ?? raw.legacy.id_str ?? raw.id_str ?? undefined,
-      inReplyToStatus: raw.inReplyToStatus,
-      inReplyToStatusId:
-        raw.inReplyToStatusId ??
-        raw.legacy?.in_reply_to_status_id_str ??
-        undefined,
-      isQuoted: raw.legacy?.is_quote_status === true,
-      isPin: raw.isPin,
-      isReply: raw.isReply,
-      isRetweet: raw.legacy?.retweeted === true,
-      isSelfThread: raw.isSelfThread,
-      language: raw.legacy?.lang,
-      likes: raw.legacy?.favorite_count ?? 0,
-      name:
-        raw.name ??
-        raw?.user_results?.result?.legacy?.name ??
-        raw.core?.user_results?.result?.legacy?.name,
-      mentions: raw.mentions ?? raw.legacy?.entities?.user_mentions ?? [],
-      permanentUrl:
-        raw.permanentUrl ??
-        (raw.core?.user_results?.result?.legacy?.screen_name && raw.rest_id
-          ? `https://x.com/${raw.core?.user_results?.result?.legacy?.screen_name}/status/${raw.rest_id}`
-          : undefined),
-      photos:
-        raw.photos ??
-        (raw.legacy?.entities?.media
-          ?.filter((media: any) => media.type === "photo")
-          .map((media: any) => ({
-            id: media.id_str || media.rest_id || media.legacy.id_str,
-            url: media.media_url_https,
-            alt_text: media.alt_text,
-          })) ||
-          []),
-      place: raw.place,
-      poll: raw.poll ?? null,
-      quotedStatus,
-      quotedStatusId:
-        raw.quotedStatusId ?? raw.legacy?.quoted_status_id_str ?? undefined,
-      quotes: raw.legacy?.quote_count ?? 0,
-      replies: raw.legacy?.reply_count ?? 0,
-      retweets: raw.legacy?.retweet_count ?? 0,
-      retweetedStatus,
-      retweetedStatusId: raw.legacy?.retweeted_status_id_str ?? undefined,
-      text: raw.text ?? raw.legacy?.full_text ?? undefined,
-      thread: raw.thread || [],
-      timeParsed: raw.timeParsed
-        ? new Date(raw.timeParsed)
-        : raw.legacy?.created_at
-          ? new Date(raw.legacy?.created_at)
-          : undefined,
-      timestamp:
-        raw.timestamp ??
-        (raw.legacy?.created_at
-          ? new Date(raw.legacy.created_at).getTime() / 1000
-          : undefined),
-      urls: raw.urls ?? raw.legacy?.entities?.urls ?? [],
-      userId: raw.userId ?? raw.legacy?.user_id_str ?? undefined,
-      username:
-        raw.username ??
-        raw.core?.user_results?.result?.legacy?.screen_name ??
-        undefined,
-      videos:
-        raw.videos ??
-        raw.legacy?.entities?.media?.filter(
-          (media: any) => media.type === "video",
-        ) ??
-        [],
-      views: raw.views?.count ? Number(raw.views.count) : 0,
-      sensitiveContent: raw.sensitiveContent,
-    };
-
-    return t;
-  }
 
   state: any;
 
@@ -469,8 +373,8 @@ export class ClientBase {
       this.profile.id,
       count,
     );
-    // Use parseTweet on each tweet
-    return homeTimeline.tweets.map((t) => this.parseTweet(t));
+    // homeTimeline.tweets already contains Tweet objects from v2 API, no parsing needed
+    return homeTimeline.tweets;
   }
 
   /**
@@ -485,12 +389,8 @@ export class ClientBase {
       ? await this.twitterClient.fetchFollowingTimeline(count, [])
       : await this.twitterClient.fetchHomeTimeline(count, []);
 
-    const processedTimeline = homeTimeline
-      .filter((t) => t.__typename !== "TweetWithVisibilityResults") // what's this about?
-      .map((tweet) => this.parseTweet(tweet));
-
-    //logger.debug("process homeTimeline", processedTimeline);
-    return processedTimeline;
+    // homeTimeline already contains Tweet objects from v2 API, no parsing needed
+    return homeTimeline;
   }
 
   async fetchSearchTweets(

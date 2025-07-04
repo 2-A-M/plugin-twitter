@@ -8,9 +8,10 @@ import type {
 } from "twitter-api-v2";
 import {
   type FetchTransformOptions,
+  type QueryProfilesResponse,
+  type QueryTweetsResponse,
   type RequestApiResult,
-  requestApi,
-} from "./api";
+} from "./api-types";
 import { TwitterAuth } from "./auth";
 // Removed messages imports - using Twitter API v2 instead
 import {
@@ -28,20 +29,11 @@ import {
 } from "./relationships";
 import {
   SearchMode,
-  fetchSearchProfiles,
-  fetchSearchTweets,
   searchProfiles,
   searchTweets,
   searchQuotedTweets,
 } from "./search";
-import { fetchFollowingTimeline } from "./timeline-following";
-import { fetchHomeTimeline } from "./timeline-home";
-import type { QueryProfilesResponse, QueryTweetsResponse } from "./timeline-v1";
-import {
-  type TimelineArticle,
-  type TimelineV2,
-  parseTimelineTweetsV2,
-} from "./timeline-v2";
+
 import {
   type PollData,
   type Retweeter,
@@ -56,7 +48,6 @@ import {
   deleteTweet,
   fetchListTweets,
   getAllRetweeters,
-  getArticle,
   getLatestTweet,
   getTweet,
   getTweetV2,
@@ -69,11 +60,10 @@ import {
   likeTweet,
   retweet,
   getTweetWhere,
+  parseTweetV2ToV1,
 } from "./tweets";
 
 const twUrl = "https://twitter.com";
-const UserTweetsUrl =
-  "https://twitter.com/i/api/graphql/E3opETHurmVJflFsUBVuUQ/UserTweets";
 
 /**
  * An alternative fetch function to use instead of the default fetch function. This may be useful
@@ -179,13 +169,25 @@ export class Client {
    * @param cursor The search cursor, which can be passed into further requests for more results.
    * @returns A page of results, containing a cursor that can be used in further requests.
    */
-  public fetchSearchTweets(
+  public async fetchSearchTweets(
     query: string,
     maxTweets: number,
     searchMode: SearchMode,
     cursor?: string,
   ): Promise<QueryTweetsResponse> {
-    return fetchSearchTweets(query, maxTweets, searchMode, this.auth, cursor);
+    // Use the generator and collect results
+    const tweets: Tweet[] = [];
+    const generator = searchTweets(query, maxTweets, searchMode, this.auth);
+    
+    for await (const tweet of generator) {
+      tweets.push(tweet);
+    }
+    
+    return {
+      tweets,
+      // v2 API doesn't provide cursor-based pagination for search
+      next: undefined,
+    };
   }
 
   /**
@@ -195,12 +197,24 @@ export class Client {
    * @param cursor The search cursor, which can be passed into further requests for more results.
    * @returns A page of results, containing a cursor that can be used in further requests.
    */
-  public fetchSearchProfiles(
+  public async fetchSearchProfiles(
     query: string,
     maxProfiles: number,
     cursor?: string,
   ): Promise<QueryProfilesResponse> {
-    return fetchSearchProfiles(query, maxProfiles, this.auth, cursor);
+    // Use the generator and collect results
+    const profiles: Profile[] = [];
+    const generator = searchProfiles(query, maxProfiles, this.auth);
+    
+    for await (const profile of generator) {
+      profiles.push(profile);
+    }
+    
+    return {
+      profiles,
+      // v2 API doesn't provide cursor-based pagination for search
+      next: undefined,
+    };
   }
 
   /**
@@ -275,29 +289,72 @@ export class Client {
   }
 
   /**
-   * Fetches the home timeline for the current user. (for you feed)
+   * Fetches the home timeline for the current user using Twitter API v2.
+   * Note: Twitter API v2 doesn't distinguish between "For You" and "Following" feeds.
    * @param count The number of tweets to fetch.
-   * @param seenTweetIds An array of tweet IDs that have already been seen.
-   * @returns A promise that resolves to the home timeline response.
+   * @param seenTweetIds An array of tweet IDs that have already been seen (not used in v2).
+   * @returns A promise that resolves to an array of tweets.
    */
   public async fetchHomeTimeline(
     count: number,
     seenTweetIds: string[],
-  ): Promise<any[]> {
-    return await fetchHomeTimeline(count, seenTweetIds, this.auth);
+  ): Promise<Tweet[]> {
+    if (!this.auth) {
+      throw new Error("Not authenticated");
+    }
+
+    const client = this.auth.getV2Client();
+
+    try {
+      const timeline = await client.v2.homeTimeline({
+        max_results: Math.min(count, 100),
+        "tweet.fields": [
+          "id",
+          "text",
+          "created_at",
+          "author_id",
+          "referenced_tweets",
+          "entities",
+          "public_metrics",
+          "attachments",
+          "conversation_id",
+        ],
+        "user.fields": ["id", "name", "username", "profile_image_url"],
+        "media.fields": ["url", "preview_image_url", "type"],
+        expansions: [
+          "author_id",
+          "attachments.media_keys",
+          "referenced_tweets.id",
+        ],
+      });
+
+      const tweets: Tweet[] = [];
+      for await (const tweet of timeline) {
+        tweets.push(parseTweetV2ToV1(tweet, timeline.includes));
+        if (tweets.length >= count) break;
+      }
+
+      return tweets;
+    } catch (error) {
+      console.error("Failed to fetch home timeline:", error);
+      throw error;
+    }
   }
 
   /**
-   * Fetches the home timeline for the current user. (following feed)
+   * Fetches the home timeline for the current user (same as fetchHomeTimeline in v2).
+   * Twitter API v2 doesn't provide separate "Following" timeline endpoint.
    * @param count The number of tweets to fetch.
-   * @param seenTweetIds An array of tweet IDs that have already been seen.
-   * @returns A promise that resolves to the home timeline response.
+   * @param seenTweetIds An array of tweet IDs that have already been seen (not used in v2).
+   * @returns A promise that resolves to an array of tweets.
    */
   public async fetchFollowingTimeline(
     count: number,
     seenTweetIds: string[],
-  ): Promise<any[]> {
-    return await fetchFollowingTimeline(count, seenTweetIds, this.auth);
+  ): Promise<Tweet[]> {
+    // In v2 API, there's no separate following timeline endpoint
+    // Use the same home timeline endpoint
+    return this.fetchHomeTimeline(count, seenTweetIds);
   }
 
   async getUserTweets(
@@ -305,72 +362,50 @@ export class Client {
     maxTweets = 200,
     cursor?: string,
   ): Promise<{ tweets: Tweet[]; next?: string }> {
-    if (maxTweets > 200) {
-      maxTweets = 200;
+    if (!this.auth) {
+      throw new Error("Not authenticated");
     }
 
-    const variables: Record<string, any> = {
-      userId,
-      count: maxTweets,
-      includePromotedContent: true,
-      withQuickPromoteEligibilityTweetFields: true,
-      withVoice: true,
-      withV2Timeline: true,
-    };
+    const client = this.auth.getV2Client();
 
-    if (cursor) {
-      variables.cursor = cursor;
+    try {
+      const response = await client.v2.userTimeline(userId, {
+        max_results: Math.min(maxTweets, 100),
+        "tweet.fields": [
+          "id",
+          "text",
+          "created_at",
+          "author_id",
+          "referenced_tweets",
+          "entities",
+          "public_metrics",
+          "attachments",
+          "conversation_id",
+        ],
+        "user.fields": ["id", "name", "username", "profile_image_url"],
+        "media.fields": ["url", "preview_image_url", "type"],
+        expansions: [
+          "author_id",
+          "attachments.media_keys",
+          "referenced_tweets.id",
+        ],
+        pagination_token: cursor,
+      });
+
+      const tweets: Tweet[] = [];
+      for await (const tweet of response) {
+        tweets.push(parseTweetV2ToV1(tweet, response.includes));
+        if (tweets.length >= maxTweets) break;
+      }
+
+      return {
+        tweets,
+        next: response.meta?.next_token,
+      };
+    } catch (error) {
+      console.error("Failed to fetch user tweets:", error);
+      throw error;
     }
-
-    const features = {
-      rweb_tipjar_consumption_enabled: true,
-      responsive_web_graphql_exclude_directive_enabled: true,
-      verified_phone_label_enabled: false,
-      creator_subscriptions_tweet_preview_api_enabled: true,
-      responsive_web_graphql_timeline_navigation_enabled: true,
-      responsive_web_graphql_skip_user_profile_image_extensions_enabled: false,
-      communities_web_enable_tweet_community_results_fetch: true,
-      c9s_tweet_anatomy_moderator_badge_enabled: true,
-      articles_preview_enabled: true,
-      responsive_web_edit_tweet_api_enabled: true,
-      graphql_is_translatable_rweb_tweet_is_translatable_enabled: true,
-      view_counts_everywhere_api_enabled: true,
-      longform_notetweets_consumption_enabled: true,
-      responsive_web_twitter_article_tweet_consumption_enabled: true,
-      tweet_awards_web_tipping_enabled: false,
-      creator_subscriptions_quote_tweet_preview_enabled: false,
-      freedom_of_speech_not_reach_fetch_enabled: true,
-      standardized_nudges_misinfo: true,
-      tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled:
-        true,
-      rweb_video_timestamps_enabled: true,
-      longform_notetweets_rich_text_read_enabled: true,
-      longform_notetweets_inline_media_enabled: true,
-      responsive_web_enhance_cards_enabled: false,
-    };
-
-    const fieldToggles = {
-      withArticlePlainText: false,
-    };
-
-    const res = await requestApi<TimelineV2>(
-      `${UserTweetsUrl}?variables=${encodeURIComponent(
-        JSON.stringify(variables),
-      )}&features=${encodeURIComponent(JSON.stringify(features))}&fieldToggles=${encodeURIComponent(
-        JSON.stringify(fieldToggles),
-      )}`,
-      this.auth,
-    );
-
-    if (!res.success) {
-      throw (res as any).err;
-    }
-
-    const timelineV2 = parseTimelineTweetsV2(res.value);
-    return {
-      tweets: timelineV2.tweets,
-      next: timelineV2.next,
-    };
   }
 
   async *getUserTweetsIterator(
@@ -757,33 +792,7 @@ export class Client {
     );
   }
 
-  /**
-   * Sets the optional cookie to be used in requests.
-   * @param _cookie The cookie to be used in requests.
-   * @deprecated This function no longer represents any part of Twitter's auth flow.
-   * @returns This client instance.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public withCookie(_cookie: string): Client {
-    console.warn(
-      "Warning: Client#withCookie is deprecated and will be removed in a later version. Use Client#login or Client#setCookies instead.",
-    );
-    return this;
-  }
 
-  /**
-   * Sets the optional CSRF token to be used in requests.
-   * @param _token The CSRF token to be used in requests.
-   * @deprecated This function no longer represents any part of Twitter's auth flow.
-   * @returns This client instance.
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public withXCsrfToken(_token: string): Client {
-    console.warn(
-      "Warning: Client#withXCsrfToken is deprecated and will be removed in a later version.",
-    );
-    return this;
-  }
 
   /**
    * Sends a quote tweet.
@@ -894,14 +903,7 @@ export class Client {
     return res.value;
   }
 
-  /**
-   * Fetches a article (long form tweet) by its ID.
-   * @param id The ID of the article to fetch. In the format of (http://x.com/i/article/id)
-   * @returns The {@link TimelineArticle} object, or `null` if it couldn't be fetched.
-   */
-  public getArticle(id: string): Promise<TimelineArticle | null> {
-    return getArticle(id, this.auth);
-  }
+
 
   /**
    * Retrieves all users who retweeted the given tweet.
