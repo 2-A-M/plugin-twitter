@@ -75,6 +75,7 @@ export class TwitterInteractionClient {
   runtime: IAgentRuntime;
   private isDryRun: boolean;
   private state: any;
+  private isRunning: boolean = false;
   /**
    * Constructor for setting up a new instance with the provided client, runtime, and state.
    * @param {ClientBase} client - The client being used for communication.
@@ -95,7 +96,14 @@ export class TwitterInteractionClient {
    * Uses an interval based on the 'TWITTER_POLL_INTERVAL' setting, or defaults to 2 minutes if not set.
    */
   async start() {
+    this.isRunning = true;
+    
     const handleTwitterInteractionsLoop = () => {
+      if (!this.isRunning) {
+        logger.info("Twitter interaction client stopped, exiting loop");
+        return;
+      }
+      
       // Defaults to 2 minutes
       const interactionInterval =
         (this.state?.TWITTER_POLL_INTERVAL ||
@@ -105,7 +113,10 @@ export class TwitterInteractionClient {
           120) * 1000;
 
       this.handleTwitterInteractions();
-      setTimeout(handleTwitterInteractionsLoop, interactionInterval);
+      
+      if (this.isRunning) {
+        setTimeout(handleTwitterInteractionsLoop, interactionInterval);
+      }
     };
     handleTwitterInteractionsLoop();
   }
@@ -224,8 +235,17 @@ export class TwitterInteractionClient {
       });
     }
 
+    // Get max interactions per run setting
+    const maxInteractionsPerRun = parseInt(
+      this.runtime.getSetting("TWITTER_MAX_INTERACTIONS_PER_RUN") as string || "10"
+    );
+    
+    // Limit the number of interactions per run
+    const tweetsToProcess = uniqueTweetCandidates.slice(0, maxInteractionsPerRun);
+    logger.info(`Processing ${tweetsToProcess.length} of ${uniqueTweetCandidates.length} mention tweets (max: ${maxInteractionsPerRun})`);
+
     // for each tweet candidate, handle the tweet
-    for (const tweet of uniqueTweetCandidates) {
+    for (const tweet of tweetsToProcess) {
       if (
         !this.client.lastCheckedTweetId ||
         BigInt(tweet.id) > this.client.lastCheckedTweetId
@@ -774,5 +794,10 @@ export class TwitterInteractionClient {
       },
       createdAt: Date.now(),
     };
+  }
+  
+  async stop() {
+    logger.info("Stopping Twitter interaction client...");
+    this.isRunning = false;
   }
 }

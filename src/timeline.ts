@@ -33,6 +33,7 @@ export class TwitterTimelineClient {
   isDryRun: boolean;
   timelineType: TIMELINE_TYPE;
   private state: any;
+  private isRunning: boolean = false;
 
   constructor(client: ClientBase, runtime: IAgentRuntime, state: any) {
     this.client = client;
@@ -40,23 +41,45 @@ export class TwitterTimelineClient {
     this.runtime = runtime;
     this.state = state;
 
-    this.timelineType =
+    const dryRunSetting = this.state?.TWITTER_DRY_RUN ?? this.runtime.getSetting("TWITTER_DRY_RUN");
+    this.isDryRun = dryRunSetting === true || dryRunSetting === "true" || 
+                    (typeof dryRunSetting === "string" && dryRunSetting.toLowerCase() === "true");
+
+    const timelineMode = 
       this.state?.TWITTER_TIMELINE_MODE ||
-      this.runtime.getSetting("TWITTER_TIMELINE_MODE");
+      this.runtime.getSetting("TWITTER_TIMELINE_MODE") ||
+      "foryou";
+    
+    // Convert string to enum value
+    this.timelineType = timelineMode.toLowerCase() === "following" 
+      ? TIMELINE_TYPE.Following 
+      : TIMELINE_TYPE.ForYou;
   }
 
   async start() {
+    logger.info("Starting Twitter timeline client...");
+    this.isRunning = true;
+    
     const handleTwitterTimelineLoop = () => {
-      // Defaults to 2 minutes
-      const interactionInterval =
-        (this.state?.TWITTER_TIMELINE_POLL_INTERVAL ||
-          (this.runtime.getSetting(
-            "TWITTER_TIMELINE_POLL_INTERVAL",
-          ) as unknown as number) ||
-          120) * 1000;
+      if (!this.isRunning) {
+        logger.info("Twitter timeline client stopped, exiting loop");
+        return;
+      }
+      
+      // Defaults to 240 minutes as per README
+      const actionIntervalMinutes =
+        this.state?.TWITTER_ACTION_INTERVAL ||
+        (this.runtime.getSetting("TWITTER_ACTION_INTERVAL") as unknown as number) ||
+        240;
+      const actionInterval = actionIntervalMinutes * 60 * 1000; // Convert minutes to milliseconds
+      
+      logger.info(`Timeline client will check every ${actionIntervalMinutes} minutes`);
 
       this.handleTimeline();
-      setTimeout(handleTwitterTimelineLoop, interactionInterval);
+      
+      if (this.isRunning) {
+        setTimeout(handleTwitterTimelineLoop, actionInterval);
+      }
     };
     handleTwitterTimelineLoop();
   }
@@ -99,9 +122,10 @@ export class TwitterTimelineClient {
   }
 
   async handleTimeline() {
-    console.log("Start Hanldeling Twitter Timeline");
+    logger.info("Starting Twitter timeline processing...");
 
     const tweets = await this.getTimeline(20);
+    logger.info(`Fetched ${tweets.length} tweets from timeline`);
     const maxActionsPerCycle = 20;
     const tweetDecisions = [];
     for (const tweet of tweets) {
@@ -110,7 +134,7 @@ export class TwitterTimelineClient {
         // Skip if we've already processed this tweet
         const memory = await this.runtime.getMemoryById(tweetId);
         if (memory) {
-          console.log(`Already processed tweet ID: ${tweet.id}`);
+          logger.log(`Already processed tweet ID: ${tweet.id}`);
           continue;
         }
 
@@ -185,8 +209,22 @@ Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appro
     };
     // Sort the timeline based on the action decision score,
     const prioritizedTweets = rankByActionRelevance(tweetDecisions);
+    
+    logger.info(`Processing ${prioritizedTweets.length} tweets with actions`);
+    if (prioritizedTweets.length > 0) {
+      const actionSummary = prioritizedTweets.map(td => {
+        const actions = [];
+        if (td.actionResponse.like) actions.push('LIKE');
+        if (td.actionResponse.retweet) actions.push('RETWEET');
+        if (td.actionResponse.quote) actions.push('QUOTE');
+        if (td.actionResponse.reply) actions.push('REPLY');
+        return `Tweet ${td.tweet.id}: ${actions.join(', ')}`;
+      });
+      logger.info(`Actions to execute:\n${actionSummary.join('\n')}`);
+    }
 
-    this.processTimelineActions(prioritizedTweets);
+    await this.processTimelineActions(prioritizedTweets);
+    logger.info("Timeline processing complete");
   }
 
   private async processTimelineActions(
@@ -274,6 +312,10 @@ Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appro
 
   async handleLikeAction(tweet: Tweet) {
     try {
+      if (this.isDryRun) {
+        logger.log(`[DRY RUN] Would have liked tweet ${tweet.id}`);
+        return;
+      }
       await this.twitterClient.likeTweet(tweet.id);
       logger.log(`Liked tweet ${tweet.id}`);
     } catch (error) {
@@ -283,6 +325,10 @@ Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appro
 
   async handleRetweetAction(tweet: Tweet) {
     try {
+      if (this.isDryRun) {
+        logger.log(`[DRY RUN] Would have retweeted tweet ${tweet.id}`);
+        return;
+      }
       await this.twitterClient.retweet(tweet.id);
       logger.log(`Retweeted tweet ${tweet.id}`);
     } catch (error) {
@@ -313,6 +359,11 @@ ${tweet.text}`;
       const responseObject = parseKeyValueXml(quoteResponse);
 
       if (responseObject.post) {
+        if (this.isDryRun) {
+          logger.log(`[DRY RUN] Would have quoted tweet ${tweet.id} with: ${responseObject.post}`);
+          return;
+        }
+        
         const result = await this.client.requestQueue.add(
           async () =>
             await this.twitterClient.sendQuoteTweet(
@@ -378,6 +429,11 @@ ${tweet.text}`;
       const responseObject = parseKeyValueXml(replyResponse);
 
       if (responseObject.post) {
+        if (this.isDryRun) {
+          logger.log(`[DRY RUN] Would have replied to tweet ${tweet.id} with: ${responseObject.post}`);
+          return;
+        }
+        
         const tweetResult = await sendTweet(
           this.client,
           responseObject.post,
@@ -409,5 +465,10 @@ ${tweet.text}`;
     } catch (error) {
       logger.error("Error in quote tweet generation:", error);
     }
+  }
+  
+  async stop() {
+    logger.info("Stopping Twitter timeline client...");
+    this.isRunning = false;
   }
 }

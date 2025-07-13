@@ -21,7 +21,7 @@ import { TwitterTimelineClient } from "./timeline";
 import { ClientBaseTestSuite } from "./tests";
 import { type ITwitterClient, TwitterEventTypes } from "./types";
 
-console.log(`Twitter plugin loaded with service name: ${TWITTER_SERVICE_NAME}`);
+logger.info(`Twitter plugin loaded with service name: ${TWITTER_SERVICE_NAME}`);
 
 /**
  * A manager that orchestrates all specialized Twitter logic:
@@ -130,15 +130,15 @@ export class TwitterService extends Service {
       await client.client.init();
 
       if (client.post) {
-        client.post.start();
+        await client.post.start();
       }
 
       if (client.interaction) {
-        client.interaction.start();
+        await client.interaction.start();
       }
 
       if (client.timeline) {
-        client.timeline.start();
+        await client.timeline.start();
       }
 
       // Store the client instance
@@ -273,7 +273,17 @@ export class TwitterService extends Service {
     const client = this.clients.get(key);
     if (client) {
       try {
-        await client.service.stop();
+        // Stop all client components
+        if (client.post) {
+          await client.post.stop();
+        }
+        if (client.interaction) {
+          await client.interaction.stop();
+        }
+        if (client.timeline) {
+          await client.timeline.stop();
+        }
+        
         this.clients.delete(key);
         logger.info(`Stopped Twitter client for ${clientId}`);
       } catch (error) {
@@ -340,7 +350,17 @@ export class TwitterService extends Service {
   async stopAllClients(): Promise<void> {
     for (const [key, client] of this.clients.entries()) {
       try {
-        await client.service.stop();
+        // Stop all client components
+        if (client.post) {
+          await client.post.stop();
+        }
+        if (client.interaction) {
+          await client.interaction.stop();
+        }
+        if (client.timeline) {
+          await client.timeline.stop();
+        }
+        
         this.clients.delete(key);
       } catch (error) {
         logger.error(`Error stopping Twitter client ${key}:`, error);

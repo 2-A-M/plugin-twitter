@@ -76,11 +76,9 @@ export async function* searchTweets(
       const convertedTweet: Tweet = {
         id: tweet.id,
         text: tweet.text || "",
-        // Twitter API returns created_at as ISO string, convert to seconds
-        // to match the expected Tweet.timestamp format used throughout the plugin
         timestamp: tweet.created_at
-          ? new Date(tweet.created_at).getTime() / 1000
-          : Date.now() / 1000,
+          ? new Date(tweet.created_at).getTime()
+          : Date.now(),
         timeParsed: tweet.created_at ? new Date(tweet.created_at) : new Date(),
         userId: tweet.author_id || "",
         name:

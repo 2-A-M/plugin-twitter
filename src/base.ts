@@ -62,6 +62,8 @@ type TwitterProfile = {
 class RequestQueue {
   private queue: (() => Promise<any>)[] = [];
   private processing = false;
+  private maxRetries = 3;
+  private retryAttempts = new Map<() => Promise<any>, number>();
 
   /**
    * Asynchronously adds a request to the queue, then processes the queue.
@@ -99,15 +101,33 @@ class RequestQueue {
       const request = this.queue.shift()!;
       try {
         await request();
+        // Clear retry count on success
+        this.retryAttempts.delete(request);
       } catch (error) {
-        console.error("Error processing request:", error);
-        this.queue.unshift(request);
-        await this.exponentialBackoff(this.queue.length);
+        logger.error("Error processing request:", error);
+        
+        const retryCount = (this.retryAttempts.get(request) || 0) + 1;
+        
+        if (retryCount < this.maxRetries) {
+          this.retryAttempts.set(request, retryCount);
+          this.queue.unshift(request);
+          await this.exponentialBackoff(retryCount);
+          // Break the loop to allow exponential backoff to take effect
+          break;
+        } else {
+          logger.error(`Max retries (${this.maxRetries}) exceeded for request, skipping`);
+          this.retryAttempts.delete(request);
+        }
       }
       await this.randomDelay();
     }
 
     this.processing = false;
+    
+    // If there are still items in the queue, restart processing
+    if (this.queue.length > 0) {
+      this.processQueue();
+    }
   }
 
   /**
@@ -154,7 +174,7 @@ export class ClientBase {
    */
   async cacheTweet(tweet: Tweet): Promise<void> {
     if (!tweet) {
-      console.warn("Tweet is undefined, skipping cache");
+      logger.warn("Tweet is undefined, skipping cache");
       return;
     }
 
@@ -744,7 +764,7 @@ export class ClientBase {
 
       return profile;
     } catch (error) {
-      console.error("Error fetching Twitter profile:", error);
+              logger.error("Error fetching Twitter profile:", error);
       throw error;
     }
   }

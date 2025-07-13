@@ -22,6 +22,7 @@ export class TwitterPostClient {
   twitterUsername: string;
   private isDryRun: boolean;
   private state: any;
+  private isRunning: boolean = false;
 
   /**
    * Constructor for initializing a new Twitter client with the provided client, runtime, and state
@@ -63,8 +64,14 @@ export class TwitterPostClient {
    */
   async start() {
     logger.log("Starting Twitter post client...");
+    this.isRunning = true;
 
     const generateNewTweetLoop = async () => {
+      if (!this.isRunning) {
+        logger.log("Twitter post client stopped, exiting loop");
+        return;
+      }
+      
       const minPostMinutes =
         this.state?.TWITTER_POST_INTERVAL_MIN ||
         this.runtime.getSetting("TWITTER_POST_INTERVAL_MIN") ||
@@ -79,7 +86,10 @@ export class TwitterPostClient {
       const interval = randomMinutes * 60 * 1000;
 
       await this.generateNewTweet();
-      setTimeout(generateNewTweetLoop, interval);
+      
+      if (this.isRunning) {
+        setTimeout(generateNewTweetLoop, interval);
+      }
     };
 
     // Start the loop after a 1 minute delay to allow other services to initialize
@@ -261,6 +271,7 @@ export class TwitterPostClient {
   }
 
   async stop() {
-    // Implement stop functionality if needed
+    logger.log("Stopping Twitter post client...");
+    this.isRunning = false;
   }
 }

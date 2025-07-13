@@ -177,11 +177,6 @@ TWITTER_POST_INTERVAL_VARIANCE=0.2 # Random variance factor for posting interval
 
 # Interaction Settings
 TWITTER_SEARCH_ENABLE=true         # Enable timeline monitoring and interactions
-TWITTER_INTERACTION_INTERVAL_MIN=15    # Minimum interval between interactions (minutes)
-TWITTER_INTERACTION_INTERVAL_MAX=30    # Maximum interval between interactions (minutes)
-TWITTER_INTERACTION_INTERVAL_VARIANCE=0.3  # Random variance for interaction intervals
-TWITTER_AUTO_RESPOND_MENTIONS=true     # Automatically respond to mentions
-TWITTER_AUTO_RESPOND_REPLIES=true      # Automatically respond to replies
 TWITTER_MAX_INTERACTIONS_PER_RUN=10    # Maximum interactions processed per cycle
 
 # Timeline Algorithm Configuration
@@ -193,8 +188,8 @@ TWITTER_TIMELINE_RELEVANCE_WEIGHT=5    # Weight for relevance scoring
 # Advanced Settings
 TWITTER_MAX_TWEET_LENGTH=4000      # Maximum tweet length (for threads)
 TWITTER_DM_ONLY=false             # Only interact via direct messages
-TWITTER_ENABLE_ACTION_PROCESSING=false  # Enable timeline action processing
-TWITTER_ACTION_INTERVAL=240       # Action processing interval (minutes)
+TWITTER_ENABLE_ACTION_PROCESSING=false  # Enable timeline action processing (likes, retweets, replies)
+TWITTER_ACTION_INTERVAL=30       # Timeline action processing interval in MINUTES (default: 30 minutes)
 ```
 
 ## 🎯 Common Use Cases
