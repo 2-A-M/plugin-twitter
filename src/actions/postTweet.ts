@@ -25,11 +25,22 @@ export const postTweetAction: Action = {
     message: Memory,
   ): Promise<boolean> => {
     logger.debug("Validating POST_TWEET action");
+    logger.debug("Message details:", {
+      hasContent: !!message.content,
+      contentType: message.content?.type,
+      hasText: !!message.content?.text,
+      textLength: message.content?.text?.length || 0,
+      source: message.content?.source,
+      roomId: message.roomId,
+      entityId: message.entityId,
+    });
 
     // Basic validation - make sure we have content to tweet
     const text = message.content?.text?.trim();
     if (!text || text.length === 0) {
       logger.error("No text content for tweet");
+      // Log stack trace to understand where this is coming from
+      logger.debug("Stack trace:", new Error().stack);
       return false;
     }
 

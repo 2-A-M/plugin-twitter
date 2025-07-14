@@ -91,10 +91,19 @@ export class TwitterPostClient {
 
       logger.info(`Next tweet scheduled in ${postIntervalMinutes} minutes`);
 
+      // Wait for the interval BEFORE generating the tweet
+      await new Promise((resolve) => setTimeout(resolve, interval));
+
+      if (!this.isRunning) {
+        logger.log("Twitter post client stopped during wait, exiting loop");
+        return;
+      }
+
       await this.generateNewTweet();
 
       if (this.isRunning) {
-        setTimeout(generateNewTweetLoop, interval);
+        // Schedule the next iteration
+        generateNewTweetLoop();
       }
     };
 
@@ -156,7 +165,15 @@ export class TwitterPostClient {
         roomId,
         content: { text: "", type: "post" },
         createdAt: Date.now(),
-      } as Memory);
+      } as Memory).catch((error) => {
+        logger.warn("Error composing state, using minimal state:", error);
+        // Return minimal state if composition fails
+        return {
+          agentId: this.runtime.agentId,
+          recentMemories: [],
+          values: {}
+        };
+      });
 
       // Create a prompt for tweet generation
       const tweetPrompt = `You are ${this.runtime.character.name}.
