@@ -798,6 +798,11 @@ Quote tweet:`;
   }
 
   private async saveEngagementMemory(tweet: Tweet, engagementType: string) {
+    // TODO: Implement room creation before saving memories
+    logger.debug(`[Discovery] Would save engagement memory for ${engagementType} on tweet ${tweet.id}`);
+    return;
+    
+    /* Disabled until room management is implemented
     const memoryId = await this.runtime.createMemory(
       {
         id: createUniqueUuid(this.runtime, tweet.id),
@@ -815,9 +820,15 @@ Quote tweet:`;
       },
       "messages",
     );
+    */
   }
 
   private async saveFollowMemory(user: ScoredAccount["user"]) {
+    // TODO: Implement room creation before saving memories
+    logger.debug(`[Discovery] Would save follow memory for @${user.username}`);
+    return;
+    
+    /* Disabled until room management is implemented
     const memoryId = await this.runtime.createMemory(
       {
         entityId: createUniqueUuid(this.runtime, user.id),
@@ -836,6 +847,7 @@ Quote tweet:`;
       },
       "messages",
     );
+    */
   }
 
   private delay(ms: number): Promise<void> {

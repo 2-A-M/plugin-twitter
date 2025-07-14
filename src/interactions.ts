@@ -442,6 +442,17 @@ Response (YES/NO):`;
     // Create room for conversation
     const roomId = createUniqueUuid(this.runtime, conversationId);
 
+    // Ensure room exists
+    await this.runtime.ensureRoomExists({
+      id: roomId,
+      name: `Twitter conversation ${conversationId}`,
+      source: "twitter",
+      type: ChannelType.FEED,
+      channelId: conversationId,
+      serverId: userId,
+      worldId: worldId,
+    });
+
     // Ensure entity/connection
     const entityId = createUniqueUuid(this.runtime, userId);
     await this.runtime.ensureConnection({
@@ -644,6 +655,17 @@ Response (YES/NO):`;
           name: tweet.name,
           source: "twitter",
           type: ChannelType.FEED,
+          worldId: worldId,
+        });
+
+        // 2.5. Ensure room exists
+        await this.runtime.ensureRoomExists({
+          id: roomId,
+          name: `Twitter conversation ${conversationId}`,
+          source: "twitter",
+          type: ChannelType.FEED,
+          channelId: conversationId,
+          serverId: userId,
           worldId: worldId,
         });
 

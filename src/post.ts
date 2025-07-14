@@ -297,11 +297,24 @@ Generate a single tweet that sounds like YOU would actually write it:`;
       if (result) {
         const postedTweetId = createUniqueUuid(this.runtime, tweetId);
 
-        // Skip memory creation to avoid roomId constraint errors
-        // TODO: Implement proper room creation/management for Twitter posts
-        logger.info("Tweet posted successfully (memory saving temporarily disabled)");
-        
-        /* Disabled until room management is fixed
+        // Ensure world and room exist for the posted tweet
+        await this.runtime.ensureWorldExists({
+          id: worldId,
+          name: `${this.client.profile?.username}'s Twitter`,
+          agentId: this.runtime.agentId,
+          serverId: userId,
+        });
+
+        await this.runtime.ensureRoomExists({
+          id: roomId,
+          name: `${this.client.profile?.username}'s Timeline`,
+          source: "twitter",
+          type: ChannelType.FEED,
+          channelId: `${userId}-home`,
+          serverId: userId,
+          worldId: worldId,
+        });
+
         // Create memory for the posted tweet
         const postedMemory: Memory = {
           id: postedTweetId,
@@ -324,7 +337,6 @@ Generate a single tweet that sounds like YOU would actually write it:`;
         await this.runtime.createMemory(postedMemory, "messages");
 
         logger.info("Tweet posted and saved to memory successfully");
-        */
       }
     } catch (error) {
       logger.error("Error generating tweet:", error);

@@ -35,6 +35,13 @@ export const postTweetAction: Action = {
       entityId: message.entityId,
     });
 
+    // Skip validation if called from provider context (state composition)
+    // This happens when bootstrap's actionsProvider validates all actions
+    if (message.content?.type === 'post' && !message.content?.text) {
+      logger.debug("Skipping validation for provider context (empty post type)");
+      return false;
+    }
+
     // Basic validation - make sure we have content to tweet
     const text = message.content?.text?.trim();
     if (!text || text.length === 0) {

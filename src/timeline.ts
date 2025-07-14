@@ -276,6 +276,17 @@ Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appro
       const tweetId = this.createTweetId(this.runtime, tweet);
       const executedActions = [];
 
+      // Ensure room exists before creating memory
+      await this.runtime.ensureRoomExists({
+        id: roomId,
+        name: `Twitter conversation ${tweet.conversationId}`,
+        source: "twitter",
+        type: ChannelType.GROUP,
+        channelId: tweet.conversationId,
+        serverId: tweet.userId,
+        worldId: createUniqueUuid(this.runtime, tweet.userId),
+      });
+
       // Update memory with processed tweet
       await this.runtime.createMemory(
         {
