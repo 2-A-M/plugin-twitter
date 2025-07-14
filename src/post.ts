@@ -22,11 +22,12 @@ export class TwitterPostClient {
   private isDryRun: boolean;
   private state: any;
   private isRunning: boolean = false;
+  private isPosting: boolean = false; // Add lock to prevent concurrent posting
 
   /**
-   * Constructor for initializing a new Twitter client with the provided client, runtime, and state
-   * @param {ClientBase} client - The client used for interacting with Twitter API
-   * @param {IAgentRuntime} runtime - The runtime environment for the agent
+   * Creates an instance of TwitterPostClient.
+   * @param {ClientBase} client - The client instance.
+   * @param {IAgentRuntime} runtime - The runtime instance.
    * @param {any} state - The state object containing configuration settings
    */
   constructor(client: ClientBase, runtime: IAgentRuntime, state: any) {
@@ -124,6 +125,14 @@ export class TwitterPostClient {
   async generateNewTweet() {
     logger.info("Attempting to generate new tweet...");
 
+    // Prevent concurrent posting
+    if (this.isPosting) {
+      logger.info("Already posting a tweet, skipping concurrent attempt");
+      return;
+    }
+
+    this.isPosting = true;
+
     try {
       // Create the timeline room ID for storing the post
       const userId = this.client.profile?.id;
@@ -153,31 +162,49 @@ export class TwitterPostClient {
       const tweetPrompt = `You are ${this.runtime.character.name}.
 ${this.runtime.character.bio}
 
-Generate a tweet that:
-- Reflects your personality and interests
-- Is engaging and authentic
-- Is between 50-280 characters
-- Does NOT include hashtags unless they're essential to the message
-- Does NOT include @mentions unless replying to someone
+CRITICAL: Generate a tweet that sounds like YOU, not a generic motivational poster or LinkedIn influencer.
 
-Your topics of interest: ${this.runtime.character.topics?.join(", ") || "general topics"}
+${this.runtime.character.messageExamples && this.runtime.character.messageExamples.length > 0 ? `
+Example tweets that capture your voice:
+${this.runtime.character.messageExamples.map((example: any) => 
+  Array.isArray(example) ? example[1]?.content?.text || '' : example
+).filter(Boolean).slice(0, 5).join('\n')}
+` : ''}
+
+Style guidelines:
+- Be authentic, opinionated, and specific - no generic platitudes
+- Use your unique voice and perspective  
+- Share hot takes, unpopular opinions, or specific insights
+- Be conversational, not preachy
+- If you use emojis, use them sparingly and purposefully
+- Length: 50-280 characters (keep it punchy)
+- NO hashtags unless absolutely essential
+- NO generic motivational content
+
+Your interests: ${this.runtime.character.topics?.join(", ") || "technology, crypto, AI"}
+
+${this.runtime.character.style ? `Your style: ${
+  typeof this.runtime.character.style === 'object' 
+    ? this.runtime.character.style.all?.join(', ') || JSON.stringify(this.runtime.character.style)
+    : this.runtime.character.style
+}` : ''}
 
 Recent context:
 ${
   state.recentMemories
-    ?.slice(0, 5)
+    ?.slice(0, 3)
     .map((m: Memory) => m.content.text)
     .join("\n") || "No recent context"
 }
 
-Generate a single tweet:`;
+Generate a single tweet that sounds like YOU would actually write it:`;
 
       // Use the runtime's model to generate tweet content
       const generatedContent = await this.runtime.useModel(
         ModelType.TEXT_SMALL,
         {
           prompt: tweetPrompt,
-          temperature: 0.8,
+          temperature: 0.9, // Increased for more creativity
           maxTokens: 100,
         },
       );
@@ -191,6 +218,43 @@ Generate a single tweet:`;
 
       if (tweetText.includes("Error: Missing")) {
         logger.error("Error in generated content:", tweetText);
+        return;
+      }
+
+      // Validate tweet length
+      if (tweetText.length > 280) {
+        logger.warn(`Generated tweet too long (${tweetText.length} chars), truncating...`);
+        // Truncate to the last complete sentence within 280 chars
+        const sentences = tweetText.match(/[^.!?]+[.!?]+/g) || [tweetText];
+        let truncated = "";
+        for (const sentence of sentences) {
+          if ((truncated + sentence).length <= 280) {
+            truncated += sentence;
+          } else {
+            break;
+          }
+        }
+        const finalTweet = truncated.trim() || tweetText.substring(0, 277) + "...";
+        logger.info(`Truncated tweet: ${finalTweet}`);
+        
+        // Post the truncated tweet
+        if (this.isDryRun) {
+          logger.info(`[DRY RUN] Would post tweet: ${finalTweet}`);
+          return;
+        }
+
+        const result = await this.postToTwitter(finalTweet, []);
+        
+        if (result === null) {
+          logger.info("Skipped posting duplicate tweet");
+          return;
+        }
+
+        const tweetId = (result as any).id;
+        logger.info(`Tweet posted successfully! ID: ${tweetId}`);
+
+        // Don't save to memory if room creation might fail
+        logger.info("Tweet posted successfully (memory saving disabled due to room constraints)");
         return;
       }
 
@@ -216,6 +280,11 @@ Generate a single tweet:`;
       if (result) {
         const postedTweetId = createUniqueUuid(this.runtime, tweetId);
 
+        // Skip memory creation to avoid roomId constraint errors
+        // TODO: Implement proper room creation/management for Twitter posts
+        logger.info("Tweet posted successfully (memory saving temporarily disabled)");
+        
+        /* Disabled until room management is fixed
         // Create memory for the posted tweet
         const postedMemory: Memory = {
           id: postedTweetId,
@@ -238,9 +307,12 @@ Generate a single tweet:`;
         await this.runtime.createMemory(postedMemory, "messages");
 
         logger.info("Tweet posted and saved to memory successfully");
+        */
       }
     } catch (error) {
       logger.error("Error generating tweet:", error);
+    } finally {
+      this.isPosting = false;
     }
   }
 

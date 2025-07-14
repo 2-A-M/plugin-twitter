@@ -48,7 +48,7 @@ export const postTweetAction: Action = {
     state: State,
     _options: { [key: string]: unknown },
     callback?: HandlerCallback,
-  ): Promise<boolean> => {
+  ): Promise<void> => {
     logger.info("Executing POST_TWEET action");
 
     try {
@@ -60,6 +60,36 @@ export const postTweetAction: Action = {
         await client.init();
       }
 
+      // Get tweet text
+      let text = message.content?.text?.trim();
+      if (!text) {
+        logger.error("No text content for tweet");
+        if (callback) {
+          callback({
+            text: "I need something to tweet! Please provide the text.",
+            action: "POST_TWEET",
+          });
+        }
+        return;
+      }
+
+      // Truncate if too long
+      if (text.length > 280) {
+        logger.info(`Truncating tweet from ${text.length} to 280 characters`);
+        // Try to truncate at sentence boundary
+        const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+        let truncated = "";
+        for (const sentence of sentences) {
+          if ((truncated + sentence).length <= 280) {
+            truncated += sentence;
+          } else {
+            break;
+          }
+        }
+        text = truncated.trim() || text.substring(0, 277) + "...";
+        logger.info(`Truncated tweet: ${text}`);
+      }
+
       // Verify we have a profile
       if (!client.profile) {
         throw new Error(
@@ -67,37 +97,49 @@ export const postTweetAction: Action = {
         );
       }
 
-      // Get tweet content
-      const tweetText = message.content?.text?.trim() || "";
-
       // Generate a more natural tweet if the input is too short or generic
-      let finalTweetText = tweetText;
+      let finalTweetText = text;
       if (
-        tweetText.length < 50 ||
-        tweetText.toLowerCase().includes("post") ||
-        tweetText.toLowerCase().includes("tweet")
+        text.length < 50 ||
+        text.toLowerCase().includes("post") ||
+        text.toLowerCase().includes("tweet")
       ) {
-        const tweetPrompt = `You are ${runtime.character.name}. Create an interesting tweet based on this context:
+        const tweetPrompt = `You are ${runtime.character.name}. 
+${runtime.character.bio || ''}
 
-Context: ${tweetText}
+CRITICAL: Generate a tweet based on the context that sounds like YOU, not generic corporate speak.
+
+Context: ${text}
+
+${runtime.character.messageExamples && runtime.character.messageExamples.length > 0 ? `
+Your voice examples:
+${runtime.character.messageExamples.map((example: any) => 
+  Array.isArray(example) ? example[1]?.content?.text || '' : example
+).filter(Boolean).slice(0, 3).join('\n')}
+` : ''}
+
+Style rules:
+- Be specific, opinionated, authentic
+- No generic motivational content or platitudes
+- Share actual insights, hot takes, or unique perspectives
+- Keep it conversational and punchy
+- Under 280 characters
+- Skip hashtags unless essential
+- Don't end with generic questions
 
 Your interests: ${runtime.character.topics?.join(", ") || "technology, AI, web3"}
-Your style: ${runtime.character.style?.all?.join(", ") || "thoughtful, engaging"}
-
-Generate a tweet that:
-- Is under 280 characters
-- Reflects your personality and interests
-- Is engaging and conversational
-- Doesn't use hashtags unless truly relevant
-- Doesn't ask questions at the end
-- Is not generic or promotional
+${runtime.character.style ? `Your style: ${
+  typeof runtime.character.style === 'object' 
+    ? runtime.character.style.all?.join(', ') || ''
+    : runtime.character.style
+}` : ''}
 
 Tweet:`;
 
         const response = await runtime.useModel(ModelType.TEXT_SMALL, {
           prompt: tweetPrompt,
           max_tokens: 100,
-          temperature: 0.8,
+          temperature: 0.9, // Higher for more creativity
         });
 
         finalTweetText = response.trim();
@@ -146,7 +188,7 @@ Tweet:`;
           });
         }
 
-        return true;
+        return;
       } else {
         throw new Error("Failed to post tweet - no response data");
       }
@@ -160,7 +202,7 @@ Tweet:`;
         });
       }
 
-      return false;
+      return;
     }
   },
   examples: [
