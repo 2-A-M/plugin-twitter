@@ -7,6 +7,7 @@ import {
   type IAgentRuntime,
   type Memory,
   type MessagePayload,
+  ModelType,
   createUniqueUuid,
   logger,
 } from "@elizaos/core";
@@ -24,7 +25,7 @@ import type {
 } from "./types";
 import { TwitterEventTypes } from "./types";
 import { sendTweet } from "./utils";
-import { shouldTargetUser } from "./environment";
+import { shouldTargetUser, getTargetUsers } from "./environment";
 
 /**
  * Template for generating dialog and actions for a Twitter message handler.
@@ -45,55 +46,56 @@ Response format should be formatted in a valid JSON block like this:
 
 The "action" field should be one of the options in [Available Actions] and the "text" field should be the response you want to send. Do not including any thinking or internal reflection in the "text" field. "thought" should be a short description of what the agent is thinking about before responding, inlcuding a brief justification for the response.`;
 
-// Add conversion functions
-const convertToCoreTweet = (tweet: ClientTweet): CoreTweet => ({
-  id: tweet.id,
-  text: tweet.text,
-  conversationId: tweet.conversationId,
-  timestamp: tweet.timestamp,
-  userId: tweet.userId,
-  username: tweet.username,
-  name: tweet.name,
-  inReplyToStatusId: tweet.inReplyToStatusId,
-  permanentUrl: tweet.permanentUrl,
-  photos: tweet.photos,
-  hashtags: tweet.hashtags,
-  mentions: tweet.mentions.map((mention) => mention.username),
-  urls: tweet.urls,
-  videos: tweet.videos,
-  thread: tweet.thread,
-});
+/**
+ * Template for generating dialog and actions for a message handler.
+ * @type {string}
+ */
+export const messageHandlerTemplate = `
+{{agentName}} is replying to you:
+{{senderName}}: {{userMessage}}
 
-const convertToCoreTweets = (tweets: ClientTweet[]): CoreTweet[] =>
-  tweets.map(convertToCoreTweet);
+# Task: Generate a reply for {{agentName}}.
+{{providers}}
+
+# Instructions: Write a thoughtful response to {{senderName}} that is appropriate and relevant to their message. Do not including any thinking, self-reflection or internal dialog in your response.`;
 
 /**
- * Class representing a client for interacting with Twitter.
+ * The TwitterInteractionClient class manages Twitter interactions,
+ * including handling mentions, managing timelines, and engaging with other users.
+ * It extends the base Twitter client functionality to provide mention handling,
+ * user interaction, and follow change detection capabilities.
+ *
+ * @extends ClientBase
  */
 export class TwitterInteractionClient {
   client: ClientBase;
   runtime: IAgentRuntime;
+  twitterUsername: string;
+  private twitterUserId: string;
   private isDryRun: boolean;
   private state: any;
   private isRunning: boolean = false;
+  private lastProcessedTimestamp: number = Date.now();
+
   /**
-   * Constructor for setting up a new instance with the provided client, runtime, and state.
-   * @param {ClientBase} client - The client being used for communication.
-   * @param {IAgentRuntime} runtime - The runtime environment for the agent.
-   * @param {any} state - The initial state of the agent.
+   * Constructor to initialize the Twitter interaction client with runtime and state management.
+   *
+   * @param {ClientBase} client - The client instance.
+   * @param {IAgentRuntime} runtime - The runtime instance for agent operations.
+   * @param {any} state - The state object containing configuration settings.
    */
   constructor(client: ClientBase, runtime: IAgentRuntime, state: any) {
     this.client = client;
     this.runtime = runtime;
     this.state = state;
-    this.isDryRun =
-      this.state?.TWITTER_DRY_RUN ||
-      (this.runtime.getSetting("TWITTER_DRY_RUN") as unknown as boolean);
+
+    // Set dry run mode - checks both state and runtime settings
+    this.isDryRun = this.state?.TWITTER_DRY_RUN ?? (this.runtime.getSetting("TWITTER_DRY_RUN") as unknown as boolean);
   }
 
   /**
    * Asynchronously starts the process of handling Twitter interactions on a loop.
-   * Uses an interval based on the 'TWITTER_POLL_INTERVAL' setting, or defaults to 2 minutes if not set.
+   * Uses the unified TWITTER_ENGAGEMENT_INTERVAL setting.
    */
   async start() {
     this.isRunning = true;
@@ -104,13 +106,16 @@ export class TwitterInteractionClient {
         return;
       }
       
-      // Defaults to 2 minutes
-      const interactionInterval =
-        (this.state?.TWITTER_POLL_INTERVAL ||
-          (this.runtime.getSetting(
-            "TWITTER_POLL_INTERVAL",
-          ) as unknown as number) ||
-          120) * 1000;
+      // Get interval in minutes and convert to milliseconds
+      const engagementIntervalMinutes = parseInt(
+        this.state?.TWITTER_ENGAGEMENT_INTERVAL ||
+        this.runtime.getSetting("TWITTER_ENGAGEMENT_INTERVAL") as string ||
+        "30"
+      );
+      
+      const interactionInterval = engagementIntervalMinutes * 60 * 1000;
+      
+      logger.info(`Twitter interaction client will check every ${engagementIntervalMinutes} minutes`);
 
       this.handleTwitterInteractions();
       
@@ -122,17 +127,53 @@ export class TwitterInteractionClient {
   }
 
   /**
-   * Asynchronously handles Twitter interactions by checking for mentions, processing tweets, and updating the last checked tweet ID.
+   * Stops the Twitter interaction client
+   */
+  async stop() {
+    logger.log("Stopping Twitter interaction client...");
+    this.isRunning = false;
+  }
+
+  /**
+   * Asynchronously handles Twitter interactions by checking for mentions and target user posts.
    */
   async handleTwitterInteractions() {
     logger.log("Checking Twitter interactions");
 
     const twitterUsername = this.client.profile?.username;
+    
+    try {
+      // Check for mentions first (replies enabled by default)
+      const repliesEnabled = this.runtime.getSetting("TWITTER_ENABLE_REPLIES") !== "false";
+      
+      if (repliesEnabled) {
+        await this.handleMentions(twitterUsername);
+      }
+      
+      // Check target users' posts for autonomous engagement
+      const targetUsersConfig = this.runtime.getSetting("TWITTER_TARGET_USERS") as string || "";
+      
+      if (targetUsersConfig?.trim()) {
+        await this.handleTargetUserPosts(targetUsersConfig);
+      }
+
+      // Save the latest checked tweet ID to the file
+      await this.client.cacheLatestCheckedTweetId();
+
+      logger.log("Finished checking Twitter interactions");
+    } catch (error) {
+      logger.error("Error handling Twitter interactions:", error);
+    }
+  }
+
+  /**
+   * Handle mentions and replies
+   */
+  private async handleMentions(twitterUsername: string) {
     try {
       // Check for mentions
       const cursorKey = `twitter/${twitterUsername}/mention_cursor`;
-      const cachedCursor: String =
-        await this.runtime.getCache<string>(cursorKey);
+      const cachedCursor: String = await this.runtime.getCache<string>(cursorKey);
 
       const searchResult = await this.client.fetchSearchTweets(
         `@${twitterUsername}`,
@@ -148,48 +189,284 @@ export class TwitterInteractionClient {
         await this.runtime.setCache(cursorKey, searchResult.previous);
       } else if (!searchResult.previous && !searchResult.next) {
         // If both previous and next are missing, clear the outdated cursor
-        await this.runtime.setCache(cursorKey, ""); // used to be null, but DB doesn't allow it
+        await this.runtime.setCache(cursorKey, "");
       }
 
       await this.processMentionTweets(mentionCandidates);
-
-      // 2. Format mentions into interactions
-      // TODO: EventType.REACTION_RECEIVED are not fully handled yet, re-enable once properly processed
-      // const interactionCandidates = mentionCandidates
-      //   .map((tweet) => this.client.formatTweetToInteraction?.(tweet))
-      //   .filter((i) => i?.targetTweet?.conversationId);
-
-      // for (const interaction of interactionCandidates) {
-      //   try {
-      //     await this.handleInteraction(interaction);
-      //   } catch (error) {
-      //     logger.erro(`Failed to process interaction ${interaction.id}`)
-      //   }
-      // }
-
-      // For follower changes:
-      // const processFollowerChange = async (
-      //   change: { type: string; userId: string },
-      //   profileId: string | undefined
-      // ) => {
-      //   if (change?.type && change?.userId && profileId) {
-      //     const followerMemory = this.createMemoryObject(
-      //       change.type,
-      //       `${change.type}-${change.userId}`,
-      //       change.userId,
-      //       profileId
-      //     );
-
-      //     await this.runtime.createMemory(followerMemory, 'follower-changes');
-      //   }
-      // };
-
-      // Save the latest checked tweet ID to the file
-      await this.client.cacheLatestCheckedTweetId();
-
-      logger.log("Finished checking Twitter interactions");
     } catch (error) {
-      logger.error("Error handling Twitter interactions:", error);
+      logger.error("Error handling mentions:", error);
+    }
+  }
+
+  /**
+   * Handle autonomous engagement with target users' posts
+   */
+  private async handleTargetUserPosts(targetUsersConfig: string) {
+    try {
+      const targetUsers = getTargetUsers(targetUsersConfig);
+      
+      if (targetUsers.length === 0 && !targetUsersConfig.includes("*")) {
+        return; // No target users configured
+      }
+      
+      logger.info(`Checking posts from target users: ${targetUsers.join(", ") || "everyone (*)"}`);
+      
+      // For each target user, search their recent posts
+      for (const targetUser of targetUsers) {
+        try {
+          const normalizedUsername = targetUser.replace(/^@/, "");
+          
+          // Search for recent posts from this user
+          const searchQuery = `from:${normalizedUsername} -is:reply -is:retweet`;
+          const searchResult = await this.client.fetchSearchTweets(
+            searchQuery,
+            10, // Get up to 10 recent posts per user
+            SearchMode.Latest
+          );
+          
+          if (searchResult.tweets.length > 0) {
+            logger.info(`Found ${searchResult.tweets.length} posts from @${normalizedUsername}`);
+            
+            // Process these tweets for potential engagement
+            await this.processTargetUserTweets(searchResult.tweets, normalizedUsername);
+          }
+        } catch (error) {
+          logger.error(`Error searching posts from @${targetUser}:`, error);
+        }
+      }
+      
+      // If wildcard is configured, also check timeline for any interesting posts
+      if (targetUsersConfig.includes("*")) {
+        await this.processTimelineForEngagement();
+      }
+    } catch (error) {
+      logger.error("Error handling target user posts:", error);
+    }
+  }
+
+  /**
+   * Process tweets from target users for potential engagement
+   */
+  private async processTargetUserTweets(tweets: ClientTweet[], username: string) {
+    const maxEngagementsPerRun = parseInt(
+      this.runtime.getSetting("TWITTER_MAX_ENGAGEMENTS_PER_RUN") as string || "10"
+    );
+    
+    let engagementCount = 0;
+    
+    for (const tweet of tweets) {
+      if (engagementCount >= maxEngagementsPerRun) {
+        logger.info(`Reached max engagements limit (${maxEngagementsPerRun})`);
+        break;
+      }
+      
+      // Skip if already processed
+      const tweetId = createUniqueUuid(this.runtime, tweet.id);
+      const existingMemory = await this.runtime.getMemoryById(tweetId);
+      
+      if (existingMemory) {
+        continue; // Already processed
+      }
+      
+      // Skip if tweet is too old (older than 24 hours)
+      const tweetAge = Date.now() - (tweet.timestamp * 1000);
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+      
+      if (tweetAge > maxAge) {
+        continue;
+      }
+      
+      // Decide whether to engage with this tweet
+      const shouldEngage = await this.shouldEngageWithTweet(tweet);
+      
+      if (shouldEngage) {
+        logger.info(`Engaging with tweet from @${username}: ${tweet.text.substring(0, 50)}...`);
+        
+        // Create necessary context for the tweet
+        await this.ensureTweetContext(tweet);
+        
+        // Handle the tweet (generate and send reply)
+        const engaged = await this.engageWithTweet(tweet);
+        
+        if (engaged) {
+          engagementCount++;
+        }
+      }
+    }
+  }
+
+  /**
+   * Process timeline for engagement when wildcard is configured
+   */
+  private async processTimelineForEngagement() {
+    try {
+      // This would use the timeline client if available, but for now
+      // we'll do a general search for recent popular tweets
+      const searchResult = await this.client.fetchSearchTweets(
+        "min_retweets:10 min_faves:20 -is:reply -is:retweet lang:en",
+        20,
+        SearchMode.Latest
+      );
+      
+      const relevantTweets = searchResult.tweets.filter(tweet => {
+        // Filter for tweets from the last 12 hours
+        const tweetAge = Date.now() - (tweet.timestamp * 1000);
+        return tweetAge < 12 * 60 * 60 * 1000;
+      });
+      
+      if (relevantTweets.length > 0) {
+        logger.info(`Found ${relevantTweets.length} relevant tweets from timeline`);
+        await this.processTargetUserTweets(relevantTweets, "timeline");
+      }
+    } catch (error) {
+      logger.error("Error processing timeline for engagement:", error);
+    }
+  }
+
+  /**
+   * Determine if the bot should engage with a specific tweet
+   */
+  private async shouldEngageWithTweet(tweet: ClientTweet): Promise<boolean> {
+    try {
+      // Create a simple evaluation prompt
+      const evaluationContext = {
+        tweet: tweet.text,
+        author: tweet.username,
+        metrics: {
+          likes: tweet.likes || 0,
+          retweets: tweet.retweets || 0,
+          replies: tweet.replies || 0,
+        },
+      };
+      
+      const shouldEngageMemory: Memory = {
+        id: createUniqueUuid(this.runtime, `eval-${tweet.id}`),
+        entityId: this.runtime.agentId,
+        agentId: this.runtime.agentId,
+        roomId: createUniqueUuid(this.runtime, tweet.conversationId),
+        content: {
+          text: `Should I engage with this tweet? Tweet: "${tweet.text}" by @${tweet.username}`,
+          evaluationContext,
+        },
+        createdAt: Date.now(),
+      };
+      
+      const state = await this.runtime.composeState(shouldEngageMemory);
+      const context = `You are ${this.runtime.character.name}. Should you reply to this tweet based on your interests and expertise?
+      
+Tweet by @${tweet.username}: "${tweet.text}"
+
+Reply with YES if:
+- The topic relates to your interests or expertise
+- You can add valuable insights or perspective
+- The conversation seems constructive
+
+Reply with NO if:
+- The topic is outside your knowledge
+- The tweet is inflammatory or controversial
+- You have nothing meaningful to add
+
+Response (YES/NO):`;
+
+      const response = await this.runtime.useModel(ModelType.TEXT_SMALL, {
+        prompt: context,
+        temperature: 0.3,
+        maxTokens: 10,
+        stop: ["\n"],
+      });
+      
+      return response.trim().toUpperCase().includes("YES");
+    } catch (error) {
+      logger.error("Error determining engagement:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Ensure tweet context exists (world, room, entity)
+   */
+  private async ensureTweetContext(tweet: ClientTweet) {
+    const userId = tweet.userId;
+    const conversationId = tweet.conversationId || tweet.id;
+    const username = tweet.username;
+    
+    // Create world for user
+    const worldId = createUniqueUuid(this.runtime, userId);
+    await this.runtime.ensureWorldExists({
+      id: worldId,
+      name: `${username}'s Twitter`,
+      agentId: this.runtime.agentId,
+      serverId: userId,
+      metadata: {
+        ownership: { ownerId: userId },
+        twitter: {
+          username: username,
+          id: userId,
+        },
+      },
+    });
+    
+    // Create room for conversation
+    const roomId = createUniqueUuid(this.runtime, conversationId);
+    
+    // Ensure entity/connection
+    const entityId = createUniqueUuid(this.runtime, userId);
+    await this.runtime.ensureConnection({
+      entityId,
+      roomId,
+      userName: username,
+      name: tweet.name,
+      source: "twitter",
+      type: ChannelType.FEED,
+      worldId: worldId,
+    });
+    
+    // Save tweet as memory
+    const tweetMemory: Memory = {
+      id: createUniqueUuid(this.runtime, tweet.id),
+      entityId,
+      content: {
+        text: tweet.text,
+        url: tweet.permanentUrl,
+        source: "twitter",
+        tweet,
+      },
+      agentId: this.runtime.agentId,
+      roomId,
+      createdAt: tweet.timestamp * 1000,
+    };
+    
+    await this.runtime.createMemory(tweetMemory, "messages");
+  }
+
+  /**
+   * Engage with a tweet by generating and sending a reply
+   */
+  private async engageWithTweet(tweet: ClientTweet): Promise<boolean> {
+    try {
+      const message: Memory = {
+        id: createUniqueUuid(this.runtime, tweet.id),
+        entityId: createUniqueUuid(this.runtime, tweet.userId),
+        content: {
+          text: tweet.text,
+          source: "twitter",
+          tweet,
+        },
+        agentId: this.runtime.agentId,
+        roomId: createUniqueUuid(this.runtime, tweet.conversationId),
+        createdAt: tweet.timestamp * 1000,
+      };
+      
+      const result = await this.handleTweet({
+        tweet,
+        message,
+        thread: tweet.thread || [tweet],
+      });
+      
+      return result.text && result.text.length > 0;
+    } catch (error) {
+      logger.error("Error engaging with tweet:", error);
+      return false;
     }
   }
 
@@ -237,7 +514,7 @@ export class TwitterInteractionClient {
 
     // Get max interactions per run setting
     const maxInteractionsPerRun = parseInt(
-      this.runtime.getSetting("TWITTER_MAX_INTERACTIONS_PER_RUN") as string || "10"
+      this.runtime.getSetting("TWITTER_MAX_ENGAGEMENTS_PER_RUN") as string || "10"
     );
     
     // Limit the number of interactions per run
@@ -276,136 +553,114 @@ export class TwitterInteractionClient {
         // Check if any of the found memories is a reply to this specific tweet
         const hasExistingReply = existingReplies.some(
           (memory) =>
-            memory.content?.inReplyTo === tweetId ||
-            (memory.content?.source === "twitter" &&
-              memory.agentId === this.runtime.agentId &&
-              memory.content?.inReplyTo === tweetId),
+            memory.content.inReplyTo === tweetId ||
+            memory.content.inReplyTo === tweet.id,
         );
 
         if (hasExistingReply) {
           logger.log(
-            `Already replied to tweet ${tweet.id} (found existing reply), skipping`,
+            `Already responded to tweet ${tweet.id} (found in conversation history), skipping`,
           );
           continue;
         }
-        logger.log("New Tweet found", tweet.permanentUrl);
 
-        const entityId = createUniqueUuid(
-          this.runtime,
-          tweet.userId === this.client.profile.id
-            ? this.runtime.agentId
-            : tweet.userId,
-        );
+        logger.log("New Tweet found", tweet.id);
 
-        // Create standardized world and room IDs
-        const worldId = createUniqueUuid(this.runtime, tweet.userId);
-        const roomId = createUniqueUuid(this.runtime, tweet.conversationId);
+        const userId = tweet.userId;
+        const conversationId = tweet.conversationId || tweet.id;
+        const roomId = createUniqueUuid(this.runtime, conversationId);
+        const username = tweet.username;
 
-        await this.runtime.ensureConnection({
-          entityId,
-          roomId,
-          userName: tweet.username,
-          worldName: `${tweet.name}'s Twitter`,
-          name: tweet.name,
-          source: "twitter",
-          type: ChannelType.GROUP,
-          channelId: tweet.conversationId,
-          serverId: tweet.userId,
-          worldId: worldId,
+        logger.log("----");
+        logger.log(`User: ${username} (${userId})`);
+        logger.log(`Tweet: ${tweet.id}`);
+        logger.log(`Conversation: ${conversationId}`);
+        logger.log(`Room: ${roomId}`);
+        logger.log("----");
+
+        // 1. Ensure world exists for the user
+        const worldId = createUniqueUuid(this.runtime, userId);
+        await this.runtime.ensureWorldExists({
+          id: worldId,
+          name: `${username}'s Twitter`,
+          agentId: this.runtime.agentId,
+          serverId: userId,
           metadata: {
-            ownership: { ownerId: tweet.userId },
+            ownership: { ownerId: userId },
             twitter: {
-              username: tweet.username,
-              id: tweet.userId,
-              name: tweet.name,
+              username: username,
+              id: userId,
             },
           },
         });
 
-        // Create standardized message memory
+        // 2. Ensure entity connection
+        const entityId = createUniqueUuid(this.runtime, userId);
+        await this.runtime.ensureConnection({
+          entityId,
+          roomId,
+          userName: username,
+          name: tweet.name,
+          source: "twitter",
+          type: ChannelType.FEED,
+          worldId: worldId,
+        });
+
+        // 3. Create a memory for the tweet
         const memory: Memory = {
           id: tweetId,
-          agentId: this.runtime.agentId,
+          entityId,
           content: {
             text: tweet.text,
             url: tweet.permanentUrl,
-            attachments:
-              tweet.photos?.map((photo, index) => ({
-                id: photo.id,
-                url: photo.url,
-                contentType: ContentType.IMAGE, // TODO: check if we can read this.
-              })) || [],
-            inReplyTo: tweet.inReplyToStatusId
-              ? createUniqueUuid(this.runtime, tweet.inReplyToStatusId)
-              : undefined,
             source: "twitter",
-            channelType: ChannelType.GROUP,
             tweet,
           },
-          entityId,
+          agentId: this.runtime.agentId,
           roomId,
           createdAt: tweet.timestamp * 1000,
         };
+
+        logger.log("Saving tweet memory...");
         await this.runtime.createMemory(memory, "messages");
 
-        // Emit mention received events
-        // TODO: Handle MENTION_RECEIVED event correctly before enabling again
-        // if (tweet.text.includes(`@${twitterUsername}`)) {
-        //   const messagePayload: MessagePayload = {
-        //     runtime: this.runtime,
-        //     message: {
-        //       ...memory,
-        //       source: 'twitter',
-        //     } as TwitterMemory,
-        //     source: 'twitter',
-        //     callback: async (response) => {
-        //       logger.info('Received message response:', response);
-        //       return [];
-        //     },
-        //   };
+        // TODO: This doesn't work as intended - thread events are mixed with other events
+        //       and need a better implementation strategy
+        // this.runtime.emitEvent(TwitterEventTypes.MENTION_RECEIVED, {
+        //   entityId,
+        //   memory: {...memory, id: createUniqueUuid(this.runtime)},
+        //   world: {id: worldId, ...},
+        //   isThread: !!tweet.thread,
+        // });
 
-        //   // Emit platform-specific MENTION_RECEIVED event
-        //   const mentionPayload: TwitterMentionReceivedPayload = {
-        //     runtime: this.runtime,
-        //     message: {
-        //       ...memory,
-        //       source: 'twitter',
-        //     } as TwitterMemory,
-        //     tweet: convertToCoreTweet(tweet),
-        //     user: {
-        //       id: tweet.userId,
-        //       username: tweet.username,
-        //       name: tweet.name,
-        //     },
-        //     source: 'twitter',
-        //     callback: async (response) => {
-        //       logger.info('Received mention response:', response);
-        //       return [];
-        //     },
-        //   };
+        // 4. Handle thread-specific events
+        if (tweet.thread && tweet.thread.length > 0) {
+          const threadStartId = tweet.thread[0].id;
+          const threadMemoryId = createUniqueUuid(
+            this.runtime,
+            `thread-${threadStartId}`,
+          );
 
-        //   this.runtime.emitEvent(TwitterEventTypes.MENTION_RECEIVED, mentionPayload);
-        // }
-
-        // Handle thread events
-        if (tweet.thread.length > 1) {
           const threadPayload = {
             runtime: this.runtime,
-            tweets: convertToCoreTweets(tweet.thread),
-            user: {
-              id: tweet.userId,
-              username: tweet.username,
-              name: tweet.name,
-            },
-            source: "twitter",
+            entityId,
+            conversationId: threadStartId,
+            roomId: roomId,
+            memory: memory,
+            tweet: tweet,
+            threadId: threadStartId,
+            threadMemoryId: threadMemoryId,
           };
 
-          if (tweet.thread[tweet.thread.length - 1].id === tweet.id) {
-            // This is a new tweet in an existing thread
-            this.runtime.emitEvent(TwitterEventTypes.THREAD_UPDATED, {
-              ...threadPayload,
-              newTweet: convertToCoreTweet(tweet),
-            });
+          // Check if this is a reply to an existing thread
+          const previousThreadMemory =
+            await this.runtime.getMemoryById(threadMemoryId);
+          if (previousThreadMemory) {
+            // This is a reply to an existing thread
+            this.runtime.emitEvent(
+              TwitterEventTypes.THREAD_UPDATED,
+              threadPayload,
+            );
           } else if (tweet.thread[0].id === tweet.id) {
             // This is the start of a new thread
             this.runtime.emitEvent(
@@ -452,122 +707,125 @@ export class TwitterInteractionClient {
           text: interaction.targetTweet.text,
           source: "twitter",
         },
-        entityId: createUniqueUuid(
-          this.runtime,
-          interaction.targetTweet.userId,
-        ),
+        entityId: createUniqueUuid(this.runtime, interaction.userId),
         roomId: createUniqueUuid(
           this.runtime,
           interaction.targetTweet.conversationId,
         ),
         agentId: this.runtime.agentId,
+        createdAt: Date.now(),
       };
 
-      // Create base event payload
-      const basePayload = {
-        runtime: this.runtime,
-        user: {
-          id: interaction.userId,
-          username: interaction.username,
-          name: interaction.name,
-        },
-        source: "twitter" as const,
-      };
-
-      // Emit platform-specific event
+      // Emit specific event for each type of interaction
       switch (interaction.type) {
         case "like": {
-          const likePayload: TwitterLikeReceivedPayload = {
-            ...basePayload,
-            tweet: interaction.targetTweet as unknown as CoreTweet,
+          const payload: TwitterLikeReceivedPayload = {
+            runtime: this.runtime,
+            tweet: interaction.targetTweet,
+            user: {
+              id: interaction.userId,
+              username: interaction.username,
+              name: interaction.name,
+            },
+            source: "twitter",
           };
-          // Emit platform-specific event
-          this.runtime.emitEvent(TwitterEventTypes.LIKE_RECEIVED, likePayload);
-
-          // Emit generic REACTION_RECEIVED event
-          this.runtime.emitEvent(EventType.REACTION_RECEIVED, {
-            ...basePayload,
-            reaction: {
-              type: "like",
-              entityId: createUniqueUuid(this.runtime, interaction.userId),
-            },
-            message: reactionMessage,
-            callback: async () => {
-              return [];
-            },
-          } as MessagePayload);
+          this.runtime.emitEvent(TwitterEventTypes.LIKE_RECEIVED, payload);
           break;
         }
-
         case "retweet": {
-          const retweetPayload: TwitterRetweetReceivedPayload = {
-            ...basePayload,
-            tweet: interaction.targetTweet as unknown as CoreTweet,
-            retweetId: interaction.retweetId,
+          const payload: TwitterRetweetReceivedPayload = {
+            runtime: this.runtime,
+            tweet: interaction.targetTweet,
+            retweetId: interaction.retweetId || interaction.id,
+            user: {
+              id: interaction.userId,
+              username: interaction.username,
+              name: interaction.name,
+            },
+            source: "twitter",
           };
-          // Emit platform-specific event
-          this.runtime.emitEvent(
-            TwitterEventTypes.RETWEET_RECEIVED,
-            retweetPayload,
-          );
-
-          // Emit generic REACTION_RECEIVED event
-          this.runtime.emitEvent(EventType.REACTION_RECEIVED, {
-            ...basePayload,
-            reaction: {
-              type: "retweet",
-              entityId: createUniqueUuid(this.runtime, interaction.userId),
-            },
-            message: reactionMessage,
-            callback: async () => {
-              return [];
-            },
-          } as MessagePayload);
+          this.runtime.emitEvent(TwitterEventTypes.RETWEET_RECEIVED, payload);
           break;
         }
-
         case "quote": {
-          const quotePayload: TwitterQuoteReceivedPayload = {
-            ...basePayload,
+          const payload: TwitterQuoteReceivedPayload = {
+            runtime: this.runtime,
+            quotedTweet: interaction.targetTweet,
+            quoteTweet: interaction.quoteTweet || interaction.targetTweet,
+            user: {
+              id: interaction.userId,
+              username: interaction.username,
+              name: interaction.name,
+            },
             message: reactionMessage,
-            quotedTweet: interaction.targetTweet as unknown as CoreTweet,
-            quoteTweet: (interaction.quoteTweet ||
-              interaction.targetTweet) as unknown as CoreTweet,
             callback: async () => [],
             reaction: {
               type: "quote",
               entityId: createUniqueUuid(this.runtime, interaction.userId),
             },
+            source: "twitter",
           };
-          // Emit platform-specific event
-          this.runtime.emitEvent(
-            TwitterEventTypes.QUOTE_RECEIVED,
-            quotePayload,
-          );
-
-          // Emit generic REACTION_RECEIVED event
-          this.runtime.emitEvent(EventType.REACTION_RECEIVED, {
-            ...basePayload,
-            reaction: {
-              type: "quote",
-              entityId: createUniqueUuid(this.runtime, interaction.userId),
-            },
-            message: reactionMessage,
-            callback: async () => {
-              return [];
-            },
-          } as MessagePayload);
+          this.runtime.emitEvent(TwitterEventTypes.QUOTE_RECEIVED, payload);
           break;
         }
       }
+
+      // Also emit generic REACTION_RECEIVED event
+      this.runtime.emitEvent(EventType.REACTION_RECEIVED, {
+        runtime: this.runtime,
+        entityId: createUniqueUuid(this.runtime, interaction.userId),
+        roomId: createUniqueUuid(
+          this.runtime,
+          interaction.targetTweet.conversationId,
+        ),
+        world: createUniqueUuid(this.runtime, interaction.userId),
+        message: reactionMessage,
+        source: "twitter",
+        metadata: {
+          type: interaction.type,
+          targetTweetId: interaction.targetTweetId,
+          username: interaction.username,
+          userId: interaction.userId,
+          timestamp: Date.now(),
+          quoteText: interaction.type === "quote" ? (interaction.quoteTweet?.text || "") : undefined,
+        },
+        callback: async () => [],
+      } as MessagePayload);
     }
   }
 
   /**
-   * Handles a tweet by processing its content, formatting it, generating image descriptions,
-   * saving the tweet if it doesn't already exist, determining if a response should be sent,
-   * composing a response prompt, generating a response based on the prompt, handling the response
-   * tweet, and saving information about the response.
+   * Creates a memory object for a given Twitter interaction.
+   *
+   * @param {string} type - The type of interaction (e.g., 'like', 'retweet', 'quote').
+   * @param {string} id - The unique identifier for the interaction.
+   * @param {string} userId - The ID of the user who initiated the interaction.
+   * @param {string} conversationId - The ID of the conversation context.
+   * @returns {TwitterInteractionMemory} The constructed memory object.
+   */
+  createMemoryObject(
+    type: string,
+    id: string,
+    userId: string,
+    conversationId: string,
+  ): TwitterInteractionMemory {
+    return {
+      id: createUniqueUuid(this.runtime, id),
+      agentId: this.runtime.agentId,
+      entityId: createUniqueUuid(this.runtime, userId),
+      roomId: createUniqueUuid(this.runtime, conversationId),
+      content: {
+        type,
+        source: "twitter",
+      },
+      createdAt: Date.now(),
+    };
+  }
+
+  /**
+   * Asynchronously handles a tweet by generating a response and sending it.
+   * This method processes the tweet content, determines if a response is needed,
+   * generates appropriate response text, and sends the tweet reply.
    *
    * @param {object} params - The parameters object containing the tweet, message, and thread.
    * @param {Tweet} params.tweet - The tweet object to handle.
@@ -623,9 +881,9 @@ export class TwitterInteractionClient {
           throw new Error("Failed to get tweet result from response");
         }
 
-                    // Create memory for our response
-            const responseId = createUniqueUuid(this.runtime, tweetResult.id);
-            const responseMemory: Memory = {
+        // Create memory for our response
+        const responseId = createUniqueUuid(this.runtime, tweetResult.id);
+        const responseMemory: Memory = {
           id: responseId,
           entityId: this.runtime.agentId,
           agentId: this.runtime.agentId,
@@ -638,166 +896,52 @@ export class TwitterInteractionClient {
           createdAt: Date.now(),
         };
 
-        // Save the response to memory
         await this.runtime.createMemory(responseMemory, "messages");
 
+        // Return the created memory
         return [responseMemory];
       } catch (error) {
-        logger.error("Error replying to tweet:", error);
+        logger.error("Error in tweet reply callback:", error);
         return [];
       }
     };
 
-    // Emit standardized event for handling the message
-    this.runtime.emitEvent(EventType.MESSAGE_RECEIVED, {
-      runtime: this.runtime,
-      message,
-      callback,
-      source: "twitter",
-    } as MessagePayload);
+    const twitterUserId = tweet.userId;
+    const entityId = createUniqueUuid(this.runtime, twitterUserId);
+    const twitterUsername = tweet.username;
 
-    return { text: "", actions: ["RESPOND"] };
-  }
+    // Emit MESSAGE_RECEIVED event
+    this.runtime.emitEvent(
+      [TwitterEventTypes.MESSAGE_RECEIVED, EventType.MESSAGE_RECEIVED],
+      {
+        runtime: this.runtime,
+        world: createUniqueUuid(this.runtime, twitterUserId),
+        entityId: entityId,
+        roomId: message.roomId,
+        userId: twitterUserId,
+        message: message,
+        thread: thread,
+        source: "twitter",
+        callback,
+        entityName: twitterUsername,
+      },
+    );
 
-  /**
-   * Build a conversation thread based on a given tweet.
-   *
-   * @param {Tweet} tweet - The tweet to start the thread from.
-   * @param {number} [maxReplies=10] - The maximum number of replies to include in the thread.
-   * @returns {Promise<Tweet[]>} The conversation thread as an array of tweets.
-   */
-  async buildConversationThread(
-    tweet: ClientTweet,
-    maxReplies = 10,
-  ): Promise<ClientTweet[]> {
-    const thread: ClientTweet[] = [];
-    const visited: Set<string> = new Set();
+    // For synchronous response generation
+    const response = await callback(message.content, tweet.id);
 
-    async function processThread(currentTweet: ClientTweet, depth = 0) {
-      logger.log("Processing tweet:", {
-        id: currentTweet.id,
-        inReplyToStatusId: currentTweet.inReplyToStatusId,
-        depth: depth,
-      });
-
-      if (!currentTweet) {
-        logger.log("No current tweet found for thread building");
-        return;
-      }
-
-      if (depth >= maxReplies) {
-        logger.log("Reached maximum reply depth", depth);
-        return;
-      }
-
-      // Handle memory storage
-      const memory = await this.runtime.getMemoryById(
-        createUniqueUuid(this.runtime, currentTweet.id),
-      );
-      if (!memory) {
-        const roomId = createUniqueUuid(this.runtime, tweet.conversationId);
-        const entityId = createUniqueUuid(this.runtime, currentTweet.userId);
-
-        await this.runtime.ensureConnection({
-          entityId,
-          roomId,
-          userName: currentTweet.username,
-          name: currentTweet.name,
-          source: "twitter",
-          type: ChannelType.GROUP,
-          worldId: createUniqueUuid(this.runtime, currentTweet.userId),
-          worldName: `${currentTweet.name}'s Twitter`,
-        });
-
-        this.runtime.createMemory(
-          {
-            id: createUniqueUuid(this.runtime, currentTweet.id),
-            agentId: this.runtime.agentId,
-            content: {
-              text: currentTweet.text,
-              source: "twitter",
-              url: currentTweet.permanentUrl,
-              imageUrls: currentTweet.photos?.map((photo) => photo.url) || [],
-              inReplyTo: currentTweet.inReplyToStatusId
-                ? createUniqueUuid(this.runtime, currentTweet.inReplyToStatusId)
-                : undefined,
-            },
-            createdAt: currentTweet.timestamp * 1000,
-            roomId,
-            entityId:
-              currentTweet.userId === this.twitterUserId
-                ? this.runtime.agentId
-                : createUniqueUuid(this.runtime, currentTweet.userId),
-          },
-          "messages",
-        );
-      }
-
-      if (visited.has(currentTweet.id)) {
-        logger.log("Already visited tweet:", currentTweet.id);
-        return;
-      }
-
-      visited.add(currentTweet.id);
-      thread.unshift(currentTweet);
-
-      if (currentTweet.inReplyToStatusId) {
-        logger.log("Fetching parent tweet:", currentTweet.inReplyToStatusId);
-        try {
-          const parentTweet = await this.twitterClient.getTweet(
-            currentTweet.inReplyToStatusId,
-          );
-
-          if (parentTweet) {
-            logger.log("Found parent tweet:", {
-              id: parentTweet.id,
-              text: parentTweet.text?.slice(0, 50),
-            });
-            await processThread(parentTweet, depth + 1);
-          } else {
-            logger.log(
-              "No parent tweet found for:",
-              currentTweet.inReplyToStatusId,
-            );
-          }
-        } catch (error) {
-          logger.log("Error fetching parent tweet:", {
-            tweetId: currentTweet.inReplyToStatusId,
-            error,
-          });
-        }
-      } else {
-        logger.log("Reached end of reply chain at:", currentTweet.id);
+    // Check if response is an array of memories and extract the text
+    let responseText = "";
+    if (Array.isArray(response) && response.length > 0) {
+      const firstResponse = response[0];
+      if (firstResponse?.content?.text) {
+        responseText = firstResponse.content.text;
       }
     }
 
-    // Need to bind this prompt for the inner function
-    await processThread.bind(this)(tweet, 0);
-
-    return thread;
-  }
-
-  private createMemoryObject(
-    type: string,
-    id: string,
-    userId: string,
-    roomId: string,
-  ): TwitterInteractionMemory {
     return {
-      id: createUniqueUuid(this.runtime, id),
-      agentId: this.runtime.agentId,
-      entityId: createUniqueUuid(this.runtime, userId),
-      roomId: createUniqueUuid(this.runtime, roomId),
-      content: {
-        type,
-        source: "twitter",
-      },
-      createdAt: Date.now(),
+      text: responseText,
+      actions: responseText ? ["REPLY"] : ["IGNORE"],
     };
-  }
-  
-  async stop() {
-    logger.info("Stopping Twitter interaction client...");
-    this.isRunning = false;
   }
 }

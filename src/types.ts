@@ -7,7 +7,7 @@ import type {
   UUID,
   WorldPayload,
 } from "@elizaos/core";
-import type { TwitterService } from ".";
+import type { TwitterService } from "./services/twitter.service.js";
 import type { ClientBase } from "./base";
 import type { Tweet as ClientTweet, Mention } from "./client/tweets";
 import type { TwitterInteractionClient } from "./interactions";

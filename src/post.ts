@@ -39,24 +39,23 @@ export class TwitterPostClient {
                     (typeof dryRunSetting === "string" && dryRunSetting.toLowerCase() === "true");
 
     // Log configuration on initialization
-    logger.log("Twitter Client Configuration:");
+    logger.log("Twitter Post Client Configuration:");
     logger.log(`- Dry Run Mode: ${this.isDryRun ? "Enabled" : "Disabled"}`);
 
-    logger.log(
-      `- Post Interval: ${this.state?.TWITTER_POST_INTERVAL_MIN || this.runtime.getSetting("TWITTER_POST_INTERVAL_MIN") || 90}-${this.state?.TWITTER_POST_INTERVAL_MAX || this.runtime.getSetting("TWITTER_POST_INTERVAL_MAX") || 180} minutes`,
+    const postInterval = parseInt(
+      this.state?.TWITTER_POST_INTERVAL || 
+      this.runtime.getSetting("TWITTER_POST_INTERVAL") as string || 
+      "120"
     );
-    const postImmediatelySetting = this.state?.TWITTER_POST_IMMEDIATELY ?? this.runtime.getSetting("TWITTER_POST_IMMEDIATELY");
-    const isPostImmediately = postImmediatelySetting === true || postImmediatelySetting === "true" || 
-                             (typeof postImmediatelySetting === "string" && postImmediatelySetting.toLowerCase() === "true");
-    logger.log(
-      `- Post Immediately: ${isPostImmediately ? "enabled" : "disabled"}`,
-    );
-
-    if (this.isDryRun) {
-      logger.log(
-        "Twitter client initialized in dry run mode - no actual tweets should be posted",
-      );
-    }
+    logger.log(`- Post Interval: ${postInterval} minutes`);
+  }
+  
+  /**
+   * Stops the Twitter post client
+   */
+  async stop() {
+    logger.log("Stopping Twitter post client...");
+    this.isRunning = false;
   }
 
   /**
@@ -72,18 +71,17 @@ export class TwitterPostClient {
         return;
       }
       
-      const minPostMinutes =
-        this.state?.TWITTER_POST_INTERVAL_MIN ||
-        this.runtime.getSetting("TWITTER_POST_INTERVAL_MIN") ||
-        90;
-      const maxPostMinutes =
-        this.state?.TWITTER_POST_INTERVAL_MAX ||
-        this.runtime.getSetting("TWITTER_POST_INTERVAL_MAX") ||
-        180;
-      const randomMinutes =
-        Math.floor(Math.random() * (maxPostMinutes - minPostMinutes + 1)) +
-        minPostMinutes;
-      const interval = randomMinutes * 60 * 1000;
+      // Get post interval in minutes
+      const postIntervalMinutes = parseInt(
+        this.state?.TWITTER_POST_INTERVAL || 
+        this.runtime.getSetting("TWITTER_POST_INTERVAL") as string || 
+        "120"
+      );
+      
+      // Convert to milliseconds
+      const interval = postIntervalMinutes * 60 * 1000;
+      
+      logger.info(`Next tweet scheduled in ${postIntervalMinutes} minutes`);
 
       await this.generateNewTweet();
       
@@ -93,15 +91,20 @@ export class TwitterPostClient {
     };
 
     // Start the loop after a 1 minute delay to allow other services to initialize
-    setTimeout(generateNewTweetLoop, 60 * 1000);
-    const postImmediately = this.state?.TWITTER_POST_IMMEDIATELY ?? this.runtime.getSetting("TWITTER_POST_IMMEDIATELY");
-    const shouldPostImmediately = postImmediately === true || postImmediately === "true" || 
-                                  (typeof postImmediately === "string" && postImmediately.toLowerCase() === "true");
+    // Always post immediately for better UX
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await this.generateNewTweet();
     
-    if (shouldPostImmediately) {
-      // await 1 second
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      await this.generateNewTweet();
+    // Then start the regular interval
+    const postIntervalMinutes = parseInt(
+      this.state?.TWITTER_POST_INTERVAL || 
+      this.runtime.getSetting("TWITTER_POST_INTERVAL") as string || 
+      "120"
+    );
+    const interval = postIntervalMinutes * 60 * 1000;
+    
+    if (this.isRunning) {
+      setTimeout(generateNewTweetLoop, interval);
     }
   }
 
@@ -187,20 +190,17 @@ export class TwitterPostClient {
 
           return [];
         } catch (error) {
-          logger.error("Error posting tweet:", error, content);
+          logger.error("Error in tweet generation callback:", error);
           return [];
         }
       };
 
-      logger.info("Emitting POST_GENERATED event to trigger content generation...");
-      
-      // Emit event to handle the post generation using standard handlers
+      // Emit the event that will trigger the agent to generate content
       this.runtime.emitEvent(
-        [EventType.POST_GENERATED, TwitterEventTypes.POST_GENERATED],
+        TwitterEventTypes.POST_GENERATED,
         {
-          runtime: this.runtime,
           callback,
-          worldId,
+          entityId: this.runtime.agentId,
           userId,
           roomId,
           source: "twitter",
@@ -258,20 +258,20 @@ export class TwitterPostClient {
 
       const result = await sendTweet(this.client, text, mediaData);
 
-      if (!result) {
-        logger.error("Error sending tweet; Bad response:");
-        return null;
-      }
+      // Cache the new post to prevent duplicates
+      await this.runtime.setCache(
+        `twitter/${this.client.profile?.username}/lastPost`,
+        {
+          id: (result as any).id,
+          text: text,
+          timestamp: Date.now(),
+        },
+      );
 
       return result;
     } catch (error) {
       logger.error("Error posting to Twitter:", error);
       throw error;
     }
-  }
-
-  async stop() {
-    logger.log("Stopping Twitter post client...");
-    this.isRunning = false;
   }
 }

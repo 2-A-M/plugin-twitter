@@ -17,7 +17,7 @@ This package provides Twitter/X integration for the Eliza AI agent using the off
    TWITTER_API_SECRET_KEY=xxx
    TWITTER_ACCESS_TOKEN=xxx
    TWITTER_ACCESS_TOKEN_SECRET=xxx
-   TWITTER_POST_ENABLE=true
+   TWITTER_ENABLE_POST=true
    TWITTER_POST_IMMEDIATELY=true
    ```
 5. **Run:** `bun start`
@@ -34,6 +34,7 @@ This package provides Twitter/X integration for the Eliza AI agent using the off
 - ✅ **Advanced timeline algorithms** with weighted scoring
 - ✅ **Comprehensive caching system**
 - ✅ **Built-in rate limiting and retry mechanisms**
+- ✅ **Discovery service** for autonomous content discovery and growth
 
 ## Prerequisites
 
@@ -122,12 +123,11 @@ TWITTER_ACCESS_TOKEN_SECRET=your_token_secret_here   # Regenerate after permissi
 
 # Basic Configuration
 TWITTER_DRY_RUN=false              # Set to true to test without posting
-TWITTER_POST_ENABLE=true           # Set to true to enable auto-posting
+TWITTER_ENABLE_POST=true           # Enable autonomous tweet posting
 
 # Optional: Posting Configuration
 TWITTER_POST_IMMEDIATELY=true      # Post on startup (great for testing)
-TWITTER_POST_INTERVAL_MIN=90       # Minimum minutes between posts
-TWITTER_POST_INTERVAL_MAX=180      # Maximum minutes between posts
+TWITTER_POST_INTERVAL=120          # Minutes between posts (default: 120)
 ```
 
 ### Step 5: Run Your Bot
@@ -162,35 +162,90 @@ TWITTER_API_SECRET_KEY=             # Consumer API Secret
 TWITTER_ACCESS_TOKEN=               # Access Token (with write permissions)
 TWITTER_ACCESS_TOKEN_SECRET=        # Access Token Secret
 
-# Basic Configuration
+# Core Configuration
 TWITTER_DRY_RUN=false              # Set to true for testing without posting
 TWITTER_TARGET_USERS=              # Comma-separated usernames to target (use "*" for all)
 TWITTER_RETRY_LIMIT=5              # Maximum retry attempts for failed operations
-TWITTER_POLL_INTERVAL=120          # Timeline polling interval (seconds)
 
-# Post Generation Settings
-TWITTER_POST_ENABLE=false          # Enable autonomous tweet posting
-TWITTER_POST_INTERVAL_MIN=90       # Minimum interval between posts (minutes)
-TWITTER_POST_INTERVAL_MAX=180      # Maximum interval between posts (minutes)
-TWITTER_POST_IMMEDIATELY=false     # Post immediately on startup
-TWITTER_POST_INTERVAL_VARIANCE=0.2 # Random variance factor for posting intervals
+# Feature Toggles
+TWITTER_ENABLE_POST=false          # Enable autonomous tweet posting
+TWITTER_ENABLE_REPLIES=true        # Enable mention and reply handling
+TWITTER_ENABLE_ACTIONS=false       # Enable timeline actions (likes, retweets, quotes)
+TWITTER_ENABLE_DISCOVERY=          # Enable discovery service (defaults to true if ACTIONS enabled)
 
-# Interaction Settings
-TWITTER_SEARCH_ENABLE=true         # Enable timeline monitoring and interactions
-TWITTER_MAX_INTERACTIONS_PER_RUN=10    # Maximum interactions processed per cycle
+# Timing Configuration (all in minutes)
+TWITTER_POST_INTERVAL=120          # Interval between autonomous posts (default: 120)
+TWITTER_ENGAGEMENT_INTERVAL=30     # Interval for all interaction cycles (default: 30)
+TWITTER_DISCOVERY_INTERVAL=30      # Interval for discovery cycles (default: 30)
 
-# Timeline Algorithm Configuration
-TWITTER_TIMELINE_ALGORITHM=weighted    # Algorithm: "weighted" or "latest"
-TWITTER_TIMELINE_USER_BASED_WEIGHT=3   # Weight for user-based scoring
-TWITTER_TIMELINE_TIME_BASED_WEIGHT=2   # Weight for time-based scoring  
-TWITTER_TIMELINE_RELEVANCE_WEIGHT=5    # Weight for relevance scoring
+# Engagement Limits
+TWITTER_MAX_ENGAGEMENTS_PER_RUN=10 # Maximum interactions per engagement cycle
+TWITTER_MAX_TWEET_LENGTH=280       # Maximum tweet length
 
-# Advanced Settings
-TWITTER_MAX_TWEET_LENGTH=4000      # Maximum tweet length (for threads)
-TWITTER_DM_ONLY=false             # Only interact via direct messages
-TWITTER_ENABLE_ACTION_PROCESSING=false  # Enable timeline action processing (likes, retweets, replies)
-TWITTER_ACTION_INTERVAL=30       # Timeline action processing interval in MINUTES (default: 30 minutes)
+# Discovery Service Settings
+TWITTER_MIN_FOLLOWER_COUNT=100     # Minimum followers for accounts to follow
+TWITTER_MAX_FOLLOWS_PER_CYCLE=5    # Maximum accounts to follow per discovery cycle
 ```
+
+## 🔍 Discovery Service
+
+The Twitter Discovery Service enables autonomous content discovery and engagement, helping your agent build a following and interact with relevant content on Twitter.
+
+### Overview
+
+The discovery service autonomously:
+- Searches for content related to your agent's topics
+- Identifies high-quality accounts to follow
+- Engages with relevant tweets through likes, replies, and quotes
+- Builds up your agent's timeline by following interesting accounts
+
+### Configuration
+
+```bash
+# Enable discovery service (defaults to true if TWITTER_ENABLE_ACTIONS=true)
+TWITTER_ENABLE_DISCOVERY=true
+
+# Discovery interval in minutes (default: 30)
+TWITTER_DISCOVERY_INTERVAL=30
+
+# Minimum follower count for accounts to follow (default: 100)
+TWITTER_MIN_FOLLOWER_COUNT=100
+
+# Maximum accounts to follow per cycle (default: 5)
+TWITTER_MAX_FOLLOWS_PER_CYCLE=5
+
+# Maximum engagements per cycle (default: 10)
+TWITTER_MAX_ENGAGEMENTS_PER_RUN=10
+```
+
+### How It Works
+
+1. **Content Discovery**: Searches for tweets containing your agent's topics
+2. **Account Scoring**: Scores accounts based on quality (follower count) and relevance
+3. **Tweet Scoring**: Scores tweets for engagement based on relevance:
+   - Like: score > 0.6
+   - Reply: score > 0.8
+   - Quote: score > 0.85
+4. **Memory System**: Tracks engaged tweets and followed accounts to avoid duplicates
+
+### Character Configuration
+
+The discovery service uses your agent's character configuration:
+
+```json
+{
+  "name": "YourAgent",
+  "topics": [
+    "artificial intelligence",
+    "machine learning",
+    "web3",
+    "blockchain"
+  ],
+  "bio": "AI researcher interested in decentralized systems"
+}
+```
+
+If topics aren't specified, the service extracts them from the bio.
 
 ## 🎯 Common Use Cases
 
@@ -203,9 +258,10 @@ TWITTER_API_SECRET_KEY=xxx
 TWITTER_ACCESS_TOKEN=xxx        # Must have write permissions!
 TWITTER_ACCESS_TOKEN_SECRET=xxx
 
-TWITTER_POST_ENABLE=true
+TWITTER_ENABLE_POST=true
 TWITTER_POST_IMMEDIATELY=true   # Great for testing
-TWITTER_SEARCH_ENABLE=false     # Disable interactions
+TWITTER_ENABLE_REPLIES=false    # Disable interactions
+TWITTER_ENABLE_ACTIONS=false    # Disable timeline actions
 ```
 
 ### Want Full Interaction Bot?
@@ -217,10 +273,10 @@ TWITTER_API_SECRET_KEY=xxx
 TWITTER_ACCESS_TOKEN=xxx
 TWITTER_ACCESS_TOKEN_SECRET=xxx
 
-TWITTER_POST_ENABLE=true
-TWITTER_SEARCH_ENABLE=true
-TWITTER_AUTO_RESPOND_MENTIONS=true
-TWITTER_AUTO_RESPOND_REPLIES=true
+TWITTER_ENABLE_POST=true
+TWITTER_ENABLE_REPLIES=true
+TWITTER_ENABLE_ACTIONS=true      # Enables likes, retweets, quotes
+TWITTER_ENABLE_DISCOVERY=true    # Enables growth features
 ```
 
 ### Testing Without Posting?
@@ -228,7 +284,7 @@ TWITTER_AUTO_RESPOND_REPLIES=true
 ```bash
 # Dry run mode
 TWITTER_DRY_RUN=true            # Simulates all actions
-TWITTER_POST_ENABLE=true
+TWITTER_ENABLE_POST=true
 TWITTER_POST_IMMEDIATELY=true
 ```
 
@@ -260,7 +316,7 @@ Wrong credentials or using OAuth 2.0 instead of OAuth 1.0a.
 ### Bot Not Posting Automatically
 
 **Checklist:**
-- ✅ Is `TWITTER_POST_ENABLE=true`?
+- ✅ Is `TWITTER_ENABLE_POST=true`?
 - ✅ Is `@elizaos/plugin-bootstrap` installed?
 - ✅ Does your character have `postExamples`?
 - ✅ Check logs for "Twitter posting is ENABLED"
@@ -285,17 +341,11 @@ Your tokens may have been revoked or regenerated.
 
 ## 📚 Advanced Features
 
-### Timeline Algorithms
+### Timeline Processing
 
-**Weighted Algorithm** (default):
-- Combines user relationship, time, and relevance scores
-- Prioritizes tweets from important users
-- Balances recent content with relevant older content
-
-**Latest Algorithm**:
-- Processes tweets in chronological order
-- Simpler, more predictable behavior
-- Good for high-volume timelines
+The plugin supports two main approaches:
+- **Timeline Actions**: Process home timeline for likes, retweets, and quotes
+- **Targeted Interactions**: Reply to mentions and specific users
 
 ### Target User Configuration
 
@@ -312,14 +362,10 @@ TWITTER_TARGET_USERS=*
 
 ### Natural Posting Intervals
 
-All intervals support variance for more human-like behavior:
-```bash
-# Base interval: 90-180 minutes
-TWITTER_POST_INTERVAL_MIN=90
-TWITTER_POST_INTERVAL_MAX=180
-# With 20% variance: actual range ~72-216 minutes
-TWITTER_POST_INTERVAL_VARIANCE=0.2
-```
+The plugin adds variance to all intervals for more human-like behavior:
+- Post intervals vary by ±20% by default
+- Discovery intervals vary by ±10 minutes
+- Engagement intervals vary based on activity
 
 ### Request Queue & Rate Limiting
 
