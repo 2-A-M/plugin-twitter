@@ -357,7 +357,8 @@ export class TwitterInteractionClient {
       };
       
       const state = await this.runtime.composeState(shouldEngageMemory);
-      const context = `You are ${this.runtime.character.name}. Should you reply to this tweet based on your interests and expertise?
+      const characterName = this.runtime?.character?.name || "AI Assistant";
+      const context = `You are ${characterName}. Should you reply to this tweet based on your interests and expertise?
       
 Tweet by @${tweet.username}: "${tweet.text}"
 

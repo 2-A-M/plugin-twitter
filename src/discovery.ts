@@ -72,10 +72,26 @@ export class TwitterDiscoveryClient {
   }
 
   private buildDiscoveryConfig(): DiscoveryConfig {
-    const character = this.runtime.character;
+    const character = this.runtime?.character;
     
-    // Use character topics or extract from bio
-    const topics = character.topics || this.extractTopicsFromBio(character.bio);
+    // Default topics if character is not available
+    const defaultTopics = [
+      "ai", "technology", "blockchain", "web3", 
+      "crypto", "programming", "innovation"
+    ];
+    
+    // Use character topics, extract from bio, or use defaults
+    let topics: string[] = defaultTopics;
+    
+    if (character) {
+      if (character.topics && Array.isArray(character.topics) && character.topics.length > 0) {
+        topics = character.topics;
+      } else if (character.bio) {
+        topics = this.extractTopicsFromBio(character.bio);
+      }
+    } else {
+      logger.warn("Character not available in runtime, using default topics for discovery");
+    }
     
     return {
       topics,
@@ -100,7 +116,11 @@ export class TwitterDiscoveryClient {
     };
   }
 
-  private extractTopicsFromBio(bio: string | string[]): string[] {
+  private extractTopicsFromBio(bio: string | string[] | undefined): string[] {
+    if (!bio) {
+      return [];
+    }
+    
     const bioText = Array.isArray(bio) ? bio.join(" ") : bio;
     // Extract meaningful words as potential topics
     const words = bioText.toLowerCase()
@@ -587,12 +607,24 @@ export class TwitterDiscoveryClient {
   }
 
   private async generateReply(tweet: Tweet): Promise<string> {
-    const prompt = `You are ${this.runtime.character.name}. Generate a thoughtful reply to this tweet:
+    // Handle case where runtime.character might be undefined
+    const characterName = this.runtime?.character?.name || "AI Assistant";
+    let characterBio = "";
+    
+    if (this.runtime?.character?.bio) {
+      if (Array.isArray(this.runtime.character.bio)) {
+        characterBio = this.runtime.character.bio.join(" ");
+      } else {
+        characterBio = this.runtime.character.bio;
+      }
+    }
+    
+    const prompt = `You are ${characterName}. Generate a thoughtful reply to this tweet:
 
 Tweet by @${tweet.username}: "${tweet.text}"
 
 Your interests: ${this.config.topics.join(", ")}
-Character bio: ${Array.isArray(this.runtime.character.bio) ? this.runtime.character.bio.join(" ") : this.runtime.character.bio}
+Character bio: ${characterBio}
 
 Keep the reply:
 - Relevant and adding value to the conversation
@@ -613,12 +645,24 @@ Reply:`;
   }
 
   private async generateQuote(tweet: Tweet): Promise<string> {
-    const prompt = `You are ${this.runtime.character.name}. Add your perspective to this tweet with a quote tweet:
+    // Handle case where runtime.character might be undefined
+    const characterName = this.runtime?.character?.name || "AI Assistant";
+    let characterBio = "";
+    
+    if (this.runtime?.character?.bio) {
+      if (Array.isArray(this.runtime.character.bio)) {
+        characterBio = this.runtime.character.bio.join(" ");
+      } else {
+        characterBio = this.runtime.character.bio;
+      }
+    }
+    
+    const prompt = `You are ${characterName}. Add your perspective to this tweet with a quote tweet:
 
 Original tweet by @${tweet.username}: "${tweet.text}"
 
 Your interests: ${this.config.topics.join(", ")}
-Character bio: ${Array.isArray(this.runtime.character.bio) ? this.runtime.character.bio.join(" ") : this.runtime.character.bio}
+Character bio: ${characterBio}
 
 Create a quote tweet that:
 - Adds unique insight or perspective

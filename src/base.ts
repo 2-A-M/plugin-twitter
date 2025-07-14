@@ -755,16 +755,29 @@ export class ClientBase {
     try {
       const profile = await this.requestQueue.add(async () => {
         const profile = await this.twitterClient.getProfile(username);
+        
+        // Handle case where runtime.character might be undefined
+        const defaultName = "AI Assistant";
+        const defaultBio = "";
+        
+        let characterName = defaultName;
+        let characterBio = defaultBio;
+        
+        if (this.runtime?.character) {
+          characterName = this.runtime.character.name || defaultName;
+          
+          if (typeof this.runtime.character.bio === "string") {
+            characterBio = this.runtime.character.bio;
+          } else if (Array.isArray(this.runtime.character.bio) && this.runtime.character.bio.length > 0) {
+            characterBio = this.runtime.character.bio[0];
+          }
+        }
+        
         return {
           id: profile.userId,
           username,
-          screenName: profile.name || this.runtime.character.name,
-          bio:
-            profile.biography || typeof this.runtime.character.bio === "string"
-              ? (this.runtime.character.bio as string)
-              : this.runtime.character.bio.length > 0
-                ? this.runtime.character.bio[0]
-                : "",
+          screenName: profile.name || characterName,
+          bio: profile.biography || characterBio,
           nicknames: this.profile?.nicknames || [],
         } satisfies TwitterProfile;
       });
