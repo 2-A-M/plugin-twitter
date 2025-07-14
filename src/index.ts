@@ -1,140 +1,42 @@
-import { type IAgentRuntime, logger } from "@elizaos/core";
-import { TwitterInteractionClient } from "./interactions";
-import { TwitterPostClient } from "./post";
-import { TwitterTimelineClient } from "./timeline";
-import { TwitterDiscoveryClient } from "./discovery";
-import { validateTwitterConfig } from "./environment";
-import { ClientBase } from "./base";
+import { type IAgentRuntime, logger, type Plugin } from "@elizaos/core";
 import { TwitterService } from "./services/twitter.service.js";
 import { postTweetAction } from "./actions/postTweet.js";
-import type { ITwitterClient } from "./types";
 
-/**
- * A manager that orchestrates all specialized Twitter logic:
- * - client: base operations (login, timeline caching, etc.)
- * - post: autonomous posting logic
- * - interaction: handling mentions, replies, and autonomous targeting
- * - timeline: processing timeline for actions (likes, retweets, replies)
- * - discovery: autonomous content discovery and engagement
- */
-export class TwitterClientInstance implements ITwitterClient {
-  client: ClientBase;
-  post: TwitterPostClient;
-  interaction: TwitterInteractionClient;
-  timeline?: TwitterTimelineClient;
-  discovery?: TwitterDiscoveryClient;
-
-  constructor(runtime: IAgentRuntime, state: any) {
-    // Pass twitterConfig to the base client
-    this.client = new ClientBase(runtime, state);
-
-    // Helper function to safely get settings
-    const getSetting = (key: string): any => {
-      if (runtime && typeof runtime.getSetting === 'function') {
-        return runtime.getSetting(key);
-      }
-      return undefined;
-    };
-
-    // Posting logic
-    const postEnabledSetting = getSetting("TWITTER_ENABLE_POST") ?? process.env.TWITTER_ENABLE_POST;
-    logger.debug(`TWITTER_ENABLE_POST setting value: ${JSON.stringify(postEnabledSetting)}, type: ${typeof postEnabledSetting}`);
-    
-    const postEnabled = postEnabledSetting === "true" || postEnabledSetting === true;
-    
-    if (postEnabled) {
-      logger.info("Twitter posting is ENABLED - creating post client");
-      this.post = new TwitterPostClient(this.client, runtime, state);
-    } else {
-      logger.info("Twitter posting is DISABLED - set TWITTER_ENABLE_POST=true to enable automatic posting");
-    }
-
-    // Mentions and interactions
-    const repliesEnabled = (getSetting("TWITTER_ENABLE_REPLIES") ?? process.env.TWITTER_ENABLE_REPLIES) !== "false";
-    
-    if (repliesEnabled) {
-      logger.info("Twitter replies/interactions are ENABLED");
-      this.interaction = new TwitterInteractionClient(
-        this.client,
-        runtime,
-        state,
-      );
-    } else {
-      logger.info("Twitter replies/interactions are DISABLED");
-    }
-
-    // Timeline actions (likes, retweets, replies)
-    const actionsEnabled = (getSetting("TWITTER_ENABLE_ACTIONS") ?? process.env.TWITTER_ENABLE_ACTIONS) === "true";
-    
-    if (actionsEnabled) {
-      logger.info("Twitter timeline actions are ENABLED");
-      this.timeline = new TwitterTimelineClient(this.client, runtime, state);
-    } else {
-      logger.info("Twitter timeline actions are DISABLED");
-    }
-
-    // Discovery service for autonomous content discovery
-    const discoveryEnabled = (getSetting("TWITTER_ENABLE_DISCOVERY") ?? process.env.TWITTER_ENABLE_DISCOVERY) === "true" ||
-                           (actionsEnabled && (getSetting("TWITTER_ENABLE_DISCOVERY") ?? process.env.TWITTER_ENABLE_DISCOVERY) !== "false");
-    
-    if (discoveryEnabled) {
-      logger.info("Twitter discovery service is ENABLED");
-      this.discovery = new TwitterDiscoveryClient(this.client, runtime, state);
-    } else {
-      logger.info("Twitter discovery service is DISABLED - set TWITTER_ENABLE_DISCOVERY=true to enable");
-    }
-  }
-}
-
-async function startTwitterClient(runtime: IAgentRuntime): Promise<void> {
-  try {
-    logger.log("🔧 Initializing Twitter plugin...");
-
-    await validateTwitterConfig(runtime);
-
-    logger.log("✅ Twitter configuration validated successfully");
-
-    const twitterClient = new TwitterClientInstance(runtime, {});
-
-    await twitterClient.client.init();
-
-    // Register the service properly
-    await runtime.registerService(TwitterService);
-
-    // Start appropriate services based on configuration
-    if (twitterClient.post) {
-      logger.log("📮 Starting Twitter post client...");
-      await twitterClient.post.start();
-    }
-
-    if (twitterClient.interaction) {
-      logger.log("💬 Starting Twitter interaction client...");
-      await twitterClient.interaction.start();
-    }
-
-    if (twitterClient.timeline) {
-      logger.log("📊 Starting Twitter timeline client...");
-      await twitterClient.timeline.start();
-    }
-
-    if (twitterClient.discovery) {
-      logger.log("🔍 Starting Twitter discovery client...");
-      await twitterClient.discovery.start();
-    }
-
-    logger.log("✅ Twitter plugin started successfully");
-  } catch (error) {
-    logger.error("🚨 Failed to start Twitter plugin:", error);
-    throw error;
-  }
-}
-
-export const TwitterPlugin = {
+export const TwitterPlugin: Plugin = {
   name: "twitter",
   description: "Twitter client with posting, interactions, and timeline actions",
   actions: [postTweetAction],
   services: [TwitterService],
-  init: startTwitterClient,
+  init: async (_config: Record<string, string>, runtime: IAgentRuntime) => {
+    // Only do validation in init, don't start services
+    logger.log("🔧 Initializing Twitter plugin...");
+    
+    // Check if we can access settings
+    const hasGetSetting = runtime && typeof runtime.getSetting === 'function';
+    
+    // Basic validation of required settings
+    const apiKey = hasGetSetting ? runtime.getSetting("TWITTER_API_KEY") : process.env.TWITTER_API_KEY;
+    const apiSecretKey = hasGetSetting ? runtime.getSetting("TWITTER_API_SECRET_KEY") : process.env.TWITTER_API_SECRET_KEY;
+    const accessToken = hasGetSetting ? runtime.getSetting("TWITTER_ACCESS_TOKEN") : process.env.TWITTER_ACCESS_TOKEN;
+    const accessTokenSecret = hasGetSetting ? runtime.getSetting("TWITTER_ACCESS_TOKEN_SECRET") : process.env.TWITTER_ACCESS_TOKEN_SECRET;
+    
+    if (!apiKey || !apiSecretKey || !accessToken || !accessTokenSecret) {
+      const missing = [];
+      if (!apiKey) missing.push("TWITTER_API_KEY");
+      if (!apiSecretKey) missing.push("TWITTER_API_SECRET_KEY");
+      if (!accessToken) missing.push("TWITTER_ACCESS_TOKEN");
+      if (!accessTokenSecret) missing.push("TWITTER_ACCESS_TOKEN_SECRET");
+      
+      logger.warn(
+        `Twitter API credentials not configured - Twitter functionality will be limited. Missing: ${missing.join(", ")}`
+      );
+      logger.warn(
+        "To enable Twitter functionality, please provide the missing credentials in your .env file"
+      );
+    } else {
+      logger.log("✅ Twitter credentials found");
+    }
+  },
 };
 
 export default TwitterPlugin;

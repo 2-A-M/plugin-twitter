@@ -1,4 +1,6 @@
-import { type IAgentRuntime } from "@elizaos/core";
+import type { IAgentRuntime } from "@elizaos/core";
+import { logger } from "@elizaos/core";
+import { getSetting } from "./utils/settings";
 import { z } from "zod";
 
 /**
@@ -94,26 +96,6 @@ export function getTargetUsers(targetUsersConfig: string): string[] {
   const users = parseTargetUsers(targetUsersConfig);
   // Filter out wildcard since it's a special case
   return users.filter(u => u !== "*");
-}
-
-/**
- * Helper function to get a setting from runtime or environment
- */
-function getSetting(
-  runtime: IAgentRuntime,
-  key: string,
-  defaultValue?: string
-): string | undefined {
-  // Try runtime.getSetting if it exists
-  if (runtime && typeof runtime.getSetting === 'function') {
-    const value = runtime.getSetting(key);
-    if (value !== undefined && value !== null) {
-      return String(value);
-    }
-  }
-  
-  // Fall back to process.env
-  return process.env[key] ?? defaultValue;
 }
 
 /**

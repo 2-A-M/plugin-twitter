@@ -50,8 +50,8 @@ export interface ActionResponse {
  */
 export interface ITwitterClient {
   client: ClientBase;
-  post: TwitterPostClient;
-  interaction: TwitterInteractionClient;
+  post?: TwitterPostClient;
+  interaction?: TwitterInteractionClient;
 }
 
 export const ServiceType = {
