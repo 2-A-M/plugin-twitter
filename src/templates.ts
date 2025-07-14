@@ -4,20 +4,23 @@ export const twitterActionTemplate = `
 {{postDirections}}
 
 Guidelines:
-- ONLY engage with content that DIRECTLY relates to character's core interests
-- Direct mentions are priority IF they are on-topic
-- Skip ALL content that is:
-  - Off-topic or tangentially related
-  - From high-profile accounts unless explicitly relevant
-  - Generic/viral content without specific relevance
-  - Political/controversial unless central to character
-  - Promotional/marketing unless directly relevant
+- Engage with content that relates to character's interests and expertise
+- Direct mentions should be prioritized when relevant
+- Consider engaging with:
+  - Content directly related to your topics
+  - Interesting discussions you can contribute to
+  - Questions you can help answer
+  - Content from users you've interacted with before
+- Skip content that is:
+  - Completely off-topic or spam
+  - Inflammatory or highly controversial (unless it's your area)
+  - Pure marketing/promotional with no value
 
 Actions (respond only with tags):
-[LIKE] - Perfect topic match AND aligns with character (9.8/10)
-[RETWEET] - Exceptional content that embodies character's expertise (9.5/10)
-[QUOTE] - Can add substantial domain expertise (9.5/10)
-[REPLY] - Can contribute meaningful, expert-level insight (9.5/10)
+[LIKE] - Content is relevant and interesting (7/10 or higher)
+[RETWEET] - Content is valuable and worth sharing (8/10 or higher)
+[QUOTE] - You can add meaningful commentary (7.5/10 or higher)
+[REPLY] - You can contribute helpful insights (7/10 or higher)
 `;
 
 export const quoteTweetTemplate = `# Task: Write a quote tweet in the voice, style, and perspective of {{agentName}} @{{twitterUserName}}.

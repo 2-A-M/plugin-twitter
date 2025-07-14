@@ -148,10 +148,6 @@ export enum TwitterEventTypes {
   MESSAGE_RECEIVED = "TWITTER_MESSAGE_RECEIVED",
   MESSAGE_SENT = "TWITTER_MESSAGE_SENT",
 
-  // Post events
-  POST_GENERATED = "TWITTER_POST_GENERATED",
-  POST_SENT = "TWITTER_POST_SENT",
-
   // Reaction events
   REACTION_RECEIVED = "TWITTER_REACTION_RECEIVED",
   LIKE_RECEIVED = "TWITTER_LIKE_RECEIVED",
@@ -205,22 +201,6 @@ export interface TwitterMessageReceivedPayload
 export interface TwitterMessageSentPayload extends MessagePayload {
   /** The tweet ID that was replied to */
   inReplyToTweetId: string;
-  /** The tweet result from Twitter API */
-  tweetResult: any;
-}
-
-/**
- * Twitter-specific post generated payload
- */
-export interface TwitterPostGeneratedPayload extends MessagePayload {
-  /** The tweet result from Twitter API */
-  tweetResult: any;
-}
-
-/**
- * Twitter-specific post sent payload
- */
-export interface TwitterPostSentPayload extends MessagePayload {
   /** The tweet result from Twitter API */
   tweetResult: any;
 }
@@ -344,8 +324,6 @@ export interface TwitterThreadUpdatedPayload extends EventPayload {
 export interface TwitterEventPayloadMap {
   [TwitterEventTypes.MESSAGE_RECEIVED]: TwitterMessageReceivedPayload;
   [TwitterEventTypes.MESSAGE_SENT]: TwitterMessageSentPayload;
-  [TwitterEventTypes.POST_GENERATED]: TwitterPostGeneratedPayload;
-  [TwitterEventTypes.POST_SENT]: TwitterPostSentPayload;
   [TwitterEventTypes.REACTION_RECEIVED]: TwitterReactionReceivedPayload;
   [TwitterEventTypes.LIKE_RECEIVED]: TwitterLikeReceivedPayload;
   [TwitterEventTypes.RETWEET_RECEIVED]: TwitterRetweetReceivedPayload;

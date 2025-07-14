@@ -388,7 +388,9 @@ export async function fetchTweetsAndReplies(
       next: response.meta.next_token,
     };
   } catch (error) {
-    throw new Error(`Failed to fetch tweets and replies: ${error?.message || error}`);
+    throw new Error(
+      `Failed to fetch tweets and replies: ${error?.message || error}`,
+    );
   }
 }
 
@@ -450,10 +452,11 @@ export function parseTweetV2ToV1(
     id: tweetV2.id,
     text: tweetV2.text ?? "",
     hashtags: tweetV2.entities?.hashtags?.map((tag) => tag.tag) ?? [],
-    mentions: tweetV2.entities?.mentions?.map((mention) => ({
-      id: mention.id,
-      username: mention.username,
-    })) ?? [],
+    mentions:
+      tweetV2.entities?.mentions?.map((mention) => ({
+        id: mention.id,
+        username: mention.username,
+      })) ?? [],
     urls: tweetV2.entities?.urls?.map((url) => url.url) ?? [],
     likes: tweetV2.public_metrics?.like_count ?? 0,
     retweets: tweetV2.public_metrics?.retweet_count ?? 0,
@@ -468,15 +471,28 @@ export function parseTweetV2ToV1(
     username: "",
     name: "",
     thread: [],
-    timestamp: tweetV2.created_at ? new Date(tweetV2.created_at).getTime() / 1000 : Date.now() / 1000,
+    timestamp: tweetV2.created_at
+      ? new Date(tweetV2.created_at).getTime() / 1000
+      : Date.now() / 1000,
     permanentUrl: `https://twitter.com/i/status/${tweetV2.id}`,
     // Check for referenced tweets
-    isReply: tweetV2.referenced_tweets?.some(ref => ref.type === "replied_to") ?? false,
-    isRetweet: tweetV2.referenced_tweets?.some(ref => ref.type === "retweeted") ?? false,
-    isQuoted: tweetV2.referenced_tweets?.some(ref => ref.type === "quoted") ?? false,
-    inReplyToStatusId: tweetV2.referenced_tweets?.find(ref => ref.type === "replied_to")?.id,
-    quotedStatusId: tweetV2.referenced_tweets?.find(ref => ref.type === "quoted")?.id,
-    retweetedStatusId: tweetV2.referenced_tweets?.find(ref => ref.type === "retweeted")?.id,
+    isReply:
+      tweetV2.referenced_tweets?.some((ref) => ref.type === "replied_to") ??
+      false,
+    isRetweet:
+      tweetV2.referenced_tweets?.some((ref) => ref.type === "retweeted") ??
+      false,
+    isQuoted:
+      tweetV2.referenced_tweets?.some((ref) => ref.type === "quoted") ?? false,
+    inReplyToStatusId: tweetV2.referenced_tweets?.find(
+      (ref) => ref.type === "replied_to",
+    )?.id,
+    quotedStatusId: tweetV2.referenced_tweets?.find(
+      (ref) => ref.type === "quoted",
+    )?.id,
+    retweetedStatusId: tweetV2.referenced_tweets?.find(
+      (ref) => ref.type === "retweeted",
+    )?.id,
   };
 
   // Process Polls
@@ -685,14 +701,19 @@ export async function* getTweets(
   let totalFetched = 0;
 
   while (totalFetched < maxTweets) {
-    const response = await fetchTweets(userId, maxTweets - totalFetched, cursor, auth);
-    
+    const response = await fetchTweets(
+      userId,
+      maxTweets - totalFetched,
+      cursor,
+      auth,
+    );
+
     for (const tweet of response.tweets) {
       yield tweet;
       totalFetched++;
       if (totalFetched >= maxTweets) break;
     }
-    
+
     cursor = response.next;
     if (!cursor) break;
   }
@@ -707,14 +728,19 @@ export async function* getTweetsByUserId(
   let totalFetched = 0;
 
   while (totalFetched < maxTweets) {
-    const response = await fetchTweets(userId, maxTweets - totalFetched, cursor, auth);
-    
+    const response = await fetchTweets(
+      userId,
+      maxTweets - totalFetched,
+      cursor,
+      auth,
+    );
+
     for (const tweet of response.tweets) {
       yield tweet;
       totalFetched++;
       if (totalFetched >= maxTweets) break;
     }
-    
+
     cursor = response.next;
     if (!cursor) break;
   }
@@ -737,14 +763,19 @@ export async function* getTweetsAndReplies(
   let totalFetched = 0;
 
   while (totalFetched < maxTweets) {
-    const response = await fetchTweetsAndReplies(userId, maxTweets - totalFetched, cursor, auth);
-    
+    const response = await fetchTweetsAndReplies(
+      userId,
+      maxTweets - totalFetched,
+      cursor,
+      auth,
+    );
+
     for (const tweet of response.tweets) {
       yield tweet;
       totalFetched++;
       if (totalFetched >= maxTweets) break;
     }
-    
+
     cursor = response.next;
     if (!cursor) break;
   }
@@ -759,14 +790,19 @@ export async function* getTweetsAndRepliesByUserId(
   let totalFetched = 0;
 
   while (totalFetched < maxTweets) {
-    const response = await fetchTweetsAndReplies(userId, maxTweets - totalFetched, cursor, auth);
-    
+    const response = await fetchTweetsAndReplies(
+      userId,
+      maxTweets - totalFetched,
+      cursor,
+      auth,
+    );
+
     for (const tweet of response.tweets) {
       yield tweet;
       totalFetched++;
       if (totalFetched >= maxTweets) break;
     }
-    
+
     cursor = response.next;
     if (!cursor) break;
   }
@@ -953,10 +989,7 @@ export async function getTweetV2(
     }
 
     // Extract primary tweet data
-    const parsedTweet = parseTweetV2ToV1(
-      tweetData.data,
-      tweetData?.includes,
-    );
+    const parsedTweet = parseTweetV2ToV1(tweetData.data, tweetData?.includes);
 
     return parsedTweet;
   } catch (error) {

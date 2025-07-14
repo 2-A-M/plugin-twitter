@@ -86,7 +86,7 @@ export class ClientBaseTestSuite implements TestSuite {
           TWITTER_ACCESS_TOKEN_SECRET:
             this.mockConfig.TWITTER_ACCESS_TOKEN_SECRET,
         };
-        
+
         try {
           new ClientBase(this.mockRuntime, state);
           throw new Error("Should have thrown error for missing API key");

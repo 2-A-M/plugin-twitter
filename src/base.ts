@@ -105,9 +105,9 @@ class RequestQueue {
         this.retryAttempts.delete(request);
       } catch (error) {
         logger.error("Error processing request:", error);
-        
+
         const retryCount = (this.retryAttempts.get(request) || 0) + 1;
-        
+
         if (retryCount < this.maxRetries) {
           this.retryAttempts.set(request, retryCount);
           this.queue.unshift(request);
@@ -115,7 +115,9 @@ class RequestQueue {
           // Break the loop to allow exponential backoff to take effect
           break;
         } else {
-          logger.error(`Max retries (${this.maxRetries}) exceeded for request, skipping`);
+          logger.error(
+            `Max retries (${this.maxRetries}) exceeded for request, skipping`,
+          );
           this.retryAttempts.delete(request);
         }
       }
@@ -123,7 +125,7 @@ class RequestQueue {
     }
 
     this.processing = false;
-    
+
     // If there are still items in the queue, restart processing
     if (this.queue.length > 0) {
       this.processQueue();
@@ -243,17 +245,18 @@ export class ClientBase {
    * @returns {Tweet} The parsed Tweet object.
    */
 
-
   state: any;
 
   constructor(runtime: IAgentRuntime, state: any) {
     this.runtime = runtime;
     this.state = state;
-    
+
     // Use API key as the identifier for client reuse
     const apiKey =
       state?.TWITTER_API_KEY ||
-      (runtime && typeof runtime.getSetting === 'function' ? runtime.getSetting("TWITTER_API_KEY") : null) ||
+      (runtime && typeof runtime.getSetting === "function"
+        ? runtime.getSetting("TWITTER_API_KEY")
+        : null) ||
       process.env.TWITTER_API_KEY;
     if (apiKey && ClientBase._twitterClients[apiKey]) {
       this.twitterClient = ClientBase._twitterClients[apiKey];
@@ -270,20 +273,28 @@ export class ClientBase {
     // await this.runtime.ensureAgentExists(this.runtime.character);
 
     const apiKey =
-      this.state?.TWITTER_API_KEY || 
-      (this.runtime && typeof this.runtime.getSetting === 'function' ? this.runtime.getSetting("TWITTER_API_KEY") : null) ||
+      this.state?.TWITTER_API_KEY ||
+      (this.runtime && typeof this.runtime.getSetting === "function"
+        ? this.runtime.getSetting("TWITTER_API_KEY")
+        : null) ||
       process.env.TWITTER_API_KEY;
     const apiSecretKey =
       this.state?.TWITTER_API_SECRET_KEY ||
-      (this.runtime && typeof this.runtime.getSetting === 'function' ? this.runtime.getSetting("TWITTER_API_SECRET_KEY") : null) ||
+      (this.runtime && typeof this.runtime.getSetting === "function"
+        ? this.runtime.getSetting("TWITTER_API_SECRET_KEY")
+        : null) ||
       process.env.TWITTER_API_SECRET_KEY;
     const accessToken =
       this.state?.TWITTER_ACCESS_TOKEN ||
-      (this.runtime && typeof this.runtime.getSetting === 'function' ? this.runtime.getSetting("TWITTER_ACCESS_TOKEN") : null) ||
+      (this.runtime && typeof this.runtime.getSetting === "function"
+        ? this.runtime.getSetting("TWITTER_ACCESS_TOKEN")
+        : null) ||
       process.env.TWITTER_ACCESS_TOKEN;
     const accessTokenSecret =
       this.state?.TWITTER_ACCESS_TOKEN_SECRET ||
-      (this.runtime && typeof this.runtime.getSetting === 'function' ? this.runtime.getSetting("TWITTER_ACCESS_TOKEN_SECRET") : null) ||
+      (this.runtime && typeof this.runtime.getSetting === "function"
+        ? this.runtime.getSetting("TWITTER_ACCESS_TOKEN_SECRET")
+        : null) ||
       process.env.TWITTER_ACCESS_TOKEN_SECRET;
 
     // Validate required credentials
@@ -755,24 +766,27 @@ export class ClientBase {
     try {
       const profile = await this.requestQueue.add(async () => {
         const profile = await this.twitterClient.getProfile(username);
-        
+
         // Handle case where runtime.character might be undefined
         const defaultName = "AI Assistant";
         const defaultBio = "";
-        
+
         let characterName = defaultName;
         let characterBio = defaultBio;
-        
+
         if (this.runtime?.character) {
           characterName = this.runtime.character.name || defaultName;
-          
+
           if (typeof this.runtime.character.bio === "string") {
             characterBio = this.runtime.character.bio;
-          } else if (Array.isArray(this.runtime.character.bio) && this.runtime.character.bio.length > 0) {
+          } else if (
+            Array.isArray(this.runtime.character.bio) &&
+            this.runtime.character.bio.length > 0
+          ) {
             characterBio = this.runtime.character.bio[0];
           }
         }
-        
+
         return {
           id: profile.userId,
           username,
@@ -784,7 +798,7 @@ export class ClientBase {
 
       return profile;
     } catch (error) {
-              logger.error("Error fetching Twitter profile:", error);
+      logger.error("Error fetching Twitter profile:", error);
       throw error;
     }
   }

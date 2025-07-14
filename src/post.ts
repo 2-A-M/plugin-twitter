@@ -1,17 +1,15 @@
 import {
   ChannelType,
   type Content,
-  EventType,
-  type HandlerCallback,
   type IAgentRuntime,
   type Memory,
   type UUID,
   createUniqueUuid,
   logger,
+  ModelType,
 } from "@elizaos/core";
 import type { ClientBase } from "./base";
 import type { MediaData } from "./types";
-import { TwitterEventTypes } from "./types";
 import { sendTweet } from "./utils";
 import { getSetting } from "./utils/settings";
 /**
@@ -35,23 +33,29 @@ export class TwitterPostClient {
     this.client = client;
     this.state = state;
     this.runtime = runtime;
-    const dryRunSetting = this.state?.TWITTER_DRY_RUN ?? getSetting(this.runtime, "TWITTER_DRY_RUN") ?? process.env.TWITTER_DRY_RUN;
-    this.isDryRun = dryRunSetting === true || dryRunSetting === "true" || 
-                    (typeof dryRunSetting === "string" && dryRunSetting.toLowerCase() === "true");
+    const dryRunSetting =
+      this.state?.TWITTER_DRY_RUN ??
+      getSetting(this.runtime, "TWITTER_DRY_RUN") ??
+      process.env.TWITTER_DRY_RUN;
+    this.isDryRun =
+      dryRunSetting === true ||
+      dryRunSetting === "true" ||
+      (typeof dryRunSetting === "string" &&
+        dryRunSetting.toLowerCase() === "true");
 
     // Log configuration on initialization
     logger.log("Twitter Post Client Configuration:");
     logger.log(`- Dry Run Mode: ${this.isDryRun ? "Enabled" : "Disabled"}`);
 
     const postIntervalMinutes = parseInt(
-      this.state?.TWITTER_POST_INTERVAL || 
-      getSetting(this.runtime, "TWITTER_POST_INTERVAL") as string || 
-      process.env.TWITTER_POST_INTERVAL ||
-      "120"
+      this.state?.TWITTER_POST_INTERVAL ||
+        (getSetting(this.runtime, "TWITTER_POST_INTERVAL") as string) ||
+        process.env.TWITTER_POST_INTERVAL ||
+        "120",
     );
     logger.log(`- Post Interval: ${postIntervalMinutes} minutes`);
   }
-  
+
   /**
    * Stops the Twitter post client
    */
@@ -72,44 +76,43 @@ export class TwitterPostClient {
         logger.log("Twitter post client stopped, exiting loop");
         return;
       }
-      
+
       // Get post interval in minutes
       const postIntervalMinutes = parseInt(
-        this.state?.TWITTER_POST_INTERVAL || 
-        getSetting(this.runtime, "TWITTER_POST_INTERVAL") as string || 
-        process.env.TWITTER_POST_INTERVAL ||
-        "120"
+        this.state?.TWITTER_POST_INTERVAL ||
+          (getSetting(this.runtime, "TWITTER_POST_INTERVAL") as string) ||
+          process.env.TWITTER_POST_INTERVAL ||
+          "120",
       );
-      
+
       // Convert to milliseconds
       const interval = postIntervalMinutes * 60 * 1000;
-      
+
       logger.info(`Next tweet scheduled in ${postIntervalMinutes} minutes`);
 
       await this.generateNewTweet();
-      
+
       if (this.isRunning) {
         setTimeout(generateNewTweetLoop, interval);
       }
     };
 
-    // Start the loop after a 1 minute delay to allow other services to initialize
     // Always post immediately for better UX
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    
+
     // Check if we should generate a tweet immediately
-    const postImmediately = parseInt(
-      this.state?.TWITTER_POST_INTERVAL || 
-      getSetting(this.runtime, "TWITTER_POST_INTERVAL") as string || 
-      process.env.TWITTER_POST_INTERVAL ||
-      "120"
-    ) === 0;
-    
-    if (postImmediately) {
-      logger.info("TWITTER_POST_IMMEDIATELY is true, generating initial tweet now");
+    const postImmediately =
+      this.state?.TWITTER_POST_IMMEDIATELY ||
+      (getSetting(this.runtime, "TWITTER_POST_IMMEDIATELY") as string) ||
+      process.env.TWITTER_POST_IMMEDIATELY;
+
+    if (postImmediately === "true" || postImmediately === true) {
+      logger.info(
+        "TWITTER_POST_IMMEDIATELY is true, generating initial tweet now",
+      );
       await this.generateNewTweet();
     }
-    
+
     // Start the regular generation loop
     generateNewTweetLoop();
   }
@@ -120,7 +123,7 @@ export class TwitterPostClient {
    */
   async generateNewTweet() {
     logger.info("Attempting to generate new tweet...");
-    
+
     try {
       // Create the timeline room ID for storing the post
       const userId = this.client.profile?.id;
@@ -129,91 +132,113 @@ export class TwitterPostClient {
         return;
       }
 
-      logger.info(`Generating tweet for user: ${this.client.profile?.username} (${userId})`);
+      logger.info(
+        `Generating tweet for user: ${this.client.profile?.username} (${userId})`,
+      );
 
       // Create standardized world and room IDs
       const worldId = createUniqueUuid(this.runtime, userId) as UUID;
       const roomId = createUniqueUuid(this.runtime, `${userId}-home`) as UUID;
-      
-      // Create a callback for handling the actual posting
-      const callback: HandlerCallback = async (content: Content) => {
-        logger.info("Tweet generation callback triggered");
-        
-        try {
-          if (this.isDryRun) {
-            logger.info(`[DRY RUN] Would post tweet: ${content.text}`);
-            return [];
-          }
 
-          if (content.text.includes("Error: Missing")) {
-            logger.error("Error: Missing some context", content);
-            return [];
-          }
+      // Generate tweet content using the runtime's model
+      const state = await this.runtime.composeState({
+        agentId: this.runtime.agentId,
+        entityId: this.runtime.agentId,
+        roomId,
+        content: { text: "", type: "post" },
+        createdAt: Date.now(),
+      } as Memory);
 
-          logger.info(`Posting tweet: ${content.text}`);
+      // Create a prompt for tweet generation
+      const tweetPrompt = `You are ${this.runtime.character.name}.
+${this.runtime.character.bio}
 
-          // Post the tweet
-          const result = await this.postToTwitter(
-            content.text,
-            content.mediaData as MediaData[],
-          );
+Generate a tweet that:
+- Reflects your personality and interests
+- Is engaging and authentic
+- Is between 50-280 characters
+- Does NOT include hashtags unless they're essential to the message
+- Does NOT include @mentions unless replying to someone
 
-          // If result is null, it means we detected a duplicate tweet and skipped posting
-          if (result === null) {
-            logger.info("Skipped posting duplicate tweet");
-            return [];
-          }
+Your topics of interest: ${this.runtime.character.topics?.join(", ") || "general topics"}
 
-          const tweetId = (result as any).id;
-          logger.info(`Tweet posted successfully! ID: ${tweetId}`);
+Recent context:
+${
+  state.recentMemories
+    ?.slice(0, 5)
+    .map((m: Memory) => m.content.text)
+    .join("\n") || "No recent context"
+}
 
-          if (result) {
-            const postedTweetId = createUniqueUuid(this.runtime, tweetId);
+Generate a single tweet:`;
 
-            // Create memory for the posted tweet
-            const postedMemory: Memory = {
-              id: postedTweetId,
-              entityId: this.runtime.agentId,
-              agentId: this.runtime.agentId,
-              roomId,
-              content: {
-                ...content,
-                source: "twitter",
-                channelType: ChannelType.FEED,
-                type: "post",
-                metadata: {
-                  tweetId,
-                  postedAt: Date.now(),
-                },
-              },
-              createdAt: Date.now(),
-            };
-
-            await this.runtime.createMemory(postedMemory, "messages");
-
-            return [postedMemory];
-          }
-
-          return [];
-        } catch (error) {
-          logger.error("Error in tweet generation callback:", error);
-          return [];
-        }
-      };
-
-      // Emit the event that will trigger the agent to generate content
-      this.runtime.emitEvent(
-        TwitterEventTypes.POST_GENERATED,
+      // Use the runtime's model to generate tweet content
+      const generatedContent = await this.runtime.useModel(
+        ModelType.TEXT_SMALL,
         {
-          callback,
-          entityId: this.runtime.agentId,
-          userId,
-          roomId,
-          source: "twitter",
+          prompt: tweetPrompt,
+          temperature: 0.8,
+          maxTokens: 100,
         },
       );
-      
-      logger.info("POST_GENERATED event emitted successfully");
+
+      const tweetText = generatedContent.trim();
+
+      if (!tweetText || tweetText.length === 0) {
+        logger.error("Generated empty tweet content");
+        return;
+      }
+
+      if (tweetText.includes("Error: Missing")) {
+        logger.error("Error in generated content:", tweetText);
+        return;
+      }
+
+      logger.info(`Generated tweet: ${tweetText}`);
+
+      // Post the tweet
+      if (this.isDryRun) {
+        logger.info(`[DRY RUN] Would post tweet: ${tweetText}`);
+        return;
+      }
+
+      const result = await this.postToTwitter(tweetText, []);
+
+      // If result is null, it means we detected a duplicate tweet and skipped posting
+      if (result === null) {
+        logger.info("Skipped posting duplicate tweet");
+        return;
+      }
+
+      const tweetId = (result as any).id;
+      logger.info(`Tweet posted successfully! ID: ${tweetId}`);
+
+      if (result) {
+        const postedTweetId = createUniqueUuid(this.runtime, tweetId);
+
+        // Create memory for the posted tweet
+        const postedMemory: Memory = {
+          id: postedTweetId,
+          entityId: this.runtime.agentId,
+          agentId: this.runtime.agentId,
+          roomId,
+          content: {
+            text: tweetText,
+            source: "twitter",
+            channelType: ChannelType.FEED,
+            type: "post",
+            metadata: {
+              tweetId,
+              postedAt: Date.now(),
+            },
+          },
+          createdAt: Date.now(),
+        };
+
+        await this.runtime.createMemory(postedMemory, "messages");
+
+        logger.info("Tweet posted and saved to memory successfully");
+      }
     } catch (error) {
       logger.error("Error generating tweet:", error);
     }

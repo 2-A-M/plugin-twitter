@@ -15,7 +15,7 @@ export interface QueryTweetsResponse {
 }
 
 /**
- * Response for paginated profiles queries  
+ * Response for paginated profiles queries
  */
 export interface QueryProfilesResponse {
   profiles: Profile[];
@@ -39,10 +39,12 @@ export interface FetchTransformOptions {
    */
   request: (
     ...args: [input: RequestInfo | URL, init?: RequestInit]
-  ) => [input: RequestInfo | URL, init?: RequestInit] | Promise<[input: RequestInfo | URL, init?: RequestInit]>;
+  ) =>
+    | [input: RequestInfo | URL, init?: RequestInit]
+    | Promise<[input: RequestInfo | URL, init?: RequestInit]>;
 
   /**
    * Transforms the response after a request completes.
    */
   response: (response: Response) => Response | Promise<Response>;
-} 
+}

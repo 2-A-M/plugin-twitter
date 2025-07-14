@@ -42,38 +42,51 @@ export class TwitterTimelineClient {
     this.runtime = runtime;
     this.state = state;
 
-    const dryRunSetting = this.state?.TWITTER_DRY_RUN ?? getSetting(this.runtime, "TWITTER_DRY_RUN") ?? process.env.TWITTER_DRY_RUN;
-    this.isDryRun = dryRunSetting === true || dryRunSetting === "true" || 
-                    (typeof dryRunSetting === "string" && dryRunSetting.toLowerCase() === "true");
+    const dryRunSetting =
+      this.state?.TWITTER_DRY_RUN ??
+      getSetting(this.runtime, "TWITTER_DRY_RUN") ??
+      process.env.TWITTER_DRY_RUN;
+    this.isDryRun =
+      dryRunSetting === true ||
+      dryRunSetting === "true" ||
+      (typeof dryRunSetting === "string" &&
+        dryRunSetting.toLowerCase() === "true");
 
     // Load timeline mode from runtime settings or use default
-    const timelineMode = getSetting(this.runtime, "TWITTER_TIMELINE_MODE") ?? process.env.TWITTER_TIMELINE_MODE;
-    this.timelineType = (timelineMode === TIMELINE_TYPE.Following ? TIMELINE_TYPE.Following : TIMELINE_TYPE.ForYou);
+    const timelineMode =
+      getSetting(this.runtime, "TWITTER_TIMELINE_MODE") ??
+      process.env.TWITTER_TIMELINE_MODE;
+    this.timelineType =
+      timelineMode === TIMELINE_TYPE.Following
+        ? TIMELINE_TYPE.Following
+        : TIMELINE_TYPE.ForYou;
   }
 
   async start() {
     logger.info("Starting Twitter timeline client...");
     this.isRunning = true;
-    
+
     const handleTwitterTimelineLoop = () => {
       if (!this.isRunning) {
         logger.info("Twitter timeline client stopped, exiting loop");
         return;
       }
-      
+
       // Use unified engagement interval
       const engagementIntervalMinutes = parseInt(
         this.state?.TWITTER_ENGAGEMENT_INTERVAL ||
-        getSetting(this.runtime, "TWITTER_ENGAGEMENT_INTERVAL") as string ||
-        process.env.TWITTER_ENGAGEMENT_INTERVAL ||
-        "30"
+          (getSetting(this.runtime, "TWITTER_ENGAGEMENT_INTERVAL") as string) ||
+          process.env.TWITTER_ENGAGEMENT_INTERVAL ||
+          "30",
       );
       const actionInterval = engagementIntervalMinutes * 60 * 1000;
-      
-      logger.info(`Timeline client will check every ${engagementIntervalMinutes} minutes`);
+
+      logger.info(
+        `Timeline client will check every ${engagementIntervalMinutes} minutes`,
+      );
 
       this.handleTimeline();
-      
+
       if (this.isRunning) {
         setTimeout(handleTwitterTimelineLoop, actionInterval);
       }
@@ -94,8 +107,7 @@ export class TwitterTimelineClient {
         : await this.twitterClient.fetchHomeTimeline(count, []);
 
     // The timeline methods now return Tweet objects directly from v2 API
-    return homeTimeline
-      .filter((tweet) => tweet.username !== twitterUsername); // do not perform action on self-tweets
+    return homeTimeline.filter((tweet) => tweet.username !== twitterUsername); // do not perform action on self-tweets
   }
 
   createTweetId(runtime: IAgentRuntime, tweet: Tweet) {
@@ -128,14 +140,14 @@ export class TwitterTimelineClient {
 
     const tweets = await this.getTimeline(20);
     logger.info(`Fetched ${tweets.length} tweets from timeline`);
-    
+
     // Use max engagements per run from environment
     const maxActionsPerCycle = parseInt(
-      getSetting(this.runtime, "TWITTER_MAX_ENGAGEMENTS_PER_RUN") as string || 
-      process.env.TWITTER_MAX_ENGAGEMENTS_PER_RUN || 
-      "10"
+      (getSetting(this.runtime, "TWITTER_MAX_ENGAGEMENTS_PER_RUN") as string) ||
+        process.env.TWITTER_MAX_ENGAGEMENTS_PER_RUN ||
+        "10",
     );
-    
+
     const tweetDecisions = [];
     for (const tweet of tweets) {
       try {
@@ -221,18 +233,18 @@ Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appro
     };
     // Sort the timeline based on the action decision score,
     const prioritizedTweets = rankByActionRelevance(tweetDecisions);
-    
+
     logger.info(`Processing ${prioritizedTweets.length} tweets with actions`);
     if (prioritizedTweets.length > 0) {
-      const actionSummary = prioritizedTweets.map(td => {
+      const actionSummary = prioritizedTweets.map((td) => {
         const actions = [];
-        if (td.actionResponse.like) actions.push('LIKE');
-        if (td.actionResponse.retweet) actions.push('RETWEET');
-        if (td.actionResponse.quote) actions.push('QUOTE');
-        if (td.actionResponse.reply) actions.push('REPLY');
-        return `Tweet ${td.tweet.id}: ${actions.join(', ')}`;
+        if (td.actionResponse.like) actions.push("LIKE");
+        if (td.actionResponse.retweet) actions.push("RETWEET");
+        if (td.actionResponse.quote) actions.push("QUOTE");
+        if (td.actionResponse.reply) actions.push("REPLY");
+        return `Tweet ${td.tweet.id}: ${actions.join(", ")}`;
       });
-      logger.info(`Actions to execute:\n${actionSummary.join('\n')}`);
+      logger.info(`Actions to execute:\n${actionSummary.join("\n")}`);
     }
 
     await this.processTimelineActions(prioritizedTweets);
@@ -255,7 +267,12 @@ Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appro
   > {
     const results = [];
 
-    for (const { tweet, actionResponse, tweetState, roomId } of tweetDecisions) {
+    for (const {
+      tweet,
+      actionResponse,
+      tweetState,
+      roomId,
+    } of tweetDecisions) {
       const tweetId = this.createTweetId(this.runtime, tweet);
       const executedActions = [];
 
@@ -408,10 +425,12 @@ ${tweet.text}`;
 
       if (responseObject.post) {
         if (this.isDryRun) {
-          logger.log(`[DRY RUN] Would have quoted tweet ${tweet.id} with: ${responseObject.post}`);
+          logger.log(
+            `[DRY RUN] Would have quoted tweet ${tweet.id} with: ${responseObject.post}`,
+          );
           return;
         }
-        
+
         const result = await this.client.requestQueue.add(
           async () =>
             await this.twitterClient.sendQuoteTweet(
@@ -431,8 +450,7 @@ ${tweet.text}`;
         }
 
         // Create memory for our response
-        const tweetId =
-          tweetResult?.id || Date.now().toString();
+        const tweetId = tweetResult?.id || Date.now().toString();
         const responseId = createUniqueUuid(this.runtime, tweetId);
         const responseMemory: Memory = {
           id: responseId,
@@ -478,10 +496,12 @@ ${tweet.text}`;
 
       if (responseObject.post) {
         if (this.isDryRun) {
-          logger.log(`[DRY RUN] Would have replied to tweet ${tweet.id} with: ${responseObject.post}`);
+          logger.log(
+            `[DRY RUN] Would have replied to tweet ${tweet.id} with: ${responseObject.post}`,
+          );
           return;
         }
-        
+
         const result = await sendTweet(
           this.client,
           responseObject.post,
@@ -491,7 +511,7 @@ ${tweet.text}`;
 
         if (result) {
           logger.log("Successfully posted reply tweet");
-          
+
           // Create memory for our response
           const responseId = createUniqueUuid(this.runtime, result.id);
           const responseMemory: Memory = {

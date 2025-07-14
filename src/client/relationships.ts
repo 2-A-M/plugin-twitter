@@ -294,7 +294,10 @@ export async function followUser(
     }
 
     // Follow the user
-    const result = await client.v2.follow(meResponse.data.id, userResponse.data.id);
+    const result = await client.v2.follow(
+      meResponse.data.id,
+      userResponse.data.id,
+    );
 
     // Return a Response-like object for compatibility
     return new Response(JSON.stringify(result), {

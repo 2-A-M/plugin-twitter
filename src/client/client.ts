@@ -178,11 +178,11 @@ export class Client {
     // Use the generator and collect results
     const tweets: Tweet[] = [];
     const generator = searchTweets(query, maxTweets, searchMode, this.auth);
-    
+
     for await (const tweet of generator) {
       tweets.push(tweet);
     }
-    
+
     return {
       tweets,
       // v2 API doesn't provide cursor-based pagination for search
@@ -205,11 +205,11 @@ export class Client {
     // Use the generator and collect results
     const profiles: Profile[] = [];
     const generator = searchProfiles(query, maxProfiles, this.auth);
-    
+
     for await (const profile of generator) {
       profiles.push(profile);
     }
-    
+
     return {
       profiles,
       // v2 API doesn't provide cursor-based pagination for search
@@ -792,8 +792,6 @@ export class Client {
     );
   }
 
-
-
   /**
    * Sends a quote tweet.
    * @param text The text of the tweet.
@@ -902,8 +900,6 @@ export class Client {
 
     return res.value;
   }
-
-
 
   /**
    * Retrieves all users who retweeted the given tweet.

@@ -27,9 +27,7 @@ export class TwitterPostService implements IPostService {
         // TODO: Add media support when available
       );
 
-      const tweetId =
-        (result as any).id ||
-        Date.now().toString();
+      const tweetId = (result as any).id || Date.now().toString();
 
       const post: Post = {
         id: tweetId,

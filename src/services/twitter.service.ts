@@ -28,21 +28,30 @@ export class TwitterClientInstance implements ITwitterClient {
     this.client = new ClientBase(runtime, state);
 
     // Posting logic
-    const postEnabledSetting = getSetting(runtime, "TWITTER_ENABLE_POST") ?? process.env.TWITTER_ENABLE_POST;
-    logger.debug(`TWITTER_ENABLE_POST setting value: ${JSON.stringify(postEnabledSetting)}, type: ${typeof postEnabledSetting}`);
-    
-    const postEnabled = postEnabledSetting === "true" || postEnabledSetting === true;
-    
+    const postEnabledSetting =
+      getSetting(runtime, "TWITTER_ENABLE_POST") ??
+      process.env.TWITTER_ENABLE_POST;
+    logger.debug(
+      `TWITTER_ENABLE_POST setting value: ${JSON.stringify(postEnabledSetting)}, type: ${typeof postEnabledSetting}`,
+    );
+
+    const postEnabled =
+      postEnabledSetting === "true" || postEnabledSetting === true;
+
     if (postEnabled) {
       logger.info("Twitter posting is ENABLED - creating post client");
       this.post = new TwitterPostClient(this.client, runtime, state);
     } else {
-      logger.info("Twitter posting is DISABLED - set TWITTER_ENABLE_POST=true to enable automatic posting");
+      logger.info(
+        "Twitter posting is DISABLED - set TWITTER_ENABLE_POST=true to enable automatic posting",
+      );
     }
 
     // Mentions and interactions
-    const repliesEnabled = (getSetting(runtime, "TWITTER_ENABLE_REPLIES") ?? process.env.TWITTER_ENABLE_REPLIES) !== "false";
-    
+    const repliesEnabled =
+      (getSetting(runtime, "TWITTER_ENABLE_REPLIES") ??
+        process.env.TWITTER_ENABLE_REPLIES) !== "false";
+
     if (repliesEnabled) {
       logger.info("Twitter replies/interactions are ENABLED");
       this.interaction = new TwitterInteractionClient(
@@ -55,8 +64,10 @@ export class TwitterClientInstance implements ITwitterClient {
     }
 
     // Timeline actions (likes, retweets, replies)
-    const actionsEnabled = (getSetting(runtime, "TWITTER_ENABLE_ACTIONS") ?? process.env.TWITTER_ENABLE_ACTIONS) === "true";
-    
+    const actionsEnabled =
+      (getSetting(runtime, "TWITTER_ENABLE_ACTIONS") ??
+        process.env.TWITTER_ENABLE_ACTIONS) === "true";
+
     if (actionsEnabled) {
       logger.info("Twitter timeline actions are ENABLED");
       this.timeline = new TwitterTimelineClient(this.client, runtime, state);
@@ -65,24 +76,31 @@ export class TwitterClientInstance implements ITwitterClient {
     }
 
     // Discovery service for autonomous content discovery
-    const discoveryEnabled = (getSetting(runtime, "TWITTER_ENABLE_DISCOVERY") ?? process.env.TWITTER_ENABLE_DISCOVERY) === "true" ||
-                           (actionsEnabled && (getSetting(runtime, "TWITTER_ENABLE_DISCOVERY") ?? process.env.TWITTER_ENABLE_DISCOVERY) !== "false");
-    
+    const discoveryEnabled =
+      (getSetting(runtime, "TWITTER_ENABLE_DISCOVERY") ??
+        process.env.TWITTER_ENABLE_DISCOVERY) === "true" ||
+      (actionsEnabled &&
+        (getSetting(runtime, "TWITTER_ENABLE_DISCOVERY") ??
+          process.env.TWITTER_ENABLE_DISCOVERY) !== "false");
+
     if (discoveryEnabled) {
       logger.info("Twitter discovery service is ENABLED");
       this.discovery = new TwitterDiscoveryClient(this.client, runtime, state);
     } else {
-      logger.info("Twitter discovery service is DISABLED - set TWITTER_ENABLE_DISCOVERY=true to enable");
+      logger.info(
+        "Twitter discovery service is DISABLED - set TWITTER_ENABLE_DISCOVERY=true to enable",
+      );
     }
   }
 }
 
 export class TwitterService extends Service {
   static serviceType = "twitter";
-  
+
   // Add the required abstract property
-  capabilityDescription = "The agent is able to send and receive messages on Twitter";
-  
+  capabilityDescription =
+    "The agent is able to send and receive messages on Twitter";
+
   private twitterClient?: TwitterClientInstance;
 
   constructor() {
@@ -92,17 +110,17 @@ export class TwitterService extends Service {
   static async start(runtime: IAgentRuntime): Promise<TwitterService> {
     const service = new TwitterService();
     service.runtime = runtime;
-    
+
     try {
       await validateTwitterConfig(runtime);
       logger.log("✅ Twitter configuration validated successfully");
-      
+
       // Create the Twitter client instance
       service.twitterClient = new TwitterClientInstance(runtime, {});
-      
+
       // Initialize the base client (this is where the runtime database access happens)
       await service.twitterClient.client.init();
-      
+
       // Start appropriate services based on configuration
       if (service.twitterClient.post) {
         logger.log("📮 Starting Twitter post client...");
@@ -129,7 +147,7 @@ export class TwitterService extends Service {
       logger.error("🚨 Failed to start Twitter service:", error);
       throw error;
     }
-    
+
     return service;
   }
 
@@ -138,19 +156,19 @@ export class TwitterService extends Service {
     if (this.twitterClient?.post) {
       await this.twitterClient.post.stop();
     }
-    
+
     if (this.twitterClient?.interaction) {
       await this.twitterClient.interaction.stop();
     }
-    
+
     if (this.twitterClient?.timeline) {
       await this.twitterClient.timeline.stop();
     }
-    
+
     if (this.twitterClient?.discovery) {
       await this.twitterClient.discovery.stop();
     }
-    
+
     logger.log("Twitter service stopped");
   }
-} 
+}

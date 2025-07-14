@@ -13,24 +13,24 @@ export const twitterEnvSchema = z.object({
   TWITTER_API_SECRET_KEY: z.string(),
   TWITTER_ACCESS_TOKEN: z.string(),
   TWITTER_ACCESS_TOKEN_SECRET: z.string(),
-  
+
   // Core configuration
   TWITTER_DRY_RUN: z.string().default("false"),
   TWITTER_TARGET_USERS: z.string().default(""), // comma-separated list, empty = all
-  
+
   // Feature toggles
   TWITTER_ENABLE_POST: z.string().default("false"),
   TWITTER_ENABLE_REPLIES: z.string().default("true"),
   TWITTER_ENABLE_ACTIONS: z.string().default("false"), // likes, retweets, quotes
-  
+
   // Timing configuration (all in minutes)
   TWITTER_POST_INTERVAL: z.string().default("120"), // minutes between posts
   TWITTER_ENGAGEMENT_INTERVAL: z.string().default("30"), // minutes between all interactions
-  
+
   // Limits
   TWITTER_MAX_ENGAGEMENTS_PER_RUN: z.string().default("10"),
   TWITTER_MAX_TWEET_LENGTH: z.string().default("280"), // standard tweet length
-  
+
   // Advanced
   TWITTER_RETRY_LIMIT: z.string().default("5"),
 });
@@ -77,7 +77,7 @@ export function shouldTargetUser(
   }
 
   const targetUsers = parseTargetUsers(targetUsersConfig);
-  
+
   if (targetUsers.includes("*")) {
     return true; // Wildcard = everyone
   }
@@ -95,7 +95,7 @@ export function shouldTargetUser(
 export function getTargetUsers(targetUsersConfig: string): string[] {
   const users = parseTargetUsers(targetUsersConfig);
   // Filter out wildcard since it's a special case
-  return users.filter(u => u !== "*");
+  return users.filter((u) => u !== "*");
 }
 
 /**
@@ -107,24 +107,87 @@ export async function validateTwitterConfig(
 ): Promise<TwitterConfig> {
   try {
     const validatedConfig: TwitterConfig = {
-      TWITTER_API_KEY: config.TWITTER_API_KEY ?? getSetting(runtime, "TWITTER_API_KEY") ?? "",
-      TWITTER_API_SECRET_KEY: config.TWITTER_API_SECRET_KEY ?? getSetting(runtime, "TWITTER_API_SECRET_KEY") ?? "",
-      TWITTER_ACCESS_TOKEN: config.TWITTER_ACCESS_TOKEN ?? getSetting(runtime, "TWITTER_ACCESS_TOKEN") ?? "",
-      TWITTER_ACCESS_TOKEN_SECRET: config.TWITTER_ACCESS_TOKEN_SECRET ?? getSetting(runtime, "TWITTER_ACCESS_TOKEN_SECRET") ?? "",
-      TWITTER_DRY_RUN: String((config.TWITTER_DRY_RUN ?? getSetting(runtime, "TWITTER_DRY_RUN") ?? "false").toLowerCase() === "true"),
-      TWITTER_TARGET_USERS: config.TWITTER_TARGET_USERS ?? getSetting(runtime, "TWITTER_TARGET_USERS") ?? "",
-      TWITTER_ENABLE_POST: String((config.TWITTER_ENABLE_POST ?? getSetting(runtime, "TWITTER_ENABLE_POST") ?? "false").toLowerCase() === "true"),
+      TWITTER_API_KEY:
+        config.TWITTER_API_KEY ?? getSetting(runtime, "TWITTER_API_KEY") ?? "",
+      TWITTER_API_SECRET_KEY:
+        config.TWITTER_API_SECRET_KEY ??
+        getSetting(runtime, "TWITTER_API_SECRET_KEY") ??
+        "",
+      TWITTER_ACCESS_TOKEN:
+        config.TWITTER_ACCESS_TOKEN ??
+        getSetting(runtime, "TWITTER_ACCESS_TOKEN") ??
+        "",
+      TWITTER_ACCESS_TOKEN_SECRET:
+        config.TWITTER_ACCESS_TOKEN_SECRET ??
+        getSetting(runtime, "TWITTER_ACCESS_TOKEN_SECRET") ??
+        "",
+      TWITTER_DRY_RUN: String(
+        (
+          config.TWITTER_DRY_RUN ??
+          getSetting(runtime, "TWITTER_DRY_RUN") ??
+          "false"
+        ).toLowerCase() === "true",
+      ),
+      TWITTER_TARGET_USERS:
+        config.TWITTER_TARGET_USERS ??
+        getSetting(runtime, "TWITTER_TARGET_USERS") ??
+        "",
+      TWITTER_ENABLE_POST: String(
+        (
+          config.TWITTER_ENABLE_POST ??
+          getSetting(runtime, "TWITTER_ENABLE_POST") ??
+          "false"
+        ).toLowerCase() === "true",
+      ),
       TWITTER_ENABLE_REPLIES: String(
         config.TWITTER_ENABLE_REPLIES !== undefined
           ? config.TWITTER_ENABLE_REPLIES.toLowerCase() === "true"
-          : (getSetting(runtime, "TWITTER_ENABLE_REPLIES") ?? "true").toLowerCase() === "true"
+          : (
+              getSetting(runtime, "TWITTER_ENABLE_REPLIES") ?? "true"
+            ).toLowerCase() === "true",
       ),
-      TWITTER_ENABLE_ACTIONS: String((config.TWITTER_ENABLE_ACTIONS ?? getSetting(runtime, "TWITTER_ENABLE_ACTIONS") ?? "false").toLowerCase() === "true"),
-      TWITTER_POST_INTERVAL: String(safeParseInt(config.TWITTER_POST_INTERVAL ?? getSetting(runtime, "TWITTER_POST_INTERVAL"), 120)),
-      TWITTER_ENGAGEMENT_INTERVAL: String(safeParseInt(config.TWITTER_ENGAGEMENT_INTERVAL ?? getSetting(runtime, "TWITTER_ENGAGEMENT_INTERVAL"), 30)),
-      TWITTER_MAX_ENGAGEMENTS_PER_RUN: String(safeParseInt(config.TWITTER_MAX_ENGAGEMENTS_PER_RUN ?? getSetting(runtime, "TWITTER_MAX_ENGAGEMENTS_PER_RUN"), 10)),
-      TWITTER_MAX_TWEET_LENGTH: String(safeParseInt(config.TWITTER_MAX_TWEET_LENGTH ?? getSetting(runtime, "TWITTER_MAX_TWEET_LENGTH"), 280)),
-      TWITTER_RETRY_LIMIT: String(safeParseInt(config.TWITTER_RETRY_LIMIT ?? getSetting(runtime, "TWITTER_RETRY_LIMIT"), 5)),
+      TWITTER_ENABLE_ACTIONS: String(
+        (
+          config.TWITTER_ENABLE_ACTIONS ??
+          getSetting(runtime, "TWITTER_ENABLE_ACTIONS") ??
+          "false"
+        ).toLowerCase() === "true",
+      ),
+      TWITTER_POST_INTERVAL: String(
+        safeParseInt(
+          config.TWITTER_POST_INTERVAL ??
+            getSetting(runtime, "TWITTER_POST_INTERVAL"),
+          120,
+        ),
+      ),
+      TWITTER_ENGAGEMENT_INTERVAL: String(
+        safeParseInt(
+          config.TWITTER_ENGAGEMENT_INTERVAL ??
+            getSetting(runtime, "TWITTER_ENGAGEMENT_INTERVAL"),
+          30,
+        ),
+      ),
+      TWITTER_MAX_ENGAGEMENTS_PER_RUN: String(
+        safeParseInt(
+          config.TWITTER_MAX_ENGAGEMENTS_PER_RUN ??
+            getSetting(runtime, "TWITTER_MAX_ENGAGEMENTS_PER_RUN"),
+          10,
+        ),
+      ),
+      TWITTER_MAX_TWEET_LENGTH: String(
+        safeParseInt(
+          config.TWITTER_MAX_TWEET_LENGTH ??
+            getSetting(runtime, "TWITTER_MAX_TWEET_LENGTH"),
+          280,
+        ),
+      ),
+      TWITTER_RETRY_LIMIT: String(
+        safeParseInt(
+          config.TWITTER_RETRY_LIMIT ??
+            getSetting(runtime, "TWITTER_RETRY_LIMIT"),
+          5,
+        ),
+      ),
     };
 
     // Validate required credentials
@@ -201,8 +264,10 @@ function getDefaultConfig(): TwitterConfig {
     TWITTER_ENABLE_REPLIES: getConfig("TWITTER_ENABLE_REPLIES") || "true",
     TWITTER_ENABLE_ACTIONS: getConfig("TWITTER_ENABLE_ACTIONS") || "false",
     TWITTER_POST_INTERVAL: getConfig("TWITTER_POST_INTERVAL") || "120",
-    TWITTER_ENGAGEMENT_INTERVAL: getConfig("TWITTER_ENGAGEMENT_INTERVAL") || "30",
-    TWITTER_MAX_ENGAGEMENTS_PER_RUN: getConfig("TWITTER_MAX_ENGAGEMENTS_PER_RUN") || "10",
+    TWITTER_ENGAGEMENT_INTERVAL:
+      getConfig("TWITTER_ENGAGEMENT_INTERVAL") || "30",
+    TWITTER_MAX_ENGAGEMENTS_PER_RUN:
+      getConfig("TWITTER_MAX_ENGAGEMENTS_PER_RUN") || "10",
     TWITTER_MAX_TWEET_LENGTH: getConfig("TWITTER_MAX_TWEET_LENGTH") || "280",
     TWITTER_RETRY_LIMIT: getConfig("TWITTER_RETRY_LIMIT") || "5",
   };
@@ -213,7 +278,9 @@ function getDefaultConfig(): TwitterConfig {
  * @param configPath - Path to the configuration file (optional)
  * @returns Partial TwitterConfig object
  */
-export function loadConfigFromFile(configPath?: string): Partial<TwitterConfig> {
+export function loadConfigFromFile(
+  configPath?: string,
+): Partial<TwitterConfig> {
   // For now, return empty config as file loading is not implemented
   return {};
 }
@@ -232,8 +299,6 @@ export function loadConfig(configPath?: string): TwitterConfig {
     ...getEnvConfig(),
   };
 }
-
-
 
 /**
  * Validate configuration
