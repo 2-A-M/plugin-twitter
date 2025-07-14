@@ -253,7 +253,7 @@ export class ClientBase {
     // Use API key as the identifier for client reuse
     const apiKey =
       state?.TWITTER_API_KEY ||
-      runtime.getSetting("TWITTER_API_KEY") ||
+      (runtime && typeof runtime.getSetting === 'function' ? runtime.getSetting("TWITTER_API_KEY") : null) ||
       process.env.TWITTER_API_KEY;
     if (apiKey && ClientBase._twitterClients[apiKey]) {
       this.twitterClient = ClientBase._twitterClients[apiKey];
@@ -271,19 +271,19 @@ export class ClientBase {
 
     const apiKey =
       this.state?.TWITTER_API_KEY || 
-      this.runtime.getSetting("TWITTER_API_KEY") ||
+      (this.runtime && typeof this.runtime.getSetting === 'function' ? this.runtime.getSetting("TWITTER_API_KEY") : null) ||
       process.env.TWITTER_API_KEY;
     const apiSecretKey =
       this.state?.TWITTER_API_SECRET_KEY ||
-      this.runtime.getSetting("TWITTER_API_SECRET_KEY") ||
+      (this.runtime && typeof this.runtime.getSetting === 'function' ? this.runtime.getSetting("TWITTER_API_SECRET_KEY") : null) ||
       process.env.TWITTER_API_SECRET_KEY;
     const accessToken =
       this.state?.TWITTER_ACCESS_TOKEN ||
-      this.runtime.getSetting("TWITTER_ACCESS_TOKEN") ||
+      (this.runtime && typeof this.runtime.getSetting === 'function' ? this.runtime.getSetting("TWITTER_ACCESS_TOKEN") : null) ||
       process.env.TWITTER_ACCESS_TOKEN;
     const accessTokenSecret =
       this.state?.TWITTER_ACCESS_TOKEN_SECRET ||
-      this.runtime.getSetting("TWITTER_ACCESS_TOKEN_SECRET") ||
+      (this.runtime && typeof this.runtime.getSetting === 'function' ? this.runtime.getSetting("TWITTER_ACCESS_TOKEN_SECRET") : null) ||
       process.env.TWITTER_ACCESS_TOKEN_SECRET;
 
     // Validate required credentials

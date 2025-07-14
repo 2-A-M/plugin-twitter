@@ -12,6 +12,7 @@ import {
 } from "@elizaos/core";
 import type { Client, Tweet } from "./client/index";
 import { logger } from "@elizaos/core";
+import { getSetting } from "./utils/settings";
 
 import {
   twitterActionTemplate,
@@ -41,14 +42,13 @@ export class TwitterTimelineClient {
     this.runtime = runtime;
     this.state = state;
 
-    const dryRunSetting = this.state?.TWITTER_DRY_RUN ?? this.runtime.getSetting("TWITTER_DRY_RUN") ?? process.env.TWITTER_DRY_RUN;
+    const dryRunSetting = this.state?.TWITTER_DRY_RUN ?? getSetting(this.runtime, "TWITTER_DRY_RUN") ?? process.env.TWITTER_DRY_RUN;
     this.isDryRun = dryRunSetting === true || dryRunSetting === "true" || 
                     (typeof dryRunSetting === "string" && dryRunSetting.toLowerCase() === "true");
 
     // Load timeline mode from runtime settings or use default
-    this.timelineType =
-      (this.runtime.getSetting("TWITTER_TIMELINE_MODE") ?? process.env.TWITTER_TIMELINE_MODE) ||
-      TIMELINE_TYPE.ForYou;
+    const timelineMode = getSetting(this.runtime, "TWITTER_TIMELINE_MODE") ?? process.env.TWITTER_TIMELINE_MODE;
+    this.timelineType = (timelineMode === TIMELINE_TYPE.Following ? TIMELINE_TYPE.Following : TIMELINE_TYPE.ForYou);
   }
 
   async start() {
@@ -64,7 +64,7 @@ export class TwitterTimelineClient {
       // Use unified engagement interval
       const engagementIntervalMinutes = parseInt(
         this.state?.TWITTER_ENGAGEMENT_INTERVAL ||
-        this.runtime.getSetting("TWITTER_ENGAGEMENT_INTERVAL") as string ||
+        getSetting(this.runtime, "TWITTER_ENGAGEMENT_INTERVAL") as string ||
         process.env.TWITTER_ENGAGEMENT_INTERVAL ||
         "30"
       );
@@ -131,7 +131,7 @@ export class TwitterTimelineClient {
     
     // Use max engagements per run from environment
     const maxActionsPerCycle = parseInt(
-      this.runtime.getSetting("TWITTER_MAX_ENGAGEMENTS_PER_RUN") as string || 
+      getSetting(this.runtime, "TWITTER_MAX_ENGAGEMENTS_PER_RUN") as string || 
       process.env.TWITTER_MAX_ENGAGEMENTS_PER_RUN || 
       "10"
     );

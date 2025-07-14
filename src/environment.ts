@@ -104,7 +104,16 @@ function getSetting(
   key: string,
   defaultValue?: string
 ): string | undefined {
-  return runtime.getSetting(key) ?? process.env[key] ?? defaultValue;
+  // Try runtime.getSetting if it exists
+  if (runtime && typeof runtime.getSetting === 'function') {
+    const value = runtime.getSetting(key);
+    if (value !== undefined && value !== null) {
+      return String(value);
+    }
+  }
+  
+  // Fall back to process.env
+  return process.env[key] ?? defaultValue;
 }
 
 /**

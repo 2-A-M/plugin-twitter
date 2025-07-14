@@ -7,6 +7,7 @@ import {
   ModelType,
 } from "@elizaos/core";
 import { SearchMode } from "./client/index";
+import { getSetting } from "./utils/settings";
 
 interface DiscoveryConfig {
   // Topics from character configuration
@@ -54,7 +55,7 @@ export class TwitterDiscoveryClient {
     this.runtime = runtime;
     
     // Check dry run mode
-    const dryRunSetting = state?.TWITTER_DRY_RUN ?? this.runtime.getSetting("TWITTER_DRY_RUN") ?? process.env.TWITTER_DRY_RUN;
+    const dryRunSetting = state?.TWITTER_DRY_RUN ?? getSetting(this.runtime, "TWITTER_DRY_RUN") ?? process.env.TWITTER_DRY_RUN;
     this.isDryRun = dryRunSetting === true || dryRunSetting === "true" || 
                     (typeof dryRunSetting === "string" && dryRunSetting.toLowerCase() === "true");
     
@@ -79,17 +80,17 @@ export class TwitterDiscoveryClient {
     return {
       topics,
       minFollowerCount: parseInt(
-        this.runtime.getSetting("TWITTER_MIN_FOLLOWER_COUNT") as string || 
+        getSetting(this.runtime, "TWITTER_MIN_FOLLOWER_COUNT") as string || 
         process.env.TWITTER_MIN_FOLLOWER_COUNT || 
         "100"
       ),
       maxFollowsPerCycle: parseInt(
-        this.runtime.getSetting("TWITTER_MAX_FOLLOWS_PER_CYCLE") as string || 
+        getSetting(this.runtime, "TWITTER_MAX_FOLLOWS_PER_CYCLE") as string || 
         process.env.TWITTER_MAX_FOLLOWS_PER_CYCLE || 
         "5"
       ),
       maxEngagementsPerCycle: parseInt(
-        this.runtime.getSetting("TWITTER_MAX_ENGAGEMENTS_PER_RUN") as string || 
+        getSetting(this.runtime, "TWITTER_MAX_ENGAGEMENTS_PER_RUN") as string || 
         process.env.TWITTER_MAX_ENGAGEMENTS_PER_RUN || 
         "10"
       ),
@@ -127,7 +128,7 @@ export class TwitterDiscoveryClient {
       
       // Run discovery every 20-40 minutes (with variance)
       const baseInterval = parseInt(
-        this.runtime.getSetting("TWITTER_DISCOVERY_INTERVAL") as string || 
+        getSetting(this.runtime, "TWITTER_DISCOVERY_INTERVAL") as string || 
         process.env.TWITTER_DISCOVERY_INTERVAL || 
         "30"
       );

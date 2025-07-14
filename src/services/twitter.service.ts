@@ -5,24 +5,16 @@ export class TwitterService extends Service {
   
   // Add the required abstract property
   capabilityDescription = "The agent is able to send and receive messages on Twitter";
-  
-  private static instance: TwitterService;
 
-  constructor(runtime?: IAgentRuntime) {
-    super(runtime);
-  }
-
-  static getInstance(): TwitterService {
-    if (!TwitterService.instance) {
-      TwitterService.instance = new TwitterService();
-    }
-    return TwitterService.instance;
+  constructor() {
+    super();
   }
 
   static async start(runtime: IAgentRuntime): Promise<TwitterService> {
-    const instance = TwitterService.getInstance();
-    instance.runtime = runtime;
-    return instance;
+    const service = new TwitterService();
+    service.runtime = runtime;
+    // Service initialization can happen here if needed
+    return service;
   }
 
   async stop(): Promise<void> {

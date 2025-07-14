@@ -23,14 +23,21 @@ export class TwitterClientInstance implements ITwitterClient {
   interaction: TwitterInteractionClient;
   timeline?: TwitterTimelineClient;
   discovery?: TwitterDiscoveryClient;
-  service: TwitterService;
 
   constructor(runtime: IAgentRuntime, state: any) {
     // Pass twitterConfig to the base client
     this.client = new ClientBase(runtime, state);
 
+    // Helper function to safely get settings
+    const getSetting = (key: string): any => {
+      if (runtime && typeof runtime.getSetting === 'function') {
+        return runtime.getSetting(key);
+      }
+      return undefined;
+    };
+
     // Posting logic
-    const postEnabledSetting = runtime.getSetting("TWITTER_ENABLE_POST") ?? process.env.TWITTER_ENABLE_POST;
+    const postEnabledSetting = getSetting("TWITTER_ENABLE_POST") ?? process.env.TWITTER_ENABLE_POST;
     logger.debug(`TWITTER_ENABLE_POST setting value: ${JSON.stringify(postEnabledSetting)}, type: ${typeof postEnabledSetting}`);
     
     const postEnabled = postEnabledSetting === "true" || postEnabledSetting === true;
@@ -43,7 +50,7 @@ export class TwitterClientInstance implements ITwitterClient {
     }
 
     // Mentions and interactions
-    const repliesEnabled = (runtime.getSetting("TWITTER_ENABLE_REPLIES") ?? process.env.TWITTER_ENABLE_REPLIES) !== "false";
+    const repliesEnabled = (getSetting("TWITTER_ENABLE_REPLIES") ?? process.env.TWITTER_ENABLE_REPLIES) !== "false";
     
     if (repliesEnabled) {
       logger.info("Twitter replies/interactions are ENABLED");
@@ -57,7 +64,7 @@ export class TwitterClientInstance implements ITwitterClient {
     }
 
     // Timeline actions (likes, retweets, replies)
-    const actionsEnabled = (runtime.getSetting("TWITTER_ENABLE_ACTIONS") ?? process.env.TWITTER_ENABLE_ACTIONS) === "true";
+    const actionsEnabled = (getSetting("TWITTER_ENABLE_ACTIONS") ?? process.env.TWITTER_ENABLE_ACTIONS) === "true";
     
     if (actionsEnabled) {
       logger.info("Twitter timeline actions are ENABLED");
@@ -67,8 +74,8 @@ export class TwitterClientInstance implements ITwitterClient {
     }
 
     // Discovery service for autonomous content discovery
-    const discoveryEnabled = (runtime.getSetting("TWITTER_ENABLE_DISCOVERY") ?? process.env.TWITTER_ENABLE_DISCOVERY) === "true" ||
-                           (actionsEnabled && (runtime.getSetting("TWITTER_ENABLE_DISCOVERY") ?? process.env.TWITTER_ENABLE_DISCOVERY) !== "false");
+    const discoveryEnabled = (getSetting("TWITTER_ENABLE_DISCOVERY") ?? process.env.TWITTER_ENABLE_DISCOVERY) === "true" ||
+                           (actionsEnabled && (getSetting("TWITTER_ENABLE_DISCOVERY") ?? process.env.TWITTER_ENABLE_DISCOVERY) !== "false");
     
     if (discoveryEnabled) {
       logger.info("Twitter discovery service is ENABLED");
@@ -76,8 +83,6 @@ export class TwitterClientInstance implements ITwitterClient {
     } else {
       logger.info("Twitter discovery service is DISABLED - set TWITTER_ENABLE_DISCOVERY=true to enable");
     }
-
-    this.service = TwitterService.getInstance();
   }
 }
 
@@ -93,8 +98,8 @@ async function startTwitterClient(runtime: IAgentRuntime): Promise<void> {
 
     await twitterClient.client.init();
 
-    // Add to service map
-    runtime.registerService(TwitterService);
+    // Register the service properly
+    await runtime.registerService(TwitterService);
 
     // Start appropriate services based on configuration
     if (twitterClient.post) {

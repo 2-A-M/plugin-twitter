@@ -47,13 +47,11 @@ export interface ActionResponse {
  * @property {ClientBase} client - The base client for Twitter operations.
  * @property {TwitterPostClient} post - The client for managing Twitter posts.
  * @property {TwitterInteractionClient} interaction - The client for managing Twitter interactions.
- * @property {TwitterService} service - The main Twitter service instance.
  */
 export interface ITwitterClient {
   client: ClientBase;
   post: TwitterPostClient;
   interaction: TwitterInteractionClient;
-  service: TwitterService;
 }
 
 export const ServiceType = {

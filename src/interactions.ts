@@ -26,6 +26,7 @@ import type {
 import { TwitterEventTypes } from "./types";
 import { sendTweet } from "./utils";
 import { shouldTargetUser, getTargetUsers } from "./environment";
+import { getSetting } from "./utils/settings";
 
 /**
  * Template for generating dialog and actions for a Twitter message handler.
@@ -88,9 +89,8 @@ export class TwitterInteractionClient {
     this.client = client;
     this.runtime = runtime;
     this.state = state;
-
-    // Set dry run mode - checks both state and runtime settings
-    const dryRunSetting = this.state?.TWITTER_DRY_RUN ?? this.runtime.getSetting("TWITTER_DRY_RUN") ?? process.env.TWITTER_DRY_RUN;
+    
+    const dryRunSetting = this.state?.TWITTER_DRY_RUN ?? getSetting(this.runtime, "TWITTER_DRY_RUN") ?? process.env.TWITTER_DRY_RUN;
     this.isDryRun = dryRunSetting === true || dryRunSetting === "true" || 
                     (typeof dryRunSetting === "string" && dryRunSetting.toLowerCase() === "true");
   }
@@ -111,7 +111,7 @@ export class TwitterInteractionClient {
       // Get interval in minutes and convert to milliseconds
       const engagementIntervalMinutes = parseInt(
         this.state?.TWITTER_ENGAGEMENT_INTERVAL ||
-        this.runtime.getSetting("TWITTER_ENGAGEMENT_INTERVAL") as string ||
+        getSetting(this.runtime, "TWITTER_ENGAGEMENT_INTERVAL") as string ||
         process.env.TWITTER_ENGAGEMENT_INTERVAL ||
         "30"
       );
@@ -147,14 +147,14 @@ export class TwitterInteractionClient {
     
     try {
       // Check for mentions first (replies enabled by default)
-      const repliesEnabled = (this.runtime.getSetting("TWITTER_ENABLE_REPLIES") ?? process.env.TWITTER_ENABLE_REPLIES) !== "false";
+      const repliesEnabled = (getSetting(this.runtime, "TWITTER_ENABLE_REPLIES") ?? process.env.TWITTER_ENABLE_REPLIES) !== "false";
       
       if (repliesEnabled) {
         await this.handleMentions(twitterUsername);
       }
       
       // Check target users' posts for autonomous engagement
-      const targetUsersConfig = (this.runtime.getSetting("TWITTER_TARGET_USERS") ?? process.env.TWITTER_TARGET_USERS) as string || "";
+      const targetUsersConfig = (getSetting(this.runtime, "TWITTER_TARGET_USERS") ?? process.env.TWITTER_TARGET_USERS) as string || "";
       
       if (targetUsersConfig?.trim()) {
         await this.handleTargetUserPosts(targetUsersConfig);
@@ -252,7 +252,7 @@ export class TwitterInteractionClient {
    */
   private async processTargetUserTweets(tweets: ClientTweet[], username: string) {
     const maxEngagementsPerRun = parseInt(
-      this.runtime.getSetting("TWITTER_MAX_ENGAGEMENTS_PER_RUN") as string || 
+      getSetting(this.runtime, "TWITTER_MAX_ENGAGEMENTS_PER_RUN") as string || 
       process.env.TWITTER_MAX_ENGAGEMENTS_PER_RUN || 
       "10"
     );
@@ -498,8 +498,8 @@ Response (YES/NO):`;
       .filter((tweet) => tweet.userId !== this.client.profile.id);
 
     // Get TWITTER_TARGET_USERS configuration
-    const targetUsersConfig =
-      (this.runtime.getSetting("TWITTER_TARGET_USERS") ?? process.env.TWITTER_TARGET_USERS) as string || "";
+    const targetUsersConfig = 
+      (getSetting(this.runtime, "TWITTER_TARGET_USERS") ?? process.env.TWITTER_TARGET_USERS) as string || "";
 
     // Filter tweets based on TWITTER_TARGET_USERS if configured
     if (targetUsersConfig?.trim()) {
@@ -519,7 +519,7 @@ Response (YES/NO):`;
 
     // Get max interactions per run setting
     const maxInteractionsPerRun = parseInt(
-      this.runtime.getSetting("TWITTER_MAX_ENGAGEMENTS_PER_RUN") as string || 
+      getSetting(this.runtime, "TWITTER_MAX_ENGAGEMENTS_PER_RUN") as string || 
       process.env.TWITTER_MAX_ENGAGEMENTS_PER_RUN || 
       "10"
     );

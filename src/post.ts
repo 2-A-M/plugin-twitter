@@ -13,6 +13,7 @@ import type { ClientBase } from "./base";
 import type { MediaData } from "./types";
 import { TwitterEventTypes } from "./types";
 import { sendTweet } from "./utils";
+import { getSetting } from "./utils/settings";
 /**
  * Class representing a Twitter post client for generating and posting tweets.
  */
@@ -34,7 +35,7 @@ export class TwitterPostClient {
     this.client = client;
     this.state = state;
     this.runtime = runtime;
-    const dryRunSetting = this.state?.TWITTER_DRY_RUN ?? this.runtime.getSetting("TWITTER_DRY_RUN") ?? process.env.TWITTER_DRY_RUN;
+    const dryRunSetting = this.state?.TWITTER_DRY_RUN ?? getSetting(this.runtime, "TWITTER_DRY_RUN") ?? process.env.TWITTER_DRY_RUN;
     this.isDryRun = dryRunSetting === true || dryRunSetting === "true" || 
                     (typeof dryRunSetting === "string" && dryRunSetting.toLowerCase() === "true");
 
@@ -42,13 +43,13 @@ export class TwitterPostClient {
     logger.log("Twitter Post Client Configuration:");
     logger.log(`- Dry Run Mode: ${this.isDryRun ? "Enabled" : "Disabled"}`);
 
-    const postInterval = parseInt(
+    const postIntervalMinutes = parseInt(
       this.state?.TWITTER_POST_INTERVAL || 
-      this.runtime.getSetting("TWITTER_POST_INTERVAL") as string || 
+      getSetting(this.runtime, "TWITTER_POST_INTERVAL") as string || 
       process.env.TWITTER_POST_INTERVAL ||
       "120"
     );
-    logger.log(`- Post Interval: ${postInterval} minutes`);
+    logger.log(`- Post Interval: ${postIntervalMinutes} minutes`);
   }
   
   /**
@@ -75,7 +76,7 @@ export class TwitterPostClient {
       // Get post interval in minutes
       const postIntervalMinutes = parseInt(
         this.state?.TWITTER_POST_INTERVAL || 
-        this.runtime.getSetting("TWITTER_POST_INTERVAL") as string || 
+        getSetting(this.runtime, "TWITTER_POST_INTERVAL") as string || 
         process.env.TWITTER_POST_INTERVAL ||
         "120"
       );
@@ -99,7 +100,7 @@ export class TwitterPostClient {
     // Check if we should generate a tweet immediately
     const postImmediately = parseInt(
       this.state?.TWITTER_POST_INTERVAL || 
-      this.runtime.getSetting("TWITTER_POST_INTERVAL") as string || 
+      getSetting(this.runtime, "TWITTER_POST_INTERVAL") as string || 
       process.env.TWITTER_POST_INTERVAL ||
       "120"
     ) === 0;
