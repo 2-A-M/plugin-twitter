@@ -249,10 +249,12 @@ export class ClientBase {
   constructor(runtime: IAgentRuntime, state: any) {
     this.runtime = runtime;
     this.state = state;
+    
     // Use API key as the identifier for client reuse
     const apiKey =
       state?.TWITTER_API_KEY ||
-      (this.runtime.getSetting("TWITTER_API_KEY") as string);
+      runtime.getSetting("TWITTER_API_KEY") ||
+      process.env.TWITTER_API_KEY;
     if (apiKey && ClientBase._twitterClients[apiKey]) {
       this.twitterClient = ClientBase._twitterClients[apiKey];
     } else {
@@ -268,16 +270,21 @@ export class ClientBase {
     // await this.runtime.ensureAgentExists(this.runtime.character);
 
     const apiKey =
-      this.state?.TWITTER_API_KEY || this.runtime.getSetting("TWITTER_API_KEY");
+      this.state?.TWITTER_API_KEY || 
+      this.runtime.getSetting("TWITTER_API_KEY") ||
+      process.env.TWITTER_API_KEY;
     const apiSecretKey =
       this.state?.TWITTER_API_SECRET_KEY ||
-      this.runtime.getSetting("TWITTER_API_SECRET_KEY");
+      this.runtime.getSetting("TWITTER_API_SECRET_KEY") ||
+      process.env.TWITTER_API_SECRET_KEY;
     const accessToken =
       this.state?.TWITTER_ACCESS_TOKEN ||
-      this.runtime.getSetting("TWITTER_ACCESS_TOKEN");
+      this.runtime.getSetting("TWITTER_ACCESS_TOKEN") ||
+      process.env.TWITTER_ACCESS_TOKEN;
     const accessTokenSecret =
       this.state?.TWITTER_ACCESS_TOKEN_SECRET ||
-      this.runtime.getSetting("TWITTER_ACCESS_TOKEN_SECRET");
+      this.runtime.getSetting("TWITTER_ACCESS_TOKEN_SECRET") ||
+      process.env.TWITTER_ACCESS_TOKEN_SECRET;
 
     // Validate required credentials
     if (!apiKey || !apiSecretKey || !accessToken || !accessTokenSecret) {

@@ -30,7 +30,7 @@ export class TwitterClientInstance implements ITwitterClient {
     this.client = new ClientBase(runtime, state);
 
     // Posting logic
-    const postEnabledSetting = runtime.getSetting("TWITTER_ENABLE_POST");
+    const postEnabledSetting = runtime.getSetting("TWITTER_ENABLE_POST") ?? process.env.TWITTER_ENABLE_POST;
     logger.debug(`TWITTER_ENABLE_POST setting value: ${JSON.stringify(postEnabledSetting)}, type: ${typeof postEnabledSetting}`);
     
     const postEnabled = postEnabledSetting === "true" || postEnabledSetting === true;
@@ -43,7 +43,7 @@ export class TwitterClientInstance implements ITwitterClient {
     }
 
     // Mentions and interactions
-    const repliesEnabled = runtime.getSetting("TWITTER_ENABLE_REPLIES") !== "false";
+    const repliesEnabled = (runtime.getSetting("TWITTER_ENABLE_REPLIES") ?? process.env.TWITTER_ENABLE_REPLIES) !== "false";
     
     if (repliesEnabled) {
       logger.info("Twitter replies/interactions are ENABLED");
@@ -57,7 +57,7 @@ export class TwitterClientInstance implements ITwitterClient {
     }
 
     // Timeline actions (likes, retweets, replies)
-    const actionsEnabled = runtime.getSetting("TWITTER_ENABLE_ACTIONS") === "true";
+    const actionsEnabled = (runtime.getSetting("TWITTER_ENABLE_ACTIONS") ?? process.env.TWITTER_ENABLE_ACTIONS) === "true";
     
     if (actionsEnabled) {
       logger.info("Twitter timeline actions are ENABLED");
@@ -67,8 +67,8 @@ export class TwitterClientInstance implements ITwitterClient {
     }
 
     // Discovery service for autonomous content discovery
-    const discoveryEnabled = runtime.getSetting("TWITTER_ENABLE_DISCOVERY") === "true" ||
-                           (actionsEnabled && runtime.getSetting("TWITTER_ENABLE_DISCOVERY") !== "false");
+    const discoveryEnabled = (runtime.getSetting("TWITTER_ENABLE_DISCOVERY") ?? process.env.TWITTER_ENABLE_DISCOVERY) === "true" ||
+                           (actionsEnabled && (runtime.getSetting("TWITTER_ENABLE_DISCOVERY") ?? process.env.TWITTER_ENABLE_DISCOVERY) !== "false");
     
     if (discoveryEnabled) {
       logger.info("Twitter discovery service is ENABLED");

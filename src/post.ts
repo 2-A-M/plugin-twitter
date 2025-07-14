@@ -34,7 +34,7 @@ export class TwitterPostClient {
     this.client = client;
     this.state = state;
     this.runtime = runtime;
-    const dryRunSetting = this.state?.TWITTER_DRY_RUN ?? this.runtime.getSetting("TWITTER_DRY_RUN");
+    const dryRunSetting = this.state?.TWITTER_DRY_RUN ?? this.runtime.getSetting("TWITTER_DRY_RUN") ?? process.env.TWITTER_DRY_RUN;
     this.isDryRun = dryRunSetting === true || dryRunSetting === "true" || 
                     (typeof dryRunSetting === "string" && dryRunSetting.toLowerCase() === "true");
 
@@ -45,6 +45,7 @@ export class TwitterPostClient {
     const postInterval = parseInt(
       this.state?.TWITTER_POST_INTERVAL || 
       this.runtime.getSetting("TWITTER_POST_INTERVAL") as string || 
+      process.env.TWITTER_POST_INTERVAL ||
       "120"
     );
     logger.log(`- Post Interval: ${postInterval} minutes`);
@@ -75,6 +76,7 @@ export class TwitterPostClient {
       const postIntervalMinutes = parseInt(
         this.state?.TWITTER_POST_INTERVAL || 
         this.runtime.getSetting("TWITTER_POST_INTERVAL") as string || 
+        process.env.TWITTER_POST_INTERVAL ||
         "120"
       );
       
@@ -93,19 +95,22 @@ export class TwitterPostClient {
     // Start the loop after a 1 minute delay to allow other services to initialize
     // Always post immediately for better UX
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    await this.generateNewTweet();
     
-    // Then start the regular interval
-    const postIntervalMinutes = parseInt(
+    // Check if we should generate a tweet immediately
+    const postImmediately = parseInt(
       this.state?.TWITTER_POST_INTERVAL || 
       this.runtime.getSetting("TWITTER_POST_INTERVAL") as string || 
+      process.env.TWITTER_POST_INTERVAL ||
       "120"
-    );
-    const interval = postIntervalMinutes * 60 * 1000;
+    ) === 0;
     
-    if (this.isRunning) {
-      setTimeout(generateNewTweetLoop, interval);
+    if (postImmediately) {
+      logger.info("TWITTER_POST_IMMEDIATELY is true, generating initial tweet now");
+      await this.generateNewTweet();
     }
+    
+    // Start the regular generation loop
+    generateNewTweetLoop();
   }
 
   /**

@@ -54,7 +54,7 @@ export class TwitterDiscoveryClient {
     this.runtime = runtime;
     
     // Check dry run mode
-    const dryRunSetting = state?.TWITTER_DRY_RUN ?? this.runtime.getSetting("TWITTER_DRY_RUN");
+    const dryRunSetting = state?.TWITTER_DRY_RUN ?? this.runtime.getSetting("TWITTER_DRY_RUN") ?? process.env.TWITTER_DRY_RUN;
     this.isDryRun = dryRunSetting === true || dryRunSetting === "true" || 
                     (typeof dryRunSetting === "string" && dryRunSetting.toLowerCase() === "true");
     
@@ -79,13 +79,19 @@ export class TwitterDiscoveryClient {
     return {
       topics,
       minFollowerCount: parseInt(
-        this.runtime.getSetting("TWITTER_MIN_FOLLOWER_COUNT") as string || "100"
+        this.runtime.getSetting("TWITTER_MIN_FOLLOWER_COUNT") as string || 
+        process.env.TWITTER_MIN_FOLLOWER_COUNT || 
+        "100"
       ),
       maxFollowsPerCycle: parseInt(
-        this.runtime.getSetting("TWITTER_MAX_FOLLOWS_PER_CYCLE") as string || "5"
+        this.runtime.getSetting("TWITTER_MAX_FOLLOWS_PER_CYCLE") as string || 
+        process.env.TWITTER_MAX_FOLLOWS_PER_CYCLE || 
+        "5"
       ),
       maxEngagementsPerCycle: parseInt(
-        this.runtime.getSetting("TWITTER_MAX_ENGAGEMENTS_PER_RUN") as string || "10"
+        this.runtime.getSetting("TWITTER_MAX_ENGAGEMENTS_PER_RUN") as string || 
+        process.env.TWITTER_MAX_ENGAGEMENTS_PER_RUN || 
+        "10"
       ),
       likeThreshold: 0.6,
       replyThreshold: 0.8,
@@ -121,7 +127,9 @@ export class TwitterDiscoveryClient {
       
       // Run discovery every 20-40 minutes (with variance)
       const baseInterval = parseInt(
-        this.runtime.getSetting("TWITTER_DISCOVERY_INTERVAL") as string || "30"
+        this.runtime.getSetting("TWITTER_DISCOVERY_INTERVAL") as string || 
+        process.env.TWITTER_DISCOVERY_INTERVAL || 
+        "30"
       );
       const variance = Math.random() * 20 - 10; // ±10 minutes
       const nextInterval = (baseInterval + variance) * 60 * 1000;

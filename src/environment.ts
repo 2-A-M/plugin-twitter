@@ -97,6 +97,17 @@ export function getTargetUsers(targetUsersConfig: string): string[] {
 }
 
 /**
+ * Helper function to get a setting from runtime or environment
+ */
+function getSetting(
+  runtime: IAgentRuntime,
+  key: string,
+  defaultValue?: string
+): string | undefined {
+  return runtime.getSetting(key) ?? process.env[key] ?? defaultValue;
+}
+
+/**
  * Validates Twitter configuration using simplified schema
  */
 export async function validateTwitterConfig(
@@ -104,31 +115,25 @@ export async function validateTwitterConfig(
   config: Partial<TwitterConfig> = {},
 ): Promise<TwitterConfig> {
   try {
-    const getConfig = (key: keyof TwitterConfig): string | undefined => {
-      return (
-        config[key] || runtime.getSetting(key) || process.env[key] || undefined
-      );
-    };
-
     const validatedConfig: TwitterConfig = {
-      TWITTER_API_KEY: getConfig("TWITTER_API_KEY") || "",
-      TWITTER_API_SECRET_KEY: getConfig("TWITTER_API_SECRET_KEY") || "",
-      TWITTER_ACCESS_TOKEN: getConfig("TWITTER_ACCESS_TOKEN") || "",
-      TWITTER_ACCESS_TOKEN_SECRET: getConfig("TWITTER_ACCESS_TOKEN_SECRET") || "",
-      TWITTER_DRY_RUN: String(getConfig("TWITTER_DRY_RUN")?.toLowerCase() === "true"),
-      TWITTER_TARGET_USERS: getConfig("TWITTER_TARGET_USERS") || "",
-      TWITTER_ENABLE_POST: String(getConfig("TWITTER_ENABLE_POST")?.toLowerCase() === "true"),
+      TWITTER_API_KEY: config.TWITTER_API_KEY ?? getSetting(runtime, "TWITTER_API_KEY") ?? "",
+      TWITTER_API_SECRET_KEY: config.TWITTER_API_SECRET_KEY ?? getSetting(runtime, "TWITTER_API_SECRET_KEY") ?? "",
+      TWITTER_ACCESS_TOKEN: config.TWITTER_ACCESS_TOKEN ?? getSetting(runtime, "TWITTER_ACCESS_TOKEN") ?? "",
+      TWITTER_ACCESS_TOKEN_SECRET: config.TWITTER_ACCESS_TOKEN_SECRET ?? getSetting(runtime, "TWITTER_ACCESS_TOKEN_SECRET") ?? "",
+      TWITTER_DRY_RUN: String((config.TWITTER_DRY_RUN ?? getSetting(runtime, "TWITTER_DRY_RUN") ?? "false").toLowerCase() === "true"),
+      TWITTER_TARGET_USERS: config.TWITTER_TARGET_USERS ?? getSetting(runtime, "TWITTER_TARGET_USERS") ?? "",
+      TWITTER_ENABLE_POST: String((config.TWITTER_ENABLE_POST ?? getSetting(runtime, "TWITTER_ENABLE_POST") ?? "false").toLowerCase() === "true"),
       TWITTER_ENABLE_REPLIES: String(
-        getConfig("TWITTER_ENABLE_REPLIES") !== undefined
-          ? getConfig("TWITTER_ENABLE_REPLIES")?.toLowerCase() === "true"
-          : true // Default to true
+        config.TWITTER_ENABLE_REPLIES !== undefined
+          ? config.TWITTER_ENABLE_REPLIES.toLowerCase() === "true"
+          : (getSetting(runtime, "TWITTER_ENABLE_REPLIES") ?? "true").toLowerCase() === "true"
       ),
-      TWITTER_ENABLE_ACTIONS: String(getConfig("TWITTER_ENABLE_ACTIONS")?.toLowerCase() === "true"),
-      TWITTER_POST_INTERVAL: String(safeParseInt(getConfig("TWITTER_POST_INTERVAL"), 120)),
-      TWITTER_ENGAGEMENT_INTERVAL: String(safeParseInt(getConfig("TWITTER_ENGAGEMENT_INTERVAL"), 30)),
-      TWITTER_MAX_ENGAGEMENTS_PER_RUN: String(safeParseInt(getConfig("TWITTER_MAX_ENGAGEMENTS_PER_RUN"), 10)),
-      TWITTER_MAX_TWEET_LENGTH: String(safeParseInt(getConfig("TWITTER_MAX_TWEET_LENGTH"), 280)),
-      TWITTER_RETRY_LIMIT: String(safeParseInt(getConfig("TWITTER_RETRY_LIMIT"), 5)),
+      TWITTER_ENABLE_ACTIONS: String((config.TWITTER_ENABLE_ACTIONS ?? getSetting(runtime, "TWITTER_ENABLE_ACTIONS") ?? "false").toLowerCase() === "true"),
+      TWITTER_POST_INTERVAL: String(safeParseInt(config.TWITTER_POST_INTERVAL ?? getSetting(runtime, "TWITTER_POST_INTERVAL"), 120)),
+      TWITTER_ENGAGEMENT_INTERVAL: String(safeParseInt(config.TWITTER_ENGAGEMENT_INTERVAL ?? getSetting(runtime, "TWITTER_ENGAGEMENT_INTERVAL"), 30)),
+      TWITTER_MAX_ENGAGEMENTS_PER_RUN: String(safeParseInt(config.TWITTER_MAX_ENGAGEMENTS_PER_RUN ?? getSetting(runtime, "TWITTER_MAX_ENGAGEMENTS_PER_RUN"), 10)),
+      TWITTER_MAX_TWEET_LENGTH: String(safeParseInt(config.TWITTER_MAX_TWEET_LENGTH ?? getSetting(runtime, "TWITTER_MAX_TWEET_LENGTH"), 280)),
+      TWITTER_RETRY_LIMIT: String(safeParseInt(config.TWITTER_RETRY_LIMIT ?? getSetting(runtime, "TWITTER_RETRY_LIMIT"), 5)),
     };
 
     // Validate required credentials
