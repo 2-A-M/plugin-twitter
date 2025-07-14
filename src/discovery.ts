@@ -256,8 +256,9 @@ export class TwitterDiscoveryClient {
     // Search for each topic with different query strategies
     for (const topic of this.config.topics.slice(0, 5)) {
       try {
-        // Strategy 1: Popular recent tweets
-        const popularQuery = `${topic} -is:retweet -is:reply min_faves:10 lang:en`;
+        // Strategy 1: Popular tweets in topic
+        // Note: min_faves is not supported in Twitter API v2, we'll filter after retrieval
+        const popularQuery = `${topic} -is:retweet -is:reply lang:en`;
         
         logger.debug(`Searching popular tweets for topic: ${topic}`);
         const popularResults = await this.twitterClient.fetchSearchTweets(
@@ -267,12 +268,15 @@ export class TwitterDiscoveryClient {
         );
         
         for (const tweet of popularResults.tweets) {
+          // Filter by engagement after retrieval
+          if ((tweet.likes || 0) < 10) continue;
+          
           const scored = this.scoreTweet(tweet, 'topic');
           tweets.push(scored);
         }
         
         // Strategy 2: Latest tweets from verified/notable accounts
-        const verifiedQuery = `${topic} -is:retweet lang:en filter:verified`;
+        const verifiedQuery = `${topic} -is:retweet lang:en is:verified`;
         
         logger.debug(`Searching verified accounts for topic: ${topic}`);
         const verifiedResults = await this.twitterClient.fetchSearchTweets(
@@ -320,13 +324,16 @@ export class TwitterDiscoveryClient {
     const accounts = new Map<string, ScoredAccount>();
     
     // Search for viral conversations in our topics
+    // Note: Twitter API v2 doesn't support min_replies or min_faves operators
+    // We'll search for popular conversations and filter by engagement in scoring
     const topicQuery = this.config.topics
       .slice(0, 3)
       .map(t => `"${t}"`)
       .join(" OR ");
     
     try {
-      const viralQuery = `${topicQuery} min_replies:20 min_faves:50 -is:retweet`;
+      // Search for conversations (tweets with engagement)
+      const viralQuery = `${topicQuery} -is:retweet has:mentions`;
       
       logger.debug(`Searching viral threads with query: ${viralQuery}`);
       const searchResults = await this.twitterClient.fetchSearchTweets(
@@ -336,6 +343,10 @@ export class TwitterDiscoveryClient {
       );
       
       for (const tweet of searchResults.tweets) {
+        // Filter for tweets with good engagement (proxy for viral threads)
+        const engagementScore = (tweet.likes || 0) + (tweet.retweets || 0) * 2;
+        if (engagementScore < 50) continue; // Skip low engagement tweets
+        
         const scored = this.scoreTweet(tweet, 'thread');
         tweets.push(scored);
         
@@ -371,7 +382,9 @@ export class TwitterDiscoveryClient {
     for (const topic of this.config.topics.slice(0, 3)) {
       try {
         // Find tweets from accounts with high engagement
-        const influencerQuery = `${topic} -is:retweet min_faves:100 min_retweets:20`;
+        // Note: Twitter API v2 doesn't support min_faves or min_retweets in search
+        // We'll use has:links and is:verified as quality signals instead
+        const influencerQuery = `${topic} -is:retweet (is:verified OR has:links)`;
         
         logger.debug(`Searching for influencers in topic: ${topic}`);
         const results = await this.twitterClient.fetchSearchTweets(
@@ -381,6 +394,10 @@ export class TwitterDiscoveryClient {
         );
         
         for (const tweet of results.tweets) {
+          // Filter by engagement metrics after retrieval
+          const engagement = (tweet.likes || 0) + (tweet.retweets || 0) * 2;
+          if (engagement < 20) continue; // Skip low engagement
+          
           const scored = this.scoreTweet(tweet, 'topic');
           tweets.push(scored);
           
