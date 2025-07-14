@@ -48,11 +48,14 @@ export class TwitterDiscoveryClient {
   private config: DiscoveryConfig;
   private isRunning: boolean = false;
   private isDryRun: boolean;
-
+  private lastDiscoveryTime: number = 0;
+  private state: any;
+  
   constructor(client: ClientBase, runtime: IAgentRuntime, state: any) {
     this.client = client;
     this.twitterClient = client.twitterClient;
     this.runtime = runtime;
+    this.state = state;
     
     // Check dry run mode
     const dryRunSetting = state?.TWITTER_DRY_RUN ?? getSetting(this.runtime, "TWITTER_DRY_RUN") ?? process.env.TWITTER_DRY_RUN;
@@ -69,6 +72,27 @@ export class TwitterDiscoveryClient {
       maxFollowsPerCycle: this.config.maxFollowsPerCycle,
       maxEngagementsPerCycle: this.config.maxEngagementsPerCycle,
     });
+  }
+
+  /**
+   * Sanitizes a topic for use in Twitter search queries
+   * - Removes common stop words that might be interpreted as operators
+   * - Handles special characters
+   * - Simplifies complex phrases
+   */
+  private sanitizeTopic(topic: string): string {
+    // Remove common conjunctions that might be interpreted as operators
+    let sanitized = topic
+      .replace(/\band\b/gi, ' ')
+      .replace(/\bor\b/gi, ' ')
+      .replace(/\bnot\b/gi, ' ')
+      .trim();
+    
+    // Remove extra spaces
+    sanitized = sanitized.replace(/\s+/g, ' ');
+    
+    // If the topic is still multi-word, wrap in quotes
+    return sanitized.includes(' ') ? `"${sanitized}"` : sanitized;
   }
 
   private buildDiscoveryConfig(): DiscoveryConfig {
@@ -256,9 +280,12 @@ export class TwitterDiscoveryClient {
     // Search for each topic with different query strategies
     for (const topic of this.config.topics.slice(0, 5)) {
       try {
+        // Sanitize topic for search query
+        const searchTopic = this.sanitizeTopic(topic);
+        
         // Strategy 1: Popular tweets in topic
         // Note: min_faves is not supported in Twitter API v2, we'll filter after retrieval
-        const popularQuery = `${topic} -is:retweet -is:reply lang:en`;
+        const popularQuery = `${searchTopic} -is:retweet -is:reply lang:en`;
         
         logger.debug(`Searching popular tweets for topic: ${topic}`);
         const popularResults = await this.twitterClient.fetchSearchTweets(
@@ -276,7 +303,7 @@ export class TwitterDiscoveryClient {
         }
         
         // Strategy 2: Latest tweets from verified/notable accounts
-        const verifiedQuery = `${topic} -is:retweet lang:en is:verified`;
+        const verifiedQuery = `${searchTopic} -is:retweet lang:en is:verified`;
         
         logger.debug(`Searching verified accounts for topic: ${topic}`);
         const verifiedResults = await this.twitterClient.fetchSearchTweets(
@@ -328,12 +355,12 @@ export class TwitterDiscoveryClient {
     // We'll search for popular conversations and filter by engagement in scoring
     const topicQuery = this.config.topics
       .slice(0, 3)
-      .map(t => `"${t}"`)
+      .map(t => this.sanitizeTopic(t))
       .join(" OR ");
     
     try {
       // Search for conversations (tweets with engagement)
-      const viralQuery = `${topicQuery} -is:retweet has:mentions`;
+      const viralQuery = `(${topicQuery}) -is:retweet has:mentions`;
       
       logger.debug(`Searching viral threads with query: ${viralQuery}`);
       const searchResults = await this.twitterClient.fetchSearchTweets(
@@ -381,10 +408,13 @@ export class TwitterDiscoveryClient {
     // Search for users who frequently tweet about our topics
     for (const topic of this.config.topics.slice(0, 3)) {
       try {
+        // Sanitize topic for search query
+        const searchTopic = this.sanitizeTopic(topic);
+        
         // Find tweets from accounts with high engagement
         // Note: Twitter API v2 doesn't support min_faves or min_retweets in search
-        // We'll use has:links and is:verified as quality signals instead
-        const influencerQuery = `${topic} -is:retweet (is:verified OR has:links)`;
+        // We'll search for general high-quality content
+        const influencerQuery = `${searchTopic} -is:retweet lang:en`;
         
         logger.debug(`Searching for influencers in topic: ${topic}`);
         const results = await this.twitterClient.fetchSearchTweets(
