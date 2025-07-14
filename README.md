@@ -128,6 +128,9 @@ TWITTER_ENABLE_POST=true           # Enable autonomous tweet posting
 # Optional: Posting Configuration
 TWITTER_POST_IMMEDIATELY=true      # Post on startup (great for testing)
 TWITTER_POST_INTERVAL=120          # Minutes between posts (default: 120)
+# For more natural timing, use MIN/MAX intervals:
+TWITTER_POST_INTERVAL_MIN=90       # Minimum minutes between posts  
+TWITTER_POST_INTERVAL_MAX=150      # Maximum minutes between posts
 ```
 
 ### Step 5: Run Your Bot
@@ -174,12 +177,25 @@ TWITTER_ENABLE_ACTIONS=false       # Enable timeline actions (likes, retweets, q
 TWITTER_ENABLE_DISCOVERY=          # Enable discovery service (defaults to true if ACTIONS enabled)
 
 # Timing Configuration (all in minutes)
-TWITTER_POST_INTERVAL=120          # Interval between autonomous posts (default: 120)
-TWITTER_ENGAGEMENT_INTERVAL=30     # Interval for all interaction cycles (default: 30)
-TWITTER_DISCOVERY_INTERVAL=30      # Interval for discovery cycles (default: 30)
+# For natural behavior, set MIN/MAX intervals - the agent will randomly choose between them
+# If MIN/MAX not set, falls back to the fixed interval values
+
+# Post intervals
+TWITTER_POST_INTERVAL=120          # Fixed interval between posts (default: 120, used if MIN/MAX not set)
+TWITTER_POST_INTERVAL_MIN=90       # Minimum minutes between posts (default: 90)
+TWITTER_POST_INTERVAL_MAX=150      # Maximum minutes between posts (default: 150)
+
+# Engagement intervals  
+TWITTER_ENGAGEMENT_INTERVAL=30     # Fixed interval for interactions (default: 30, used if MIN/MAX not set)
+TWITTER_ENGAGEMENT_INTERVAL_MIN=20 # Minimum minutes between engagements (default: 20)
+TWITTER_ENGAGEMENT_INTERVAL_MAX=40 # Maximum minutes between engagements (default: 40)
+
+# Discovery intervals
+TWITTER_DISCOVERY_INTERVAL_MIN=15  # Minimum minutes between discovery cycles (default: 15)
+TWITTER_DISCOVERY_INTERVAL_MAX=30  # Maximum minutes between discovery cycles (default: 30)
 
 # Engagement Limits
-TWITTER_MAX_ENGAGEMENTS_PER_RUN=10 # Maximum interactions per engagement cycle
+TWITTER_MAX_ENGAGEMENTS_PER_RUN=5  # Maximum interactions per engagement cycle (default: 5)
 TWITTER_MAX_TWEET_LENGTH=280       # Maximum tweet length
 
 # Discovery Service Settings

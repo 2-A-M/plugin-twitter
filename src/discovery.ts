@@ -8,6 +8,7 @@ import {
 } from "@elizaos/core";
 import { SearchMode } from "./client/index";
 import { getSetting } from "./utils/settings";
+import { getRandomInterval } from "./environment";
 
 interface DiscoveryConfig {
   // Topics from character configuration
@@ -152,11 +153,11 @@ export class TwitterDiscoveryClient {
           "TWITTER_MAX_ENGAGEMENTS_PER_RUN",
         ) as string) ||
           process.env.TWITTER_MAX_ENGAGEMENTS_PER_RUN ||
-          "10",
+          "5",  // Reduced from 10 to 5
       ),
-      likeThreshold: 0.3, // Lowered from 0.6
-      replyThreshold: 0.5, // Lowered from 0.8
-      quoteThreshold: 0.7, // Lowered from 0.85
+      likeThreshold: 0.5,    // Increased from 0.3 (be more selective)
+      replyThreshold: 0.7,   // Increased from 0.5 (be more selective)
+      quoteThreshold: 0.85,  // Increased from 0.7 (be more selective)
     };
   }
 
@@ -202,21 +203,15 @@ export class TwitterDiscoveryClient {
       }
 
       // Run discovery every 20-40 minutes (with variance)
-      const baseInterval = parseInt(
-        (getSetting(this.runtime, "TWITTER_DISCOVERY_INTERVAL") as string) ||
-          process.env.TWITTER_DISCOVERY_INTERVAL ||
-          "30",
-      );
-      const variance = Math.random() * 20 - 10; // ±10 minutes
-      const nextInterval = (baseInterval + variance) * 60 * 1000;
+      const discoveryIntervalMinutes = getRandomInterval(this.runtime, 'discovery');
+      const nextInterval = discoveryIntervalMinutes * 60 * 1000;
 
-      logger.info(
-        `Next discovery cycle in ${(baseInterval + variance).toFixed(1)} minutes`,
+      logger.log(
+        `Next discovery cycle in ${discoveryIntervalMinutes.toFixed(1)} minutes`,
       );
 
-      if (this.isRunning) {
-        setTimeout(discoveryLoop, nextInterval);
-      }
+      // Schedule next discovery
+      setTimeout(discoveryLoop, nextInterval);
     };
 
     // Start after a short delay
@@ -336,19 +331,44 @@ export class TwitterDiscoveryClient {
 
           const scored = this.scoreTweet(tweet, "topic");
           tweets.push(scored);
+
+          // Extract account info from popular tweet authors
+          const authorUsername = tweet.username;
+          const authorName = tweet.name || tweet.username;
+
+          // Estimate follower count based on tweet engagement
+          // Popular tweets often come from accounts with decent followings
+          const estimatedFollowers = Math.max(
+            1000, // minimum estimate
+            (tweet.likes || 0) * 100 // rough estimate: 100 followers per like
+          );
+
+          const account = this.scoreAccount({
+            id: tweet.userId,
+            username: authorUsername,
+            name: authorName,
+            followersCount: estimatedFollowers,
+          });
+
+          if (account.qualityScore > 0.3) { // Lower threshold to discover more accounts
+            accounts.set(tweet.userId, account);
+          }
         }
 
-        // Strategy 2: Latest tweets from verified/notable accounts
-        const verifiedQuery = `${searchTopic} -is:retweet lang:en is:verified`;
+        // Strategy 2: Latest tweets with good engagement (not just verified)
+        const engagedQuery = `${searchTopic} -is:retweet lang:en`;
 
-        logger.debug(`Searching verified accounts for topic: ${topic}`);
-        const verifiedResults = await this.twitterClient.fetchSearchTweets(
-          verifiedQuery,
-          10,
+        logger.debug(`Searching engaged tweets for topic: ${topic}`);
+        const engagedResults = await this.twitterClient.fetchSearchTweets(
+          engagedQuery,
+          15,
           SearchMode.Latest,
         );
 
-        for (const tweet of verifiedResults.tweets) {
+        for (const tweet of engagedResults.tweets) {
+          // Only include tweets with some engagement
+          if ((tweet.likes || 0) < 5) continue;
+          
           const scored = this.scoreTweet(tweet, "topic");
           tweets.push(scored);
 
@@ -356,16 +376,20 @@ export class TwitterDiscoveryClient {
           const authorUsername = tweet.username;
           const authorName = tweet.name || tweet.username;
 
-          // For v2 API, we don't get follower count in tweet data
-          // We'll need to make a separate call or estimate quality differently
+          // Estimate follower count based on engagement
+          const estimatedFollowers = Math.max(
+            500, // minimum for engaged tweets
+            (tweet.likes || 0) * 50
+          );
+
           const account = this.scoreAccount({
             id: tweet.userId,
             username: authorUsername,
             name: authorName,
-            followersCount: 1000, // Default estimate for verified accounts
+            followersCount: estimatedFollowers,
           });
 
-          if (account.qualityScore > 0.5) {
+          if (account.qualityScore > 0.2) { // Even lower threshold for engaged content
             accounts.set(tweet.userId, account);
           }
         }
@@ -575,8 +599,31 @@ export class TwitterDiscoveryClient {
   private async processAccounts(accounts: ScoredAccount[]): Promise<number> {
     let followedCount = 0;
 
-    for (const scoredAccount of accounts) {
+    // Sort accounts by combined quality and relevance score
+    const sortedAccounts = accounts.sort((a, b) => {
+      const scoreA = a.qualityScore + a.relevanceScore;
+      const scoreB = b.qualityScore + b.relevanceScore;
+      return scoreB - scoreA;
+    });
+
+    for (const scoredAccount of sortedAccounts) {
       if (followedCount >= this.config.maxFollowsPerCycle) break;
+
+      // Skip accounts with too few followers
+      if (scoredAccount.user.followersCount < this.config.minFollowerCount) {
+        logger.debug(
+          `Skipping @${scoredAccount.user.username} - below minimum follower count (${scoredAccount.user.followersCount} < ${this.config.minFollowerCount})`
+        );
+        continue;
+      }
+
+      // Skip low-quality accounts
+      if (scoredAccount.qualityScore < 0.2) {
+        logger.debug(
+          `Skipping @${scoredAccount.user.username} - quality score too low (${scoredAccount.qualityScore.toFixed(2)})`
+        );
+        continue;
+      }
 
       try {
         // Check if already following (via memory)

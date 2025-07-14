@@ -24,11 +24,17 @@ export const twitterEnvSchema = z.object({
   TWITTER_ENABLE_ACTIONS: z.string().default("false"), // likes, retweets, quotes
 
   // Timing configuration (all in minutes)
-  TWITTER_POST_INTERVAL: z.string().default("120"), // minutes between posts
-  TWITTER_ENGAGEMENT_INTERVAL: z.string().default("30"), // minutes between all interactions
+  TWITTER_POST_INTERVAL: z.string().default("120"), // minutes between posts (deprecated, kept for backwards compatibility)
+  TWITTER_POST_INTERVAL_MIN: z.string().default("90"), // minimum minutes between posts
+  TWITTER_POST_INTERVAL_MAX: z.string().default("150"), // maximum minutes between posts
+  TWITTER_ENGAGEMENT_INTERVAL: z.string().default("30"), // minutes between all interactions (deprecated, kept for backwards compatibility)
+  TWITTER_ENGAGEMENT_INTERVAL_MIN: z.string().default("20"), // minimum minutes between engagements
+  TWITTER_ENGAGEMENT_INTERVAL_MAX: z.string().default("40"), // maximum minutes between engagements
+  TWITTER_DISCOVERY_INTERVAL_MIN: z.string().default("15"), // minimum minutes between discovery cycles
+  TWITTER_DISCOVERY_INTERVAL_MAX: z.string().default("30"), // maximum minutes between discovery cycles
 
   // Limits
-  TWITTER_MAX_ENGAGEMENTS_PER_RUN: z.string().default("10"),
+  TWITTER_MAX_ENGAGEMENTS_PER_RUN: z.string().default("5"), // Reduced from 10 to be less aggressive
   TWITTER_MAX_TWEET_LENGTH: z.string().default("280"), // standard tweet length
 
   // Advanced
@@ -160,6 +166,20 @@ export async function validateTwitterConfig(
           120,
         ),
       ),
+      TWITTER_POST_INTERVAL_MIN: String(
+        safeParseInt(
+          config.TWITTER_POST_INTERVAL_MIN ??
+            getSetting(runtime, "TWITTER_POST_INTERVAL_MIN"),
+          90,
+        ),
+      ),
+      TWITTER_POST_INTERVAL_MAX: String(
+        safeParseInt(
+          config.TWITTER_POST_INTERVAL_MAX ??
+            getSetting(runtime, "TWITTER_POST_INTERVAL_MAX"),
+          150,
+        ),
+      ),
       TWITTER_ENGAGEMENT_INTERVAL: String(
         safeParseInt(
           config.TWITTER_ENGAGEMENT_INTERVAL ??
@@ -167,11 +187,39 @@ export async function validateTwitterConfig(
           30,
         ),
       ),
+      TWITTER_ENGAGEMENT_INTERVAL_MIN: String(
+        safeParseInt(
+          config.TWITTER_ENGAGEMENT_INTERVAL_MIN ??
+            getSetting(runtime, "TWITTER_ENGAGEMENT_INTERVAL_MIN"),
+          20,
+        ),
+      ),
+      TWITTER_ENGAGEMENT_INTERVAL_MAX: String(
+        safeParseInt(
+          config.TWITTER_ENGAGEMENT_INTERVAL_MAX ??
+            getSetting(runtime, "TWITTER_ENGAGEMENT_INTERVAL_MAX"),
+          40,
+        ),
+      ),
+      TWITTER_DISCOVERY_INTERVAL_MIN: String(
+        safeParseInt(
+          config.TWITTER_DISCOVERY_INTERVAL_MIN ??
+            getSetting(runtime, "TWITTER_DISCOVERY_INTERVAL_MIN"),
+          15,
+        ),
+      ),
+      TWITTER_DISCOVERY_INTERVAL_MAX: String(
+        safeParseInt(
+          config.TWITTER_DISCOVERY_INTERVAL_MAX ??
+            getSetting(runtime, "TWITTER_DISCOVERY_INTERVAL_MAX"),
+          30,
+        ),
+      ),
       TWITTER_MAX_ENGAGEMENTS_PER_RUN: String(
         safeParseInt(
           config.TWITTER_MAX_ENGAGEMENTS_PER_RUN ??
             getSetting(runtime, "TWITTER_MAX_ENGAGEMENTS_PER_RUN"),
-          10,
+          5,
         ),
       ),
       TWITTER_MAX_TWEET_LENGTH: String(
@@ -264,10 +312,16 @@ function getDefaultConfig(): TwitterConfig {
     TWITTER_ENABLE_REPLIES: getConfig("TWITTER_ENABLE_REPLIES") || "true",
     TWITTER_ENABLE_ACTIONS: getConfig("TWITTER_ENABLE_ACTIONS") || "false",
     TWITTER_POST_INTERVAL: getConfig("TWITTER_POST_INTERVAL") || "120",
+    TWITTER_POST_INTERVAL_MIN: getConfig("TWITTER_POST_INTERVAL_MIN") || "90",
+    TWITTER_POST_INTERVAL_MAX: getConfig("TWITTER_POST_INTERVAL_MAX") || "150",
     TWITTER_ENGAGEMENT_INTERVAL:
       getConfig("TWITTER_ENGAGEMENT_INTERVAL") || "30",
+    TWITTER_ENGAGEMENT_INTERVAL_MIN: getConfig("TWITTER_ENGAGEMENT_INTERVAL_MIN") || "20",
+    TWITTER_ENGAGEMENT_INTERVAL_MAX: getConfig("TWITTER_ENGAGEMENT_INTERVAL_MAX") || "40",
+    TWITTER_DISCOVERY_INTERVAL_MIN: getConfig("TWITTER_DISCOVERY_INTERVAL_MIN") || "15",
+    TWITTER_DISCOVERY_INTERVAL_MAX: getConfig("TWITTER_DISCOVERY_INTERVAL_MAX") || "30",
     TWITTER_MAX_ENGAGEMENTS_PER_RUN:
-      getConfig("TWITTER_MAX_ENGAGEMENTS_PER_RUN") || "10",
+      getConfig("TWITTER_MAX_ENGAGEMENTS_PER_RUN") || "5",
     TWITTER_MAX_TWEET_LENGTH: getConfig("TWITTER_MAX_TWEET_LENGTH") || "280",
     TWITTER_RETRY_LIMIT: getConfig("TWITTER_RETRY_LIMIT") || "5",
   };
@@ -307,4 +361,64 @@ export function loadConfig(configPath?: string): TwitterConfig {
  */
 export function validateConfig(config: unknown): TwitterConfig {
   return twitterEnvSchema.parse(config);
+}
+
+/**
+ * Get a random interval between min and max values
+ * If min/max are not configured, falls back to the fixed interval
+ * 
+ * @param runtime - The agent runtime
+ * @param type - The type of interval ('post', 'engagement', 'discovery')
+ * @returns Random interval in minutes
+ */
+export function getRandomInterval(
+  runtime: IAgentRuntime,
+  type: 'post' | 'engagement' | 'discovery',
+): number {
+  let minInterval: number | undefined;
+  let maxInterval: number | undefined;
+  let fallbackInterval: number;
+
+  switch (type) {
+    case 'post':
+      const postMin = getSetting(runtime, "TWITTER_POST_INTERVAL_MIN") as string;
+      const postMax = getSetting(runtime, "TWITTER_POST_INTERVAL_MAX") as string;
+      minInterval = postMin ? safeParseInt(postMin, 0) : undefined;
+      maxInterval = postMax ? safeParseInt(postMax, 0) : undefined;
+      fallbackInterval = safeParseInt(
+        getSetting(runtime, "TWITTER_POST_INTERVAL") as string,
+        120
+      );
+      break;
+    case 'engagement':
+      const engagementMin = getSetting(runtime, "TWITTER_ENGAGEMENT_INTERVAL_MIN") as string;
+      const engagementMax = getSetting(runtime, "TWITTER_ENGAGEMENT_INTERVAL_MAX") as string;
+      minInterval = engagementMin ? safeParseInt(engagementMin, 0) : undefined;
+      maxInterval = engagementMax ? safeParseInt(engagementMax, 0) : undefined;
+      fallbackInterval = safeParseInt(
+        getSetting(runtime, "TWITTER_ENGAGEMENT_INTERVAL") as string,
+        30
+      );
+      break;
+    case 'discovery':
+      const discoveryMin = getSetting(runtime, "TWITTER_DISCOVERY_INTERVAL_MIN") as string;
+      const discoveryMax = getSetting(runtime, "TWITTER_DISCOVERY_INTERVAL_MAX") as string;
+      minInterval = discoveryMin ? safeParseInt(discoveryMin, 0) : undefined;
+      maxInterval = discoveryMax ? safeParseInt(discoveryMax, 0) : undefined;
+      fallbackInterval = 20; // Default discovery interval
+      break;
+    default:
+      throw new Error(`Unknown interval type: ${type}`);
+  }
+
+  // If MIN/MAX are properly configured, use random value between them
+  if (minInterval !== undefined && maxInterval !== undefined && minInterval < maxInterval) {
+    const randomInterval = Math.random() * (maxInterval - minInterval) + minInterval;
+    logger.debug(`Random ${type} interval: ${randomInterval.toFixed(1)} minutes (between ${minInterval}-${maxInterval})`);
+    return randomInterval;
+  }
+
+  // Otherwise, fall back to fixed interval
+  logger.debug(`Using fixed ${type} interval: ${fallbackInterval} minutes`);
+  return fallbackInterval;
 }

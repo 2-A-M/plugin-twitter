@@ -12,6 +12,7 @@ import type { ClientBase } from "./base";
 import type { MediaData } from "./types";
 import { sendTweet } from "./utils";
 import { getSetting } from "./utils/settings";
+import { getRandomInterval } from "./environment";
 /**
  * Class representing a Twitter post client for generating and posting tweets.
  */
@@ -48,13 +49,19 @@ export class TwitterPostClient {
     logger.log("Twitter Post Client Configuration:");
     logger.log(`- Dry Run Mode: ${this.isDryRun ? "Enabled" : "Disabled"}`);
 
-    const postIntervalMinutes = parseInt(
-      this.state?.TWITTER_POST_INTERVAL ||
-        (getSetting(this.runtime, "TWITTER_POST_INTERVAL") as string) ||
-        process.env.TWITTER_POST_INTERVAL ||
-        "120",
+    const postIntervalMin = parseInt(
+      this.state?.TWITTER_POST_INTERVAL_MIN ||
+        (getSetting(this.runtime, "TWITTER_POST_INTERVAL_MIN") as string) ||
+        process.env.TWITTER_POST_INTERVAL_MIN ||
+        "90",
     );
-    logger.log(`- Post Interval: ${postIntervalMinutes} minutes`);
+    const postIntervalMax = parseInt(
+      this.state?.TWITTER_POST_INTERVAL_MAX ||
+        (getSetting(this.runtime, "TWITTER_POST_INTERVAL_MAX") as string) ||
+        process.env.TWITTER_POST_INTERVAL_MAX ||
+        "150",
+    );
+    logger.log(`- Post Interval: ${postIntervalMin}-${postIntervalMax} minutes (randomized)`);
   }
 
   /**
@@ -78,18 +85,13 @@ export class TwitterPostClient {
         return;
       }
 
-      // Get post interval in minutes
-      const postIntervalMinutes = parseInt(
-        this.state?.TWITTER_POST_INTERVAL ||
-          (getSetting(this.runtime, "TWITTER_POST_INTERVAL") as string) ||
-          process.env.TWITTER_POST_INTERVAL ||
-          "120",
-      );
+      // Get random post interval in minutes
+      const postIntervalMinutes = getRandomInterval(this.runtime, 'post');
 
       // Convert to milliseconds
       const interval = postIntervalMinutes * 60 * 1000;
 
-      logger.info(`Next tweet scheduled in ${postIntervalMinutes} minutes`);
+      logger.info(`Next tweet scheduled in ${postIntervalMinutes.toFixed(1)} minutes`);
 
       // Wait for the interval BEFORE generating the tweet
       await new Promise((resolve) => setTimeout(resolve, interval));

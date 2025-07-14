@@ -27,6 +27,7 @@ import { TwitterEventTypes } from "./types";
 import { sendTweet } from "./utils";
 import { shouldTargetUser, getTargetUsers } from "./environment";
 import { getSetting } from "./utils/settings";
+import { getRandomInterval } from "./environment";
 
 /**
  * Template for generating dialog and actions for a Twitter message handler.
@@ -114,18 +115,13 @@ export class TwitterInteractionClient {
         return;
       }
 
-      // Get interval in minutes and convert to milliseconds
-      const engagementIntervalMinutes = parseInt(
-        this.state?.TWITTER_ENGAGEMENT_INTERVAL ||
-          (getSetting(this.runtime, "TWITTER_ENGAGEMENT_INTERVAL") as string) ||
-          process.env.TWITTER_ENGAGEMENT_INTERVAL ||
-          "30",
-      );
+      // Get random engagement interval in minutes
+      const engagementIntervalMinutes = getRandomInterval(this.runtime, 'engagement');
 
       const interactionInterval = engagementIntervalMinutes * 60 * 1000;
 
       logger.info(
-        `Twitter interaction client will check every ${engagementIntervalMinutes} minutes`,
+        `Twitter interaction client will check in ${engagementIntervalMinutes.toFixed(1)} minutes`,
       );
 
       this.handleTwitterInteractions();
