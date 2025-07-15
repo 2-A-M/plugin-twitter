@@ -304,7 +304,33 @@ TWITTER_ENABLE_POST=true
 TWITTER_POST_IMMEDIATELY=true
 ```
 
-## 🔧 Troubleshooting
+## 🚨 Troubleshooting
+
+### 403 Errors When Engaging with Tweets
+
+If you see errors like "Failed to create tweet: Request failed with code 403", this usually means:
+
+1. **Missing Write Permissions**: Make sure your Twitter app has "Read and write" permissions
+   - Go to your app settings in the Twitter Developer Portal
+   - Check that App permissions shows "Read and write" ✅
+   - If not, change it and regenerate your Access Token & Secret
+
+2. **Protected Accounts**: The bot may be trying to engage with protected/private accounts
+   - The plugin now automatically skips these with a warning
+
+3. **Self-Engagement**: Trying to reply to or quote your own tweets
+   - Twitter API doesn't allow this and returns 403
+
+4. **Account Restrictions**: Your account may have restrictions
+   - Check if your account is in good standing
+   - Ensure you're not violating Twitter's automation rules
+
+The plugin will now:
+- Automatically detect and skip 403 errors with a warning
+- Continue processing other tweets
+- Mark failed tweets as "skip" to avoid retrying
+
+### Other Common Issues
 
 ### "403 Forbidden" When Posting
 

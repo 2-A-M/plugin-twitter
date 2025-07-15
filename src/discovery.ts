@@ -524,7 +524,19 @@ export class TwitterDiscoveryClient {
   // Remove the discoverFromTrends method since API v2 doesn't support it
   // Remove the isTrendRelevant method since we're not using trends
 
-  private scoreTweet(tweet: Tweet, source: "topic" | "thread"): ScoredTweet {
+  private scoreTweet(
+    tweet: Tweet,
+    source: string,
+  ): ScoredTweet {
+    // Skip retweets - we want original content
+    if (tweet.isRetweet) {
+      return {
+        tweet,
+        relevanceScore: 0,
+        engagementType: "skip",
+      };
+    }
+
     let relevanceScore = 0;
 
     // Base score by source
@@ -742,11 +754,31 @@ export class TwitterDiscoveryClient {
 
         // Add delay to avoid rate limits
         await this.delay(3000 + Math.random() * 5000);
-      } catch (error) {
-        logger.error(
-          `Failed to engage with tweet ${scoredTweet.tweet.id}:`,
-          error,
-        );
+      } catch (error: any) {
+        // Check if it's a 403 error
+        if (error?.message?.includes("403")) {
+          logger.warn(
+            `Permission denied (403) for tweet ${scoredTweet.tweet.id}. ` +
+            `This might be a protected account or restricted tweet. Skipping.`
+          );
+          // Still save to memory to avoid retrying
+          await this.saveEngagementMemory(
+            scoredTweet.tweet,
+            "skip"
+          );
+        } else if (error?.message?.includes("429")) {
+          logger.warn(
+            `Rate limit (429) hit while engaging with tweet ${scoredTweet.tweet.id}. ` +
+            `Pausing engagement cycle.`
+          );
+          // Break out of the loop on rate limit
+          break;
+        } else {
+          logger.error(
+            `Failed to engage with tweet ${scoredTweet.tweet.id}:`,
+            error
+          );
+        }
       }
     }
 
