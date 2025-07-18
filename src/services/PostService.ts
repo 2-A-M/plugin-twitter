@@ -1,4 +1,5 @@
 import { type UUID, createUniqueUuid, logger } from "@elizaos/core";
+import { getEpochMs } from "../utils/time";
 import {
   type IPostService,
   type Post,
@@ -84,7 +85,7 @@ export class TwitterPostService implements IPostService {
         userId: tweet.userId,
         username: tweet.username,
         text: tweet.text,
-        timestamp: tweet.timestamp * 1000,
+        timestamp: getEpochMs(tweet.timestamp),
         metrics: {
           likes: tweet.likes || 0,
           reposts: tweet.retweets || 0,
@@ -141,7 +142,7 @@ export class TwitterPostService implements IPostService {
         userId: tweet.userId,
         username: tweet.username,
         text: tweet.text,
-        timestamp: tweet.timestamp * 1000,
+        timestamp: getEpochMs(tweet.timestamp),
         metrics: {
           likes: tweet.likes || 0,
           reposts: tweet.retweets || 0,
@@ -214,7 +215,7 @@ export class TwitterPostService implements IPostService {
         userId: tweet.userId,
         username: tweet.username,
         text: tweet.text,
-        timestamp: tweet.timestamp * 1000,
+        timestamp: getEpochMs(tweet.timestamp),
         metrics: {
           likes: tweet.likes || 0,
           reposts: tweet.retweets || 0,

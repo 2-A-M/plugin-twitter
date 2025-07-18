@@ -1,4 +1,5 @@
 import { type UUID, createUniqueUuid, logger } from "@elizaos/core";
+import { getEpochMs } from "../utils/time";
 import {
   type IMessageService,
   type Message,
@@ -51,7 +52,7 @@ export class TwitterMessageService implements IMessageService {
           type: tweet.inReplyToStatusId
             ? MessageType.REPLY
             : MessageType.MENTION,
-          timestamp: tweet.timestamp * 1000,
+          timestamp: getEpochMs(tweet.timestamp),
           inReplyTo: tweet.inReplyToStatusId,
           metadata: {
             tweetId: tweet.id,
@@ -130,7 +131,7 @@ export class TwitterMessageService implements IMessageService {
         username: tweet.username,
         text: tweet.text,
         type: tweet.inReplyToStatusId ? MessageType.REPLY : MessageType.POST,
-        timestamp: tweet.timestamp * 1000,
+        timestamp: getEpochMs(tweet.timestamp),
         inReplyTo: tweet.inReplyToStatusId,
         metadata: {
           tweetId: tweet.id,

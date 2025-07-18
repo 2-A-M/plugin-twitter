@@ -28,6 +28,7 @@ import { sendTweet } from "./utils";
 import { shouldTargetUser, getTargetUsers } from "./environment";
 import { getSetting } from "./utils/settings";
 import { getRandomInterval } from "./environment";
+import { getEpochMs } from "./utils/time";
 
 /**
  * Template for generating dialog and actions for a Twitter message handler.
@@ -293,7 +294,7 @@ export class TwitterInteractionClient {
       }
 
       // Skip if tweet is too old (older than 24 hours)
-      const tweetAge = Date.now() - tweet.timestamp * 1000;
+      const tweetAge = Date.now() - getEpochMs(tweet.timestamp);
       const maxAge = 24 * 60 * 60 * 1000; // 24 hours
 
       if (tweetAge > maxAge) {
@@ -336,7 +337,7 @@ export class TwitterInteractionClient {
 
       const relevantTweets = searchResult.tweets.filter((tweet) => {
         // Filter for tweets from the last 12 hours
-        const tweetAge = Date.now() - tweet.timestamp * 1000;
+        const tweetAge = Date.now() - getEpochMs(tweet.timestamp);
         return tweetAge < 12 * 60 * 60 * 1000;
       });
 
@@ -473,7 +474,7 @@ Response (YES/NO):`;
       },
       agentId: this.runtime.agentId,
       roomId,
-      createdAt: tweet.timestamp * 1000,
+      createdAt: getEpochMs(tweet.timestamp),
     };
 
     await this.runtime.createMemory(tweetMemory, "messages");
@@ -494,7 +495,7 @@ Response (YES/NO):`;
         },
         agentId: this.runtime.agentId,
         roomId: createUniqueUuid(this.runtime, tweet.conversationId),
-        createdAt: tweet.timestamp * 1000,
+        createdAt: getEpochMs(tweet.timestamp),
       };
 
       const result = await this.handleTweet({
@@ -677,7 +678,7 @@ Response (YES/NO):`;
           },
           agentId: this.runtime.agentId,
           roomId,
-          createdAt: tweet.timestamp * 1000,
+          createdAt: getEpochMs(tweet.timestamp),
         };
 
         logger.log("Saving tweet memory...");

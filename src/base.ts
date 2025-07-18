@@ -15,6 +15,7 @@ import {
   type Tweet,
 } from "./client/index";
 import { TwitterInteractionPayload } from "./types";
+import { getEpochMs } from "./utils/time";
 
 interface TwitterUser {
   id_str: string;
@@ -562,7 +563,7 @@ export class ClientBase {
               content: content,
               agentId: this.runtime.agentId,
               roomId,
-              createdAt: tweet.timestamp * 1000,
+              createdAt: getEpochMs(tweet.timestamp),
             },
             "messages",
           );
@@ -679,7 +680,7 @@ export class ClientBase {
           content: content,
           agentId: this.runtime.agentId,
           roomId,
-          createdAt: tweet.timestamp * 1000,
+          createdAt: getEpochMs(tweet.timestamp),
         },
         "messages",
       );

@@ -12,6 +12,7 @@ import {
 } from "@elizaos/core";
 import type { Client, Tweet } from "./client/index";
 import { logger } from "@elizaos/core";
+import { getEpochMs } from "./utils/time";
 import { getSetting } from "./utils/settings";
 
 import {
@@ -131,7 +132,7 @@ export class TwitterTimelineClient {
       },
       entityId: createUniqueUuid(runtime, tweet.userId),
       roomId: createUniqueUuid(runtime, tweet.conversationId),
-      createdAt: tweet.timestamp * 1000,
+      createdAt: getEpochMs(tweet.timestamp),
     };
   }
 
@@ -301,7 +302,7 @@ Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appro
           },
           agentId: this.runtime.agentId,
           roomId,
-          createdAt: tweet.timestamp * 1000,
+          createdAt: getEpochMs(tweet.timestamp),
         },
         "messages",
       );
