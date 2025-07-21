@@ -13,6 +13,12 @@ import type { MediaData } from "./types";
 import { sendTweet } from "./utils";
 import { getSetting } from "./utils/settings";
 import { getRandomInterval } from "./environment";
+import {
+  addToRecentTweets,
+  isDuplicateTweet,
+  ensureTwitterContext,
+  createMemorySafe
+} from "./utils/memory";
 /**
  * Class representing a Twitter post client for generating and posting tweets.
  */
@@ -127,7 +133,7 @@ export class TwitterPostClient {
       while (retries < 5) {
         const success = await this.generateNewTweet();
         if (success) break;
-        
+
         retries++;
         logger.info(`Retrying immediate tweet (attempt ${retries}/5)...`);
         await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -196,14 +202,14 @@ CRITICAL: Generate a tweet that sounds like YOU, not a generic motivational post
 
 ${this.runtime.character.messageExamples && this.runtime.character.messageExamples.length > 0 ? `
 Example tweets that capture your voice:
-${this.runtime.character.messageExamples.map((example: any) => 
+${this.runtime.character.messageExamples.map((example: any) =>
   Array.isArray(example) ? example[1]?.content?.text || '' : example
 ).filter(Boolean).slice(0, 5).join('\n')}
 ` : ''}
 
 Style guidelines:
 - Be authentic, opinionated, and specific - no generic platitudes
-- Use your unique voice and perspective  
+- Use your unique voice and perspective
 - Share hot takes, unpopular opinions, or specific insights
 - Be conversational, not preachy
 - If you use emojis, use them sparingly and purposefully
@@ -214,7 +220,7 @@ Style guidelines:
 Your interests: ${this.runtime.character.topics?.join(", ") || "technology, crypto, AI"}
 
 ${this.runtime.character.style ? `Your style: ${
-  typeof this.runtime.character.style === 'object' 
+  typeof this.runtime.character.style === 'object'
     ? this.runtime.character.style.all?.join(', ') || JSON.stringify(this.runtime.character.style)
     : this.runtime.character.style
 }` : ''}
@@ -266,7 +272,7 @@ Generate a single tweet that sounds like YOU would actually write it:`;
         }
         const finalTweet = truncated.trim() || tweetText.substring(0, 277) + "...";
         logger.info(`Truncated tweet: ${finalTweet}`);
-        
+
         // Post the truncated tweet
         if (this.isDryRun) {
           logger.info(`[DRY RUN] Would post tweet: ${finalTweet}`);
@@ -274,7 +280,7 @@ Generate a single tweet that sounds like YOU would actually write it:`;
         }
 
         const result = await this.postToTwitter(finalTweet, []);
-        
+
         if (result === null) {
           logger.info("Skipped posting duplicate tweet");
           return false;
@@ -310,46 +316,40 @@ Generate a single tweet that sounds like YOU would actually write it:`;
       if (result) {
         const postedTweetId = createUniqueUuid(this.runtime, tweetId);
 
-        // Ensure world and room exist for the posted tweet
-        await this.runtime.ensureWorldExists({
-          id: worldId,
-          name: `${this.client.profile?.username}'s Twitter`,
-          agentId: this.runtime.agentId,
-          serverId: userId,
-        });
+        try {
+          // Ensure context exists with error handling
+          const context = await ensureTwitterContext(this.runtime, {
+            userId,
+            username: this.client.profile?.username || "unknown",
+            conversationId: `${userId}-home`,
+          });
 
-        await this.runtime.ensureRoomExists({
-          id: roomId,
-          name: `${this.client.profile?.username}'s Timeline`,
-          source: "twitter",
-          type: ChannelType.FEED,
-          channelId: `${userId}-home`,
-          serverId: userId,
-          worldId: worldId,
-        });
-
-        // Create memory for the posted tweet
-        const postedMemory: Memory = {
-          id: postedTweetId,
-          entityId: this.runtime.agentId,
-          agentId: this.runtime.agentId,
-          roomId,
-          content: {
-            text: tweetText,
-            source: "twitter",
-            channelType: ChannelType.FEED,
-            type: "post",
-            metadata: {
-              tweetId,
-              postedAt: Date.now(),
+          // Create memory for the posted tweet with retry logic
+          const postedMemory: Memory = {
+            id: postedTweetId,
+            entityId: this.runtime.agentId,
+            agentId: this.runtime.agentId,
+            roomId: context.roomId,
+            content: {
+              text: tweetText,
+              source: "twitter",
+              channelType: ChannelType.FEED,
+              type: "post",
+              metadata: {
+                tweetId,
+                postedAt: Date.now(),
+              },
             },
-          },
-          createdAt: Date.now(),
-        };
+            createdAt: Date.now(),
+          };
 
-        await this.runtime.createMemory(postedMemory, "messages");
+          await createMemorySafe(this.runtime, postedMemory, "messages");
+          logger.info("Tweet posted and saved to memory successfully");
+        } catch (error) {
+          logger.error("Failed to save tweet memory:", error);
+          // Don't fail the tweet posting if memory creation fails
+        }
 
-        logger.info("Tweet posted and saved to memory successfully");
         return true;
       }
     } catch (error) {
@@ -371,19 +371,18 @@ Generate a single tweet that sounds like YOU would actually write it:`;
     mediaData: MediaData[] = [],
   ): Promise<any> {
     try {
-      // Check if this tweet is a duplicate of the last one
-      const lastPost = await this.runtime.getCache<any>(
-        `twitter/${this.client.profile?.username}/lastPost`,
-      );
-      if (lastPost) {
-        // Fetch the last tweet to compare content
-        const lastTweet = await this.client.getTweet(lastPost.id);
-        if (lastTweet && lastTweet.text === text) {
-          logger.warn(
-            "Tweet is a duplicate of the last post. Skipping to avoid duplicate.",
-          );
-          return null;
-        }
+      // Check if this tweet is a duplicate of recent tweets
+      const username = this.client.profile?.username;
+      if (!username) {
+        logger.error("No profile username available");
+        return null;
+      }
+
+      // Check for duplicates in recent tweets
+      const isDuplicate = await isDuplicateTweet(this.runtime, username, text);
+      if (isDuplicate) {
+        logger.warn("Tweet is a duplicate of a recent post. Skipping to avoid duplicate.");
+        return null;
       }
 
       // Handle media uploads if needed
@@ -405,15 +404,8 @@ Generate a single tweet that sounds like YOU would actually write it:`;
 
       const result = await sendTweet(this.client, text, mediaData);
 
-      // Cache the new post to prevent duplicates
-      await this.runtime.setCache(
-        `twitter/${this.client.profile?.username}/lastPost`,
-        {
-          id: (result as any).id,
-          text: text,
-          timestamp: Date.now(),
-        },
-      );
+      // Add to recent tweets cache to prevent future duplicates
+      await addToRecentTweets(this.runtime, username, text);
 
       return result;
     } catch (error) {

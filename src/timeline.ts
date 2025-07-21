@@ -22,6 +22,11 @@ import {
 } from "./templates";
 import { sendTweet, parseActionResponseFromText } from "./utils";
 import { ActionResponse } from "./types";
+import {
+  ensureTwitterContext,
+  createMemorySafe,
+  isTweetProcessed
+} from "./utils/memory";
 
 enum TIMELINE_TYPE {
   ForYou = "foryou",
@@ -152,10 +157,9 @@ export class TwitterTimelineClient {
     const tweetDecisions = [];
     for (const tweet of tweets) {
       try {
-        const tweetId = this.createTweetId(this.runtime, tweet);
-        // Skip if we've already processed this tweet
-        const memory = await this.runtime.getMemoryById(tweetId);
-        if (memory) {
+        // Check if already processed using utility
+        const isProcessed = await isTweetProcessed(this.runtime, tweet.id);
+        if (isProcessed) {
           logger.log(`Already processed tweet ID: ${tweet.id}`);
           continue;
         }
@@ -288,24 +292,23 @@ Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appro
         worldId: createUniqueUuid(this.runtime, tweet.userId),
       });
 
-      // Update memory with processed tweet
-      await this.runtime.createMemory(
-        {
-          id: tweetId,
-          entityId: createUniqueUuid(this.runtime, tweet.userId),
-          content: {
-            text: tweet.text,
-            url: tweet.permanentUrl,
-            source: "twitter",
-            channelType: ChannelType.GROUP,
-            tweet: tweet,
-          },
-          agentId: this.runtime.agentId,
-          roomId,
-          createdAt: getEpochMs(tweet.timestamp),
+      // Update memory with processed tweet using safe method
+      const tweetMemory: Memory = {
+        id: tweetId,
+        entityId: createUniqueUuid(this.runtime, tweet.userId),
+        content: {
+          text: tweet.text,
+          url: tweet.permanentUrl,
+          source: "twitter",
+          channelType: ChannelType.GROUP,
+          tweet: tweet,
         },
-        "messages",
-      );
+        agentId: this.runtime.agentId,
+        roomId,
+        createdAt: getEpochMs(tweet.timestamp),
+      };
+      
+      await createMemorySafe(this.runtime, tweetMemory, "messages");
 
       try {
         // ensure world and rooms, connections, and worlds are created
@@ -350,41 +353,18 @@ Choose any combination of [LIKE], [RETWEET], [QUOTE], and [REPLY] that are appro
     worldId: UUID,
     entityId: UUID,
   ) {
-    await this.runtime.ensureWorldExists({
-      id: worldId,
-      name: `${tweet.name}'s Twitter`,
-      agentId: this.runtime.agentId,
-      serverId: tweet.userId,
-      metadata: {
-        ownership: { ownerId: tweet.userId },
-        twitter: {
-          username: tweet.username,
-          id: tweet.userId,
-          name: tweet.name,
-        },
-      },
-    });
-
-    await this.runtime.ensureConnection({
-      entityId,
-      roomId,
-      userName: tweet.username,
-      name: tweet.name,
-      worldName: `${tweet.name}'s Twitter`,
-      source: "twitter",
-      type: ChannelType.GROUP,
-      channelId: tweet.conversationId,
-      serverId: tweet.userId,
-      worldId,
-      metadata: {
-        ownership: { ownerId: tweet.userId },
-        twitter: {
-          username: tweet.username,
-          id: tweet.userId,
-          name: tweet.name,
-        },
-      },
-    });
+    try {
+      // Use the utility function for consistency
+      await ensureTwitterContext(this.runtime, {
+        userId: tweet.userId,
+        username: tweet.username,
+        name: tweet.name,
+        conversationId: tweet.conversationId,
+      });
+    } catch (error) {
+      logger.error(`Failed to ensure context for tweet ${tweet.id}:`, error);
+      // Don't fail the entire timeline processing
+    }
   }
 
   async handleLikeAction(tweet: Tweet) {
@@ -476,8 +456,8 @@ ${tweet.text}`;
           createdAt: Date.now(),
         };
 
-        // Save the response to memory
-        await this.runtime.createMemory(responseMemory, "messages");
+        // Save the response to memory with error handling
+        await createMemorySafe(this.runtime, responseMemory, "messages");
       }
     } catch (error) {
       logger.error("Error in quote tweet generation:", error);
@@ -538,8 +518,8 @@ ${tweet.text}`;
             createdAt: Date.now(),
           };
 
-          // Save the response to memory
-          await this.runtime.createMemory(responseMemory, "messages");
+          // Save the response to memory with error handling
+          await createMemorySafe(this.runtime, responseMemory, "messages");
         }
       }
     } catch (error) {

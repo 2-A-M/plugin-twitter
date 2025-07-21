@@ -9,6 +9,7 @@ import {
   createUniqueUuid,
   ModelType,
 } from "@elizaos/core";
+import type { TwitterService } from "../services/twitter.service";
 
 export const postTweetAction: Action = {
   name: "POST_TWEET",
@@ -23,40 +24,8 @@ export const postTweetAction: Action = {
     runtime: IAgentRuntime,
     message: Memory,
   ): Promise<boolean> => {
-    logger.debug("Validating POST_TWEET action");
-    logger.debug("Message details:", {
-      hasContent: !!message.content,
-      contentType: message.content?.type,
-      hasText: !!message.content?.text,
-      textLength: message.content?.text?.length || 0,
-      source: message.content?.source,
-      roomId: message.roomId,
-      entityId: message.entityId,
-    });
-
-    // Skip validation if called from provider context (state composition)
-    // This happens when bootstrap's actionsProvider validates all actions
-    if (message.content?.type === 'post' && !message.content?.text) {
-      logger.debug("Skipping validation for provider context (empty post type)");
-      return false;
-    }
-
-    // Basic validation - make sure we have content to tweet
-    const text = message.content?.text?.trim();
-    if (!text || text.length === 0) {
-      logger.error("No text content for tweet");
-      // Log stack trace to understand where this is coming from
-      logger.debug("Stack trace:", new Error().stack);
-      return false;
-    }
-
-    // Check tweet length (280 characters)
-    if (text.length > 280) {
-      logger.warn(`Tweet too long: ${text.length} characters`);
-      // Still valid, will be truncated or sent as thread
-    }
-
-    return true;
+    const service = runtime.getService("twitter");
+    return !!service;
   },
   description: "Post a tweet on Twitter",
   handler: async (
@@ -70,7 +39,7 @@ export const postTweetAction: Action = {
 
     try {
       // Get the Twitter service instead of creating a new client
-      const twitterService = runtime.getService('twitter') as any;
+      const twitterService = runtime.getService('twitter') as TwitterService;
       
       if (!twitterService) {
         throw new Error("Twitter service not available");
@@ -187,20 +156,25 @@ Tweet:`;
 
         logger.info(`Successfully posted tweet: ${tweetId}`);
 
-        // Create memory of the posted tweet
-        await runtime.createMemory(
-          {
-            entityId: runtime.agentId,
-            content: {
-              text: finalTweetText,
-              url: tweetUrl,
-              source: "twitter",
-              action: "POST_TWEET",
+        // Create memory of the posted tweet with error handling
+        try {
+          await runtime.createMemory(
+            {
+              entityId: runtime.agentId,
+              content: {
+                text: finalTweetText,
+                url: tweetUrl,
+                source: "twitter",
+                action: "POST_TWEET",
+              },
+              roomId: message.roomId,
             },
-            roomId: message.roomId,
-          },
-          "messages",
-        );
+            "messages",
+          );
+        } catch (memoryError) {
+          logger.error("Failed to create memory for posted tweet:", memoryError);
+          // Don't fail the action if memory creation fails
+        }
 
         if (callback) {
           await callback({
@@ -234,13 +208,13 @@ Tweet:`;
       {
         name: "{{user1}}",
         content: {
-          text: "Post a tweet about the importance of open source AI",
+          text: "Post a tweet about the weather today",
         },
       },
       {
-        name: "{{agentName}}",
+        name: "{{agent}}",
         content: {
-          text: "I'll post a tweet about open source AI for you.",
+          text: "I'll post a tweet about today's weather for you.",
           action: "POST_TWEET",
         },
       },
@@ -249,31 +223,16 @@ Tweet:`;
       {
         name: "{{user1}}",
         content: {
-          text: "Tweet something interesting about web3",
+          text: "Tweet: The future of AI is collaborative intelligence",
         },
       },
       {
-        name: "{{agentName}}",
+        name: "{{agent}}",
         content: {
-          text: "I'll share an interesting thought about web3 on Twitter.",
+          text: "I'll post that tweet for you.",
           action: "POST_TWEET",
         },
       },
     ],
-    [
-      {
-        name: "{{user1}}",
-        content: {
-          text: "Share your thoughts on the future of technology on Twitter",
-        },
-      },
-      {
-        name: "{{agentName}}",
-        content: {
-          text: "I'll post my thoughts on the future of technology.",
-          action: "POST_TWEET",
-        },
-      },
-    ],
-  ],
+  ] as ActionExample[][],
 };

@@ -59,6 +59,17 @@ export const ServiceType = {
 } as const;
 
 /**
+ * Extended interface for TwitterService with proper typing
+ */
+export interface ITwitterService extends Service {
+  twitterClient?: TwitterClientInstance;
+}
+
+// Import types for the service interface
+import type { Service } from "@elizaos/core";
+import type { TwitterClientInstance } from "./services/twitter.service";
+
+/**
  * Twitter-specific tweet type
  */
 export type Tweet = {

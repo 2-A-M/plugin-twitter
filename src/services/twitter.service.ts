@@ -36,7 +36,8 @@ export class TwitterClientInstance implements ITwitterClient {
     );
 
     const postEnabled =
-      postEnabledSetting === "true" || postEnabledSetting === true;
+      (typeof postEnabledSetting === "string" && (postEnabledSetting === "true" || postEnabledSetting.toLowerCase() === "true")) ||
+      (typeof postEnabledSetting === "boolean" && postEnabledSetting === true);
 
     if (postEnabled) {
       logger.info("Twitter posting is ENABLED - creating post client");
@@ -101,7 +102,7 @@ export class TwitterService extends Service {
   capabilityDescription =
     "The agent is able to send and receive messages on Twitter";
 
-  private twitterClient?: TwitterClientInstance;
+  public twitterClient?: TwitterClientInstance;
 
   constructor() {
     super();

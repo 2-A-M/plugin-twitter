@@ -29,6 +29,11 @@ import { shouldTargetUser, getTargetUsers } from "./environment";
 import { getSetting } from "./utils/settings";
 import { getRandomInterval } from "./environment";
 import { getEpochMs } from "./utils/time";
+import {
+  ensureTwitterContext as ensureContext,
+  createMemorySafe,
+  isTweetProcessed
+} from "./utils/memory";
 
 /**
  * Template for generating dialog and actions for a Twitter message handler.
@@ -286,10 +291,8 @@ export class TwitterInteractionClient {
       }
 
       // Skip if already processed
-      const tweetId = createUniqueUuid(this.runtime, tweet.id);
-      const existingMemory = await this.runtime.getMemoryById(tweetId);
-
-      if (existingMemory) {
+      const isProcessed = await isTweetProcessed(this.runtime, tweet.id);
+      if (isProcessed) {
         continue; // Already processed
       }
 
@@ -416,68 +419,34 @@ Response (YES/NO):`;
    * Ensure tweet context exists (world, room, entity)
    */
   private async ensureTweetContext(tweet: ClientTweet) {
-    const userId = tweet.userId;
-    const conversationId = tweet.conversationId || tweet.id;
-    const username = tweet.username;
+    try {
+      const context = await ensureContext(this.runtime, {
+        userId: tweet.userId,
+        username: tweet.username,
+        name: tweet.name,
+        conversationId: tweet.conversationId || tweet.id,
+      });
 
-    // Create world for user
-    const worldId = createUniqueUuid(this.runtime, userId);
-    await this.runtime.ensureWorldExists({
-      id: worldId,
-      name: `${username}'s Twitter`,
-      agentId: this.runtime.agentId,
-      serverId: userId,
-      metadata: {
-        ownership: { ownerId: userId },
-        twitter: {
-          username: username,
-          id: userId,
+      // Save tweet as memory with error handling
+      const tweetMemory: Memory = {
+        id: createUniqueUuid(this.runtime, tweet.id),
+        entityId: context.entityId,
+        content: {
+          text: tweet.text,
+          url: tweet.permanentUrl,
+          source: "twitter",
+          tweet,
         },
-      },
-    });
+        agentId: this.runtime.agentId,
+        roomId: context.roomId,
+        createdAt: getEpochMs(tweet.timestamp),
+      };
 
-    // Create room for conversation
-    const roomId = createUniqueUuid(this.runtime, conversationId);
-
-    // Ensure room exists
-    await this.runtime.ensureRoomExists({
-      id: roomId,
-      name: `Twitter conversation ${conversationId}`,
-      source: "twitter",
-      type: ChannelType.FEED,
-      channelId: conversationId,
-      serverId: userId,
-      worldId: worldId,
-    });
-
-    // Ensure entity/connection
-    const entityId = createUniqueUuid(this.runtime, userId);
-    await this.runtime.ensureConnection({
-      entityId,
-      roomId,
-      userName: username,
-      name: tweet.name,
-      source: "twitter",
-      type: ChannelType.FEED,
-      worldId: worldId,
-    });
-
-    // Save tweet as memory
-    const tweetMemory: Memory = {
-      id: createUniqueUuid(this.runtime, tweet.id),
-      entityId,
-      content: {
-        text: tweet.text,
-        url: tweet.permanentUrl,
-        source: "twitter",
-        tweet,
-      },
-      agentId: this.runtime.agentId,
-      roomId,
-      createdAt: getEpochMs(tweet.timestamp),
-    };
-
-    await this.runtime.createMemory(tweetMemory, "messages");
+      await createMemorySafe(this.runtime, tweetMemory, "messages");
+    } catch (error) {
+      logger.error(`Failed to ensure context for tweet ${tweet.id}:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -682,7 +651,7 @@ Response (YES/NO):`;
         };
 
         logger.log("Saving tweet memory...");
-        await this.runtime.createMemory(memory, "messages");
+        await createMemorySafe(this.runtime, memory, "messages");
 
         // TODO: This doesn't work as intended - thread events are mixed with other events
         //       and need a better implementation strategy
@@ -758,7 +727,7 @@ Response (YES/NO):`;
         interaction.targetTweet.conversationId,
       );
 
-      await this.runtime.createMemory(memory, "messages");
+      await createMemorySafe(this.runtime, memory, "messages");
 
       // Create message for reaction
       const reactionMessage: TwitterMemory = {
@@ -959,7 +928,7 @@ Response (YES/NO):`;
           createdAt: Date.now(),
         };
 
-        await this.runtime.createMemory(responseMemory, "messages");
+        await createMemorySafe(this.runtime, responseMemory, "messages");
 
         // Return the created memory
         return [responseMemory];

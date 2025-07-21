@@ -16,6 +16,7 @@ import {
 } from "./client/index";
 import { TwitterInteractionPayload } from "./types";
 import { getEpochMs } from "./utils/time";
+import { createMemorySafe } from "./utils/memory";
 
 interface TwitterUser {
   id_str: string;
@@ -673,7 +674,8 @@ export class ClientBase {
           : undefined,
       } as Content;
 
-      await this.runtime.createMemory(
+      await createMemorySafe(
+        this.runtime,
         {
           id: createUniqueUuid(this.runtime, tweet.id),
           entityId,
@@ -708,7 +710,7 @@ export class ClientBase {
       ) {
         logger.debug("Message already saved", recentMessage[0].id);
       } else {
-        await this.runtime.createMemory(message, "messages");
+        await createMemorySafe(this.runtime, message, "messages");
       }
 
       await this.runtime.evaluate(message, {

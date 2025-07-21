@@ -5,10 +5,15 @@ import {
   createUniqueUuid,
   logger,
   ModelType,
+  type Memory,
 } from "@elizaos/core";
 import { SearchMode } from "./client/index";
 import { getSetting } from "./utils/settings";
 import { getRandomInterval } from "./environment";
+import {
+  ensureTwitterContext,
+  createMemorySafe
+} from "./utils/memory";
 
 interface DiscoveryConfig {
   // Topics from character configuration
@@ -877,15 +882,17 @@ Quote tweet:`;
   }
 
   private async saveEngagementMemory(tweet: Tweet, engagementType: string) {
-    // TODO: Implement room creation before saving memories
-    logger.debug(`[Discovery] Would save engagement memory for ${engagementType} on tweet ${tweet.id}`);
-    return;
-    
-    /* Disabled until room management is implemented
-    const memoryId = await this.runtime.createMemory(
-      {
-        id: createUniqueUuid(this.runtime, tweet.id),
-        entityId: createUniqueUuid(this.runtime, tweet.userId),
+    try {
+      // Ensure context exists before saving memory
+      const context = await ensureTwitterContext(this.runtime, {
+        userId: tweet.userId,
+        username: tweet.username,
+        conversationId: tweet.conversationId || tweet.id,
+      });
+
+      const memory: Memory = {
+        id: createUniqueUuid(this.runtime, `${tweet.id}-${engagementType}`),
+        entityId: context.entityId,
         content: {
           text: `${engagementType} tweet from @${tweet.username}: ${tweet.text}`,
           metadata: {
@@ -895,22 +902,32 @@ Quote tweet:`;
             isDryRun: this.isDryRun,
           },
         },
-        roomId: createUniqueUuid(this.runtime, tweet.conversationId),
-      },
-      "messages",
-    );
-    */
+        roomId: context.roomId,
+        agentId: this.runtime.agentId,
+        createdAt: Date.now(),
+      };
+
+      await createMemorySafe(this.runtime, memory, "messages");
+      logger.debug(`[Discovery] Saved ${engagementType} memory for tweet ${tweet.id}`);
+    } catch (error) {
+      logger.error(`[Discovery] Failed to save engagement memory:`, error);
+      // Don't throw - just log the error
+    }
   }
 
   private async saveFollowMemory(user: ScoredAccount["user"]) {
-    // TODO: Implement room creation before saving memories
-    logger.debug(`[Discovery] Would save follow memory for @${user.username}`);
-    return;
-    
-    /* Disabled until room management is implemented
-    const memoryId = await this.runtime.createMemory(
-      {
-        entityId: createUniqueUuid(this.runtime, user.id),
+    try {
+      // Create a simple context for follows
+      const context = await ensureTwitterContext(this.runtime, {
+        userId: user.id,
+        username: user.username,
+        name: user.name,
+        conversationId: `twitter-follows`,
+      });
+
+      const memory: Memory = {
+        id: createUniqueUuid(this.runtime, `follow-${user.id}`),
+        entityId: context.entityId,
         content: {
           text: `followed twitter user ${user.id} @${user.username}`,
           metadata: {
@@ -922,11 +939,17 @@ Quote tweet:`;
             isDryRun: this.isDryRun,
           },
         },
-        roomId: createUniqueUuid(this.runtime, `twitter-follows`),
-      },
-      "messages",
-    );
-    */
+        roomId: context.roomId,
+        agentId: this.runtime.agentId,
+        createdAt: Date.now(),
+      };
+
+      await createMemorySafe(this.runtime, memory, "messages");
+      logger.debug(`[Discovery] Saved follow memory for @${user.username}`);
+    } catch (error) {
+      logger.error(`[Discovery] Failed to save follow memory:`, error);
+      // Don't throw - just log the error
+    }
   }
 
   private delay(ms: number): Promise<void> {
