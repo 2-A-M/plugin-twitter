@@ -108,8 +108,7 @@ describe("Environment Configuration", () => {
       expect(config.TWITTER_RETRY_LIMIT).toBe("5");
       expect(config.TWITTER_POST_INTERVAL_MIN).toBe("90");
       expect(config.TWITTER_POST_INTERVAL_MAX).toBe("180");
-      expect(config.TWITTER_SEARCH_ENABLE).toBe("true");
-      expect(config.TWITTER_POST_ENABLE).toBe("false");
+      expect(config.TWITTER_ENABLE_POST).toBe("false");
       expect(config.TWITTER_DRY_RUN).toBe("false");
     });
 
@@ -120,8 +119,7 @@ describe("Environment Configuration", () => {
           TWITTER_API_SECRET_KEY: "test-api-secret",
           TWITTER_ACCESS_TOKEN: "test-access-token",
           TWITTER_ACCESS_TOKEN_SECRET: "test-access-secret",
-          TWITTER_SEARCH_ENABLE: "true",
-          TWITTER_POST_ENABLE: "TRUE",
+          TWITTER_ENABLE_POST: "true",
           TWITTER_DRY_RUN: "false",
         };
         return settings[key];
@@ -129,8 +127,7 @@ describe("Environment Configuration", () => {
 
       const config = await validateTwitterConfig(mockRuntime);
 
-      expect(config.TWITTER_SEARCH_ENABLE).toBe("true");
-      expect(config.TWITTER_POST_ENABLE).toBe("true");
+      expect(config.TWITTER_ENABLE_POST).toBe("true");
       expect(config.TWITTER_DRY_RUN).toBe("false");
     });
 
@@ -220,8 +217,7 @@ describe("Environment Configuration", () => {
         TWITTER_RETRY_LIMIT: "3",
         TWITTER_POST_INTERVAL_MIN: "10",
         TWITTER_POST_INTERVAL_MAX: "20",
-        TWITTER_SEARCH_ENABLE: "true",
-        TWITTER_POST_ENABLE: "false",
+        TWITTER_ENABLE_POST: "false",
         TWITTER_DRY_RUN: "true",
       };
 

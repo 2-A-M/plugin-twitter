@@ -41,10 +41,6 @@ export const twitterEnvSchema = z.object({
   TWITTER_RETRY_LIMIT: z.string().default("5"),
 });
 
-// Remove deprecated
-delete process.env.TWITTER_SEARCH_ENABLE;
-delete process.env.TWITTER_POST_ENABLE;
-
 export type TwitterConfig = z.infer<typeof twitterEnvSchema>;
 
 /**

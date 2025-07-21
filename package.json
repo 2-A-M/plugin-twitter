@@ -1,6 +1,6 @@
 {
   "name": "@elizaos/plugin-twitter",
-  "version": "1.2.19",
+  "version": "1.2.20",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -96,13 +96,6 @@
         "default": 120,
         "sensitive": false
       },
-      "TWITTER_SEARCH_ENABLE": {
-        "type": "boolean",
-        "description": "Enable timeline monitoring and interaction processing.",
-        "required": false,
-        "default": true,
-        "sensitive": false
-      },
       "TWITTER_DRY_RUN": {
         "type": "boolean",
         "description": "When true, all Twitter actions are simulated and nothing is actually posted.",
@@ -110,7 +103,7 @@
         "default": false,
         "sensitive": false
       },
-      "TWITTER_POST_ENABLE": {
+      "TWITTER_ENABLE_POST": {
         "type": "boolean",
         "description": "Enable autonomous tweet posting.",
         "required": false,
@@ -215,7 +208,7 @@
         "default": false,
         "sensitive": false
       },
-      "TWITTER_ENABLE_ACTION_PROCESSING": {
+      "TWITTER_ENABLE_ACTIONS": {
         "type": "boolean",
         "description": "Enable timeline action processing and automated responses.",
         "required": false,
@@ -241,6 +234,90 @@
         "description": "Automatically respond to replies.",
         "required": false,
         "default": true,
+        "sensitive": false
+      },
+      "TWITTER_ENABLE_REPLIES": {
+        "type": "boolean",
+        "description": "Enable mention and reply handling.",
+        "required": false,
+        "default": true,
+        "sensitive": false
+      },
+      "TWITTER_ENABLE_DISCOVERY": {
+        "type": "boolean",
+        "description": "Enable discovery service for autonomous content discovery and growth.",
+        "required": false,
+        "default": false,
+        "sensitive": false
+      },
+      "TWITTER_MIN_FOLLOWER_COUNT": {
+        "type": "number",
+        "description": "Minimum follower count for accounts to follow in discovery service.",
+        "required": false,
+        "default": 100,
+        "sensitive": false
+      },
+      "TWITTER_MAX_FOLLOWS_PER_CYCLE": {
+        "type": "number",
+        "description": "Maximum accounts to follow per discovery cycle.",
+        "required": false,
+        "default": 5,
+        "sensitive": false
+      },
+      "TWITTER_MAX_ENGAGEMENTS_PER_RUN": {
+        "type": "number",
+        "description": "Maximum engagements per discovery/interaction cycle.",
+        "required": false,
+        "default": 10,
+        "sensitive": false
+      },
+      "TWITTER_ENGAGEMENT_INTERVAL": {
+        "type": "number",
+        "description": "Fixed interval for interactions (default: 30, used if MIN/MAX not set).",
+        "required": false,
+        "default": 30,
+        "sensitive": false
+      },
+      "TWITTER_ENGAGEMENT_INTERVAL_MIN": {
+        "type": "number",
+        "description": "Minimum minutes between engagements.",
+        "required": false,
+        "default": 20,
+        "sensitive": false
+      },
+      "TWITTER_ENGAGEMENT_INTERVAL_MAX": {
+        "type": "number",
+        "description": "Maximum minutes between engagements.",
+        "required": false,
+        "default": 40,
+        "sensitive": false
+      },
+      "TWITTER_DISCOVERY_INTERVAL_MIN": {
+        "type": "number",
+        "description": "Minimum minutes between discovery cycles.",
+        "required": false,
+        "default": 15,
+        "sensitive": false
+      },
+      "TWITTER_DISCOVERY_INTERVAL_MAX": {
+        "type": "number",
+        "description": "Maximum minutes between discovery cycles.",
+        "required": false,
+        "default": 30,
+        "sensitive": false
+      },
+      "TWITTER_POST_INTERVAL": {
+        "type": "number",
+        "description": "Fixed interval between posts (default: 120, used if MIN/MAX not set).",
+        "required": false,
+        "default": 120,
+        "sensitive": false
+      },
+      "TWITTER_TIMELINE_MODE": {
+        "type": "string",
+        "description": "Timeline mode: 'home' for regular timeline or other modes.",
+        "required": false,
+        "default": "home",
         "sensitive": false
       }
     }
