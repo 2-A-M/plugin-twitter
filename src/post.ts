@@ -85,6 +85,13 @@ export class TwitterPostClient {
         return;
       }
 
+      await this.generateNewTweet();
+
+      if (!this.isRunning) {
+        logger.log("Twitter post client stopped after tweet, exiting loop");
+        return;
+      }
+
       // Get random post interval in minutes
       const postIntervalMinutes = getRandomInterval(this.runtime, 'post');
 
@@ -93,15 +100,8 @@ export class TwitterPostClient {
 
       logger.info(`Next tweet scheduled in ${postIntervalMinutes.toFixed(1)} minutes`);
 
-      // Wait for the interval BEFORE generating the tweet
+      // Wait for the interval AFTER generating the tweet
       await new Promise((resolve) => setTimeout(resolve, interval));
-
-      if (!this.isRunning) {
-        logger.log("Twitter post client stopped during wait, exiting loop");
-        return;
-      }
-
-      await this.generateNewTweet();
 
       if (this.isRunning) {
         // Schedule the next iteration
@@ -109,8 +109,8 @@ export class TwitterPostClient {
       }
     };
 
-    // Always post immediately for better UX
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Wait a bit longer to ensure profile is loaded
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
     // Check if we should generate a tweet immediately
     const postImmediately =
@@ -122,7 +122,16 @@ export class TwitterPostClient {
       logger.info(
         "TWITTER_POST_IMMEDIATELY is true, generating initial tweet now",
       );
-      await this.generateNewTweet();
+      // Try multiple times in case profile isn't ready
+      let retries = 0;
+      while (retries < 5) {
+        const success = await this.generateNewTweet();
+        if (success) break;
+        
+        retries++;
+        logger.info(`Retrying immediate tweet (attempt ${retries}/5)...`);
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
     }
 
     // Start the regular generation loop
@@ -132,14 +141,15 @@ export class TwitterPostClient {
   /**
    * Handles the creation and posting of a tweet by emitting standardized events.
    * This approach aligns with our platform-independent architecture.
+   * @returns {Promise<boolean>} true if tweet was posted successfully
    */
-  async generateNewTweet() {
+  async generateNewTweet(): Promise<boolean> {
     logger.info("Attempting to generate new tweet...");
 
     // Prevent concurrent posting
     if (this.isPosting) {
       logger.info("Already posting a tweet, skipping concurrent attempt");
-      return;
+      return false;
     }
 
     this.isPosting = true;
@@ -149,7 +159,8 @@ export class TwitterPostClient {
       const userId = this.client.profile?.id;
       if (!userId) {
         logger.error("Cannot generate tweet: Twitter profile not available");
-        return;
+        this.isPosting = false; // Reset flag
+        return false;
       }
 
       logger.info(
@@ -232,12 +243,12 @@ Generate a single tweet that sounds like YOU would actually write it:`;
 
       if (!tweetText || tweetText.length === 0) {
         logger.error("Generated empty tweet content");
-        return;
+        return false;
       }
 
       if (tweetText.includes("Error: Missing")) {
         logger.error("Error in generated content:", tweetText);
-        return;
+        return false;
       }
 
       // Validate tweet length
@@ -259,14 +270,14 @@ Generate a single tweet that sounds like YOU would actually write it:`;
         // Post the truncated tweet
         if (this.isDryRun) {
           logger.info(`[DRY RUN] Would post tweet: ${finalTweet}`);
-          return;
+          return false;
         }
 
         const result = await this.postToTwitter(finalTweet, []);
         
         if (result === null) {
           logger.info("Skipped posting duplicate tweet");
-          return;
+          return false;
         }
 
         const tweetId = (result as any).id;
@@ -274,7 +285,7 @@ Generate a single tweet that sounds like YOU would actually write it:`;
 
         // Don't save to memory if room creation might fail
         logger.info("Tweet posted successfully (memory saving disabled due to room constraints)");
-        return;
+        return true;
       }
 
       logger.info(`Generated tweet: ${tweetText}`);
@@ -282,7 +293,7 @@ Generate a single tweet that sounds like YOU would actually write it:`;
       // Post the tweet
       if (this.isDryRun) {
         logger.info(`[DRY RUN] Would post tweet: ${tweetText}`);
-        return;
+        return false;
       }
 
       const result = await this.postToTwitter(tweetText, []);
@@ -290,7 +301,7 @@ Generate a single tweet that sounds like YOU would actually write it:`;
       // If result is null, it means we detected a duplicate tweet and skipped posting
       if (result === null) {
         logger.info("Skipped posting duplicate tweet");
-        return;
+        return false;
       }
 
       const tweetId = (result as any).id;
@@ -339,9 +350,11 @@ Generate a single tweet that sounds like YOU would actually write it:`;
         await this.runtime.createMemory(postedMemory, "messages");
 
         logger.info("Tweet posted and saved to memory successfully");
+        return true;
       }
     } catch (error) {
       logger.error("Error generating tweet:", error);
+      return false;
     } finally {
       this.isPosting = false;
     }
