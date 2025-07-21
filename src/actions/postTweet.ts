@@ -9,7 +9,6 @@ import {
   createUniqueUuid,
   ModelType,
 } from "@elizaos/core";
-import { ClientBase } from "../base.js";
 
 export const postTweetAction: Action = {
   name: "POST_TWEET",
@@ -70,12 +69,26 @@ export const postTweetAction: Action = {
     logger.info("Executing POST_TWEET action");
 
     try {
-      // Initialize a Twitter client directly
-      const client = new ClientBase(runtime, {});
+      // Get the Twitter service instead of creating a new client
+      const twitterService = runtime.getService('twitter') as any;
+      
+      if (!twitterService) {
+        throw new Error("Twitter service not available");
+      }
 
-      // Check if client is initialized
-      if (!client.twitterClient) {
-        await client.init();
+      // Get the initialized client from the service
+      const twitterClient = twitterService.twitterClient;
+      if (!twitterClient || !twitterClient.client) {
+        throw new Error("Twitter client not initialized in service");
+      }
+
+      const client = twitterClient.client;
+
+      // Verify we have a profile
+      if (!client.profile) {
+        throw new Error(
+          "Twitter client not properly initialized - no profile found",
+        );
       }
 
       // Get tweet text
@@ -106,13 +119,6 @@ export const postTweetAction: Action = {
         }
         text = truncated.trim() || text.substring(0, 277) + "...";
         logger.info(`Truncated tweet: ${text}`);
-      }
-
-      // Verify we have a profile
-      if (!client.profile) {
-        throw new Error(
-          "Twitter client not properly initialized - no profile found",
-        );
       }
 
       // Generate a more natural tweet if the input is too short or generic
