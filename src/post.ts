@@ -114,7 +114,7 @@ export class TwitterPostClient {
 
     // Check if we should generate a tweet immediately
     const postImmediately =
-      this.state?.TWITTER_POST_IMMEDIATELY ||
+      this.state?.TWITTER_POST_IMMEDIATELY ??
       getSetting(this.runtime, "TWITTER_POST_IMMEDIATELY") as string
 
     if (parseBooleanFromText(postImmediately)) {
