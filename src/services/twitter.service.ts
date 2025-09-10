@@ -30,7 +30,7 @@ export class TwitterClientInstance implements ITwitterClient {
     // Posting logic
     const postEnabled = parseBooleanFromText(getSetting(runtime, "TWITTER_ENABLE_POST"))
     logger.debug(
-      `TWITTER_ENABLE_POST setting value: ${JSON.stringify(postEnabled)}, type: ${typeof postEnabledSetting}`,
+      `TWITTER_ENABLE_POST setting value: ${JSON.stringify(postEnabled)}, type: ${typeof postEnabled}`,
     );
 
     if (postEnabled) {
