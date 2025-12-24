@@ -7,6 +7,7 @@ import {
   createUniqueUuid,
   logger,
   ModelType,
+  parseBooleanFromText,
 } from "@elizaos/core";
 import type { ClientBase } from "./base";
 import type { MediaData } from "./types";
@@ -43,13 +44,8 @@ export class TwitterPostClient {
     this.runtime = runtime;
     const dryRunSetting =
       this.state?.TWITTER_DRY_RUN ??
-      getSetting(this.runtime, "TWITTER_DRY_RUN") ??
-      process.env.TWITTER_DRY_RUN;
-    this.isDryRun =
-      dryRunSetting === true ||
-      dryRunSetting === "true" ||
-      (typeof dryRunSetting === "string" &&
-        dryRunSetting.toLowerCase() === "true");
+      getSetting(this.runtime, "TWITTER_DRY_RUN")
+    this.isDryRun = parseBooleanFromText(dryRunSetting)
 
     // Log configuration on initialization
     logger.log("Twitter Post Client Configuration:");
@@ -58,13 +54,11 @@ export class TwitterPostClient {
     const postIntervalMin = parseInt(
       this.state?.TWITTER_POST_INTERVAL_MIN ||
         (getSetting(this.runtime, "TWITTER_POST_INTERVAL_MIN") as string) ||
-        process.env.TWITTER_POST_INTERVAL_MIN ||
         "90",
     );
     const postIntervalMax = parseInt(
       this.state?.TWITTER_POST_INTERVAL_MAX ||
         (getSetting(this.runtime, "TWITTER_POST_INTERVAL_MAX") as string) ||
-        process.env.TWITTER_POST_INTERVAL_MAX ||
         "150",
     );
     logger.log(`- Post Interval: ${postIntervalMin}-${postIntervalMax} minutes (randomized)`);
@@ -120,11 +114,10 @@ export class TwitterPostClient {
 
     // Check if we should generate a tweet immediately
     const postImmediately =
-      this.state?.TWITTER_POST_IMMEDIATELY ||
-      (getSetting(this.runtime, "TWITTER_POST_IMMEDIATELY") as string) ||
-      process.env.TWITTER_POST_IMMEDIATELY;
+      this.state?.TWITTER_POST_IMMEDIATELY ??
+      getSetting(this.runtime, "TWITTER_POST_IMMEDIATELY") as string
 
-    if (postImmediately === "true" || postImmediately === true) {
+    if (parseBooleanFromText(postImmediately)) {
       logger.info(
         "TWITTER_POST_IMMEDIATELY is true, generating initial tweet now",
       );

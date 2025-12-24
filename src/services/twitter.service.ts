@@ -1,4 +1,4 @@
-import { Service, type IAgentRuntime, logger } from "@elizaos/core";
+import { Service, type IAgentRuntime, logger, parseBooleanFromText } from "@elizaos/core";
 import { TwitterInteractionClient } from "../interactions";
 import { TwitterPostClient } from "../post";
 import { TwitterTimelineClient } from "../timeline";
@@ -28,16 +28,10 @@ export class TwitterClientInstance implements ITwitterClient {
     this.client = new ClientBase(runtime, state);
 
     // Posting logic
-    const postEnabledSetting =
-      getSetting(runtime, "TWITTER_ENABLE_POST") ??
-      process.env.TWITTER_ENABLE_POST;
+    const postEnabled = parseBooleanFromText(getSetting(runtime, "TWITTER_ENABLE_POST"))
     logger.debug(
-      `TWITTER_ENABLE_POST setting value: ${JSON.stringify(postEnabledSetting)}, type: ${typeof postEnabledSetting}`,
+      `TWITTER_ENABLE_POST setting value: ${JSON.stringify(postEnabled)}, type: ${typeof postEnabled}`,
     );
-
-    const postEnabled =
-      (typeof postEnabledSetting === "string" && (postEnabledSetting === "true" || postEnabledSetting.toLowerCase() === "true")) ||
-      (typeof postEnabledSetting === "boolean" && postEnabledSetting === true);
 
     if (postEnabled) {
       logger.info("Twitter posting is ENABLED - creating post client");
