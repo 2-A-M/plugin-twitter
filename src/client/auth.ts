@@ -1,5 +1,6 @@
 import { TwitterApi } from "twitter-api-v2";
 import { Profile } from "./profile";
+import type { TwitterAuthProvider, TwitterOAuth1Provider } from "./auth-providers/types";
 
 /**
  * Twitter API v2 authentication using developer credentials
@@ -8,30 +9,54 @@ export class TwitterAuth {
   private v2Client: TwitterApi | null = null;
   private authenticated = false;
   private profile?: Profile;
+  private loggedOut = false;
 
-  constructor(
-    private appKey: string,
-    private appSecret: string,
-    private accessToken: string,
-    private accessSecret: string,
-  ) {
-    this.initializeClient();
+  private lastAccessToken?: string;
+
+  constructor(private readonly provider: TwitterAuthProvider) {
+    // Backward-compatible behavior: legacy OAuth1 provider is considered authenticated immediately,
+    // matching previous eager client initialization semantics.
+    if (typeof (provider as any).getOAuth1Credentials === "function") {
+      this.authenticated = true;
+    }
   }
 
-  private initializeClient(): void {
-    this.v2Client = new TwitterApi({
-      appKey: this.appKey,
-      appSecret: this.appSecret,
-      accessToken: this.accessToken,
-      accessSecret: this.accessSecret,
-    });
-    this.authenticated = true;
+  private isOAuth1Provider(p: TwitterAuthProvider): p is TwitterOAuth1Provider {
+    return typeof (p as any).getOAuth1Credentials === "function";
+  }
+
+  private async ensureClientInitialized(): Promise<void> {
+    if (this.loggedOut) {
+      throw new Error("Twitter API client not initialized");
+    }
+    if (this.isOAuth1Provider(this.provider)) {
+      if (this.v2Client) return;
+      const creds = await this.provider.getOAuth1Credentials();
+      this.v2Client = new TwitterApi({
+        appKey: creds.appKey,
+        appSecret: creds.appSecret,
+        accessToken: creds.accessToken,
+        accessSecret: creds.accessSecret,
+      });
+      this.authenticated = true;
+      this.lastAccessToken = creds.accessToken;
+      return;
+    }
+
+    const token = await this.provider.getAccessToken();
+    if (!this.v2Client || this.lastAccessToken !== token) {
+      // OAuth2 user context token: Bearer token
+      this.v2Client = new TwitterApi(token);
+      this.authenticated = true;
+      this.lastAccessToken = token;
+    }
   }
 
   /**
    * Get the Twitter API v2 client
    */
-  getV2Client(): TwitterApi {
+  async getV2Client(): Promise<TwitterApi> {
+    await this.ensureClientInitialized();
     if (!this.v2Client) {
       throw new Error("Twitter API client not initialized");
     }
@@ -42,6 +67,11 @@ export class TwitterAuth {
    * Check if authenticated
    */
   async isLoggedIn(): Promise<boolean> {
+    try {
+      await this.ensureClientInitialized();
+    } catch {
+      return false;
+    }
     if (!this.authenticated || !this.v2Client) {
       return false;
     }
@@ -64,6 +94,7 @@ export class TwitterAuth {
       return this.profile;
     }
 
+    await this.ensureClientInitialized();
     if (!this.v2Client) {
       throw new Error("Not authenticated");
     }
@@ -110,12 +141,14 @@ export class TwitterAuth {
     this.v2Client = null;
     this.authenticated = false;
     this.profile = undefined;
+    this.lastAccessToken = undefined;
+    this.loggedOut = true;
   }
 
   /**
    * For compatibility - always returns true since we use API keys
    */
   hasToken(): boolean {
-    return this.authenticated;
+    return this.authenticated && !this.loggedOut;
   }
 }

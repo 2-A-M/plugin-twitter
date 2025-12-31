@@ -301,7 +301,7 @@ export async function fetchTweets(
   cursor: string | undefined,
   auth: TwitterAuth,
 ): Promise<QueryTweetsResponse> {
-  const client = auth.getV2Client();
+  const client = await auth.getV2Client();
 
   try {
     const response = await client.v2.userTimeline(userId, {
@@ -350,7 +350,7 @@ export async function fetchTweetsAndReplies(
   cursor: string | undefined,
   auth: TwitterAuth,
 ): Promise<QueryTweetsResponse> {
-  const client = auth.getV2Client();
+  const client = await auth.getV2Client();
 
   try {
     const response = await client.v2.userTimeline(userId, {
@@ -402,7 +402,7 @@ export async function createCreateTweetRequestV2(
     poll?: PollData;
   },
 ) {
-  const v2client = auth.getV2Client();
+  const v2client = await auth.getV2Client();
   if (v2client == null) {
     throw new Error("V2 client is not initialized");
   }
@@ -571,7 +571,7 @@ export async function createCreateTweetRequest(
   mediaData?: { data: Buffer; mediaType: string }[],
   hideLinkPreview = false,
 ) {
-  const v2client = auth.getV2Client();
+  const v2client = await auth.getV2Client();
   if (!v2client) {
     throw new Error("V2 client is not initialized");
   }
@@ -624,7 +624,7 @@ export async function fetchListTweets(
   cursor: string | undefined,
   auth: TwitterAuth,
 ): Promise<QueryTweetsResponse> {
-  const client = auth.getV2Client();
+  const client = await auth.getV2Client();
 
   try {
     const response = await client.v2.listTweets(listId, {
@@ -667,7 +667,7 @@ export async function fetchListTweets(
 }
 
 export async function deleteTweet(tweetId: string, auth: TwitterAuth) {
-  const v2client = auth.getV2Client();
+  const v2client = await auth.getV2Client();
   if (!v2client) {
     throw new Error("V2 client is not initialized");
   }
@@ -814,7 +814,7 @@ export async function fetchLikedTweets(
   cursor: string | undefined,
   auth: TwitterAuth,
 ): Promise<QueryTweetsResponse> {
-  const client = auth.getV2Client();
+  const client = await auth.getV2Client();
 
   try {
     const response = await client.v2.userLikedTweets(userId, {
@@ -919,7 +919,7 @@ export async function getTweet(
   id: string,
   auth: TwitterAuth,
 ): Promise<Tweet | null> {
-  const client = auth.getV2Client();
+  const client = await auth.getV2Client();
 
   try {
     const tweet = await client.v2.singleTweet(id, {
@@ -968,7 +968,7 @@ export async function getTweetV2(
     placeFields?: TTweetv2PlaceField[];
   } = defaultOptions,
 ): Promise<Tweet | null> {
-  const v2client = auth.getV2Client();
+  const v2client = await auth.getV2Client();
   if (!v2client) {
     throw new Error("V2 client is not initialized");
   }
@@ -1010,7 +1010,7 @@ export async function getTweetsV2(
     placeFields?: TTweetv2PlaceField[];
   } = defaultOptions,
 ): Promise<Tweet[]> {
-  const v2client = auth.getV2Client();
+  const v2client = await auth.getV2Client();
   if (!v2client) {
     return [];
   }
@@ -1080,7 +1080,7 @@ export async function createQuoteTweetRequest(
   auth: TwitterAuth,
   mediaData?: { data: Buffer; mediaType: string }[],
 ) {
-  const v2client = auth.getV2Client();
+  const v2client = await auth.getV2Client();
   if (!v2client) {
     throw new Error("V2 client is not initialized");
   }
@@ -1114,7 +1114,7 @@ export async function likeTweet(
   tweetId: string,
   auth: TwitterAuth,
 ): Promise<void> {
-  const v2client = auth.getV2Client();
+  const v2client = await auth.getV2Client();
   if (!v2client) {
     throw new Error("V2 client is not initialized");
   }
@@ -1139,7 +1139,7 @@ export async function retweet(
   tweetId: string,
   auth: TwitterAuth,
 ): Promise<void> {
-  const v2client = auth.getV2Client();
+  const v2client = await auth.getV2Client();
   if (!v2client) {
     throw new Error("V2 client is not initialized");
   }

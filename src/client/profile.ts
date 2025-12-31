@@ -228,7 +228,7 @@ export async function getProfile(
   }
 
   try {
-    const client = auth.getV2Client();
+    const client = await auth.getV2Client();
     const user = await client.v2.userByUsername(username, {
       "user.fields": [
         "id",
@@ -281,7 +281,7 @@ export async function getScreenNameByUserId(
   }
 
   try {
-    const client = auth.getV2Client();
+    const client = await auth.getV2Client();
     const user = await client.v2.user(userId, {
       "user.fields": ["username"],
     });

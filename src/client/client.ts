@@ -13,6 +13,7 @@ import {
   type RequestApiResult,
 } from "./api-types";
 import { TwitterAuth } from "./auth";
+import type { TwitterAuthProvider } from "./auth-providers/types";
 // Removed messages imports - using Twitter API v2 instead
 import {
   type Profile,
@@ -303,7 +304,7 @@ export class Client {
       throw new Error("Not authenticated");
     }
 
-    const client = this.auth.getV2Client();
+    const client = await this.auth.getV2Client();
 
     try {
       const timeline = await client.v2.homeTimeline({
@@ -366,7 +367,7 @@ export class Client {
       throw new Error("Not authenticated");
     }
 
-    const client = this.auth.getV2Client();
+    const client = await this.auth.getV2Client();
 
     try {
       const response = await client.v2.userTimeline(userId, {
@@ -721,6 +722,12 @@ export class Client {
     this.auth = auth;
   }
 
+  public async authenticate(provider: TwitterAuthProvider): Promise<void> {
+    this.auth = new TwitterAuth(provider);
+    // Force initialization early to surface misconfiguration quickly
+    await this.auth.isLoggedIn().catch(() => false);
+  }
+
   /**
    * Get current authentication credentials
    * @returns {TwitterAuth | null} Current authentication or null if not authenticated
@@ -778,7 +785,17 @@ export class Client {
       );
     }
 
-    this.auth = new TwitterAuth(appKey, appSecret, accessToken, accessSecret);
+    // Backward compatible path: build a fixed OAuth1 provider inline.
+    this.auth = new TwitterAuth({
+      mode: "env",
+      getAccessToken: async () => accessToken!,
+      getOAuth1Credentials: async () => ({
+        appKey: appKey!,
+        appSecret: appSecret!,
+        accessToken: accessToken!,
+        accessSecret: accessSecret!,
+      }),
+    } as any);
   }
 
   /**

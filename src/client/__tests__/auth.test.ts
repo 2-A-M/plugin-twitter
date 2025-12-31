@@ -26,29 +26,30 @@ describe("TwitterAuth", () => {
 
     (TwitterApi as any).mockImplementation(() => mockTwitterApi);
 
-    auth = new TwitterAuth(
-      "test-api-key",
-      "test-api-secret",
-      "test-access-token",
-      "test-access-secret",
-    );
-  });
-
-  describe("constructor", () => {
-    it("should initialize with API credentials", () => {
-      expect(TwitterApi).toHaveBeenCalledWith({
+    auth = new TwitterAuth({
+      mode: "env",
+      getAccessToken: async () => "test-access-token",
+      getOAuth1Credentials: async () => ({
         appKey: "test-api-key",
         appSecret: "test-api-secret",
         accessToken: "test-access-token",
         accessSecret: "test-access-secret",
-      });
+      }),
+    } as any);
+  });
+
+  describe("constructor", () => {
+    it("should initialize with API credentials", () => {
+      // Initialization happens lazily on first use.
+      expect(TwitterApi).not.toHaveBeenCalled();
     });
   });
 
   describe("getV2Client", () => {
     it("should return the Twitter API v2 client", () => {
-      const client = auth.getV2Client();
-      expect(client).toBe(mockTwitterApi);
+      return auth.getV2Client().then((client) => {
+        expect(client).toBe(mockTwitterApi);
+      });
     });
   });
 
@@ -203,7 +204,7 @@ describe("TwitterAuth", () => {
       await auth.logout();
 
       // Try to get client after logout
-      expect(() => auth.getV2Client()).toThrow(
+      await expect(auth.getV2Client()).rejects.toThrow(
         "Twitter API client not initialized",
       );
 

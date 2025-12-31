@@ -12,6 +12,41 @@ import { SearchMode } from "../client";
 export class TwitterPostService implements IPostService {
   constructor(private client: ClientBase) {}
 
+  private extractRestId(result: any): string | undefined {
+    return (
+      result?.rest_id ??
+      result?.data?.create_tweet?.tweet_results?.result?.rest_id ??
+      result?.data?.data?.create_tweet?.tweet_results?.result?.rest_id ??
+      undefined
+    );
+  }
+
+  private async extractTweetId(result: any): Promise<string | undefined> {
+    const direct =
+      result?.id ?? result?.data?.id ?? result?.data?.data?.id ?? undefined;
+    if (direct) return direct;
+    const restId = this.extractRestId(result);
+    if (restId) return restId;
+
+    // Some callers return a Response-like shape with a json() function.
+    if (result?.json && typeof result.json === "function") {
+      try {
+        const body = await result.json();
+        return (
+          body?.id ??
+          body?.data?.id ??
+          body?.data?.data?.id ??
+          this.extractRestId(body) ??
+          undefined
+        );
+      } catch {
+        return undefined;
+      }
+    }
+
+    return undefined;
+  }
+
   async createPost(options: CreatePostOptions): Promise<Post> {
     try {
       // Handle media uploads if needed
@@ -28,7 +63,14 @@ export class TwitterPostService implements IPostService {
         // TODO: Add media support when available
       );
 
-      const tweetId = (result as any).id || Date.now().toString();
+      const tweetId =
+        (await this.extractTweetId(result)) ||
+        (() => {
+          logger.warn(
+            "Twitter createPost: could not extract tweet id from API result; falling back to timestamp id",
+          );
+          return Date.now().toString();
+        })();
 
       const post: Post = {
         id: tweetId,

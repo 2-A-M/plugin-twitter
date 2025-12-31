@@ -52,29 +52,61 @@
   "agentConfig": {
     "pluginType": "elizaos:plugin:1.0.0",
     "pluginParameters": {
+      "TWITTER_AUTH_MODE": {
+        "type": "string",
+        "description": "Auth mode: 'env' (legacy keys/tokens), 'oauth' (3-legged OAuth2 PKCE), or 'broker' (stub).",
+        "required": false,
+        "default": "env",
+        "sensitive": false
+      },
       "TWITTER_API_KEY": {
         "type": "string",
-        "description": "Twitter API v2 key for authentication.",
-        "required": true,
+        "description": "Twitter API key (required for TWITTER_AUTH_MODE=env).",
+        "required": false,
         "sensitive": true
       },
       "TWITTER_API_SECRET_KEY": {
         "type": "string",
-        "description": "Twitter API v2 secret key paired with the API key for authentication.",
-        "required": true,
+        "description": "Twitter API secret key (required for TWITTER_AUTH_MODE=env).",
+        "required": false,
         "sensitive": true
       },
       "TWITTER_ACCESS_TOKEN": {
         "type": "string",
-        "description": "OAuth access token for Twitter API v2 requests.",
-        "required": true,
+        "description": "OAuth1.0a access token (required for TWITTER_AUTH_MODE=env).",
+        "required": false,
         "sensitive": true
       },
       "TWITTER_ACCESS_TOKEN_SECRET": {
         "type": "string",
-        "description": "OAuth access token secret used with the access token for authentication.",
-        "required": true,
+        "description": "OAuth1.0a access token secret (required for TWITTER_AUTH_MODE=env).",
+        "required": false,
         "sensitive": true
+      },
+      "TWITTER_CLIENT_ID": {
+        "type": "string",
+        "description": "Twitter OAuth2 client ID (required for TWITTER_AUTH_MODE=oauth).",
+        "required": false,
+        "sensitive": false
+      },
+      "TWITTER_REDIRECT_URI": {
+        "type": "string",
+        "description": "OAuth2 redirect URI (loopback recommended) (required for TWITTER_AUTH_MODE=oauth).",
+        "required": false,
+        "sensitive": false
+      },
+      "TWITTER_SCOPES": {
+        "type": "string",
+        "description": "OAuth2 scopes (space-separated).",
+        "required": false,
+        "default": "tweet.read tweet.write users.read offline.access",
+        "sensitive": false
+      },
+      "TWITTER_BROKER_URL": {
+        "type": "string",
+        "description": "Broker URL (required for TWITTER_AUTH_MODE=broker; stub only).",
+        "required": false,
+        "sensitive": false
       },
       "TWITTER_TARGET_USERS": {
         "type": "string",

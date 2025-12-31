@@ -8,21 +8,36 @@ This package provides Twitter/X integration for the Eliza AI agent using the off
 
 1. **Get Twitter Developer account** → https://developer.twitter.com
 2. **Create an app** → Enable "Read and write" permissions
-3. **Get OAuth 1.0a credentials** (NOT OAuth 2.0!):
-   - API Key & Secret (from "Consumer Keys")
-   - Access Token & Secret (from "Authentication Tokens")
+3. Choose your auth mode:
+
+   - **Option A (default, legacy): OAuth 1.0a env vars**
+     - API Key & Secret (from "Consumer Keys")
+     - Access Token & Secret (from "Authentication Tokens")
+
+   - **Option B (recommended): “login + approve” OAuth 2.0 (PKCE)**
+     - Client ID (from "OAuth 2.0 Client ID")
+     - Redirect URI (loopback recommended)
+
 4. **Add to `.env`:**
    ```bash
+   # Option A: legacy OAuth 1.0a (default)
+   TWITTER_AUTH_MODE=env
    TWITTER_API_KEY=xxx
    TWITTER_API_SECRET_KEY=xxx
    TWITTER_ACCESS_TOKEN=xxx
    TWITTER_ACCESS_TOKEN_SECRET=xxx
+
+   # Option B: OAuth 2.0 PKCE (interactive login + approve, no client secret)
+   # TWITTER_AUTH_MODE=oauth
+   # TWITTER_CLIENT_ID=xxx
+   # TWITTER_REDIRECT_URI=http://127.0.0.1:8080/callback
+
    TWITTER_ENABLE_POST=true
    TWITTER_POST_IMMEDIATELY=true
    ```
 5. **Run:** `bun start`
 
-⚠️ **Common mistake:** Using OAuth 2.0 credentials instead of OAuth 1.0a - see [Step 3](#step-3-get-the-right-credentials-oauth-10a) for details!
+Tip: if you use **OAuth 2.0 PKCE**, the plugin will print an authorization URL on first run and store tokens for you (no manual token pasting).
 
 ## Features
 
@@ -39,7 +54,7 @@ This package provides Twitter/X integration for the Eliza AI agent using the off
 ## Prerequisites
 
 - Twitter Developer Account with API v2 access
-- Twitter OAuth 1.0a credentials (NOT OAuth 2.0)
+- Either Twitter OAuth 1.0a credentials (legacy env vars) or OAuth 2.0 Client ID (PKCE)
 - Node.js and bun installed
 
 ## 🚀 Quick Start
@@ -77,12 +92,12 @@ This package provides Twitter/X integration for the Eliza AI agent using the off
 
 ### Step 3: Get the RIGHT Credentials (OAuth 1.0a)
 
-**⚠️ IMPORTANT: You need OAuth 1.0a credentials, NOT OAuth 2.0!**
+You can use either legacy **OAuth 1.0a** env vars (default) or **OAuth 2.0 PKCE** (“login + approve”).
 
 In your app's **"Keys and tokens"** page, you'll see several sections. Here's what to use:
 
 ```
-✅ USE THESE (OAuth 1.0a):
+✅ USE THESE when TWITTER_AUTH_MODE=env (OAuth 1.0a):
 ┌─────────────────────────────────────────────────┐
 │ Consumer Keys                                   │
 │ ├─ API Key: xxx...xxx          → TWITTER_API_KEY │
@@ -93,13 +108,13 @@ In your app's **"Keys and tokens"** page, you'll see several sections. Here's wh
 │ └─ Access Token Secret: xxx    → TWITTER_ACCESS_TOKEN_SECRET │
 └─────────────────────────────────────────────────┘
 
-❌ DO NOT USE THESE (OAuth 2.0):
+✅ USE THESE when TWITTER_AUTH_MODE=oauth (OAuth 2.0 PKCE):
 ┌─────────────────────────────────────────────────┐
 │ OAuth 2.0 Client ID and Client Secret          │
-│ ├─ Client ID: xxx...xxx        ← IGNORE        │
-│ └─ Client Secret: xxx...xxx    ← IGNORE        │
+│ ├─ Client ID: xxx...xxx        → TWITTER_CLIENT_ID │
+│ └─ Client Secret: xxx...xxx    ← NOT USED (do not put in env) │
 │                                                 │
-│ Bearer Token                   ← IGNORE        │
+│ Bearer Token                   ← NOT USED      │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -113,6 +128,12 @@ In your app's **"Keys and tokens"** page, you'll see several sections. Here's wh
 Create or edit `.env` file in your project root:
 
 ```bash
+# Auth mode (default: env)
+# - env: legacy OAuth 1.0a keys/tokens
+# - oauth: “login + approve” OAuth 2.0 PKCE (no client secret in plugin)
+# - broker: stub (not implemented yet)
+TWITTER_AUTH_MODE=env
+
 # REQUIRED: OAuth 1.0a Credentials (from "Consumer Keys" section)
 TWITTER_API_KEY=your_api_key_here                    # From "API Key"
 TWITTER_API_SECRET_KEY=your_api_key_secret_here      # From "API Key Secret"
@@ -120,6 +141,14 @@ TWITTER_API_SECRET_KEY=your_api_key_secret_here      # From "API Key Secret"
 # REQUIRED: OAuth 1.0a Tokens (from "Authentication Tokens" section)
 TWITTER_ACCESS_TOKEN=your_access_token_here          # Must have "Read and Write"
 TWITTER_ACCESS_TOKEN_SECRET=your_token_secret_here   # Regenerate after permission change
+
+# ---- OR ----
+# OAuth 2.0 PKCE (“login + approve”) configuration:
+# TWITTER_AUTH_MODE=oauth
+# TWITTER_CLIENT_ID=your_oauth2_client_id_here
+# TWITTER_REDIRECT_URI=http://127.0.0.1:8080/callback
+# Optional:
+# TWITTER_SCOPES="tweet.read tweet.write users.read offline.access"
 
 # Basic Configuration
 TWITTER_DRY_RUN=false              # Set to true to test without posting
@@ -132,6 +161,11 @@ TWITTER_POST_INTERVAL=120          # Minutes between posts (default: 120)
 TWITTER_POST_INTERVAL_MIN=90       # Minimum minutes between posts  
 TWITTER_POST_INTERVAL_MAX=150      # Maximum minutes between posts
 ```
+
+When using **TWITTER_AUTH_MODE=oauth**, the plugin will:
+- Print an authorization URL on first run
+- Capture the callback via a local loopback server **or** ask you to paste the redirected URL
+- Persist tokens via Eliza runtime cache if available, otherwise a local token file at `~/.eliza/twitter/oauth2.tokens.json`
 
 ### Step 5: Run Your Bot
 
@@ -348,12 +382,17 @@ This is the #1 issue! Your app has read-only permissions.
 
 ### "Could not authenticate you"
 
-Wrong credentials or using OAuth 2.0 instead of OAuth 1.0a.
+This usually means your credentials don’t match your selected auth mode.
 
 **Solution:**
-- Use credentials from "Consumer Keys" section (API Key/Secret)
-- Use credentials from "Authentication Tokens" section (Access Token/Secret)
-- Do NOT use OAuth 2.0 Client ID, Client Secret, or Bearer Token
+- If `TWITTER_AUTH_MODE=env`:
+  - Use credentials from "Consumer Keys" section (API Key/Secret)
+  - Use credentials from "Authentication Tokens" section (Access Token/Secret)
+  - Do not use OAuth 2.0 Client ID/Client Secret/Bearer Token for this mode
+- If `TWITTER_AUTH_MODE=oauth`:
+  - Use OAuth 2.0 **Client ID** (`TWITTER_CLIENT_ID`)
+  - Set a loopback redirect URI (`TWITTER_REDIRECT_URI`, e.g. `http://127.0.0.1:8080/callback`)
+  - Do not set/ship a client secret (PKCE flow)
 
 ### Bot Not Posting Automatically
 
@@ -460,6 +499,7 @@ Monitor your usage at: https://developer.twitter.com/en/portal/dashboard
 
 - [Twitter API v2 Documentation](https://developer.twitter.com/en/docs/twitter-api)
 - [Twitter OAuth 1.0a Guide](https://developer.twitter.com/en/docs/authentication/oauth-1-0a)
+- [Twitter OAuth 2.0 (Authorization Code with PKCE)](https://developer.twitter.com/en/docs/authentication/oauth-2-0/authorization-code)
 - [Rate Limits Reference](https://developer.twitter.com/en/docs/twitter-api/rate-limits)
 - [ElizaOS Documentation](https://github.com/elizaos/eliza)
 

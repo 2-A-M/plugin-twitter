@@ -7,7 +7,6 @@ import {
   beforeEach,
   vi,
 } from "vitest";
-import { TwitterAuth } from "../../client/auth";
 import { TwitterMessageService } from "../../services/MessageService";
 import { TwitterPostService } from "../../services/PostService";
 import { ClientBase } from "../../base";
@@ -27,7 +26,6 @@ const SKIP_E2E =
   !process.env.TWITTER_ACCESS_TOKEN_SECRET;
 
 describe.skipIf(SKIP_E2E)("Twitter E2E Integration Tests", () => {
-  let auth: TwitterAuth;
   let client: ClientBase;
   let messageService: TwitterMessageService;
   let postService: TwitterPostService;
