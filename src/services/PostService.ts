@@ -63,14 +63,21 @@ export class TwitterPostService implements IPostService {
         // TODO: Add media support when available
       );
 
-      const tweetId =
-        (await this.extractTweetId(result)) ||
-        (() => {
-          logger.warn(
-            "Twitter createPost: could not extract tweet id from API result; falling back to timestamp id",
-          );
-          return Date.now().toString();
-        })();
+      const tweetId = await this.extractTweetId(result);
+      if (!tweetId) {
+        const safeResult =
+          typeof result === "string"
+            ? result
+            : JSON.stringify(result, null, 2).slice(0, 8000);
+        logger.error(
+          "Twitter createPost: could not extract tweet id from API result",
+          { inReplyTo: options.inReplyTo, textLength: options.text?.length },
+          safeResult,
+        );
+        throw new Error(
+          "Twitter createPost failed: could not extract tweet id from API response. See logs for raw response.",
+        );
+      }
 
       const post: Post = {
         id: tweetId,

@@ -38,7 +38,9 @@ export class RuntimeCacheTokenStore implements TokenStore {
   }
 
   async clear(): Promise<void> {
-    await this.runtime.setCache(this.key, null as any);
+    // Prefer deleting semantics without relying on null (some runtimes/types disallow null).
+    // If the runtime doesn't support true deletion, setting `undefined` should be treated as "not set".
+    await this.runtime.setCache(this.key, undefined as any);
   }
 }
 
@@ -64,8 +66,18 @@ export class FileTokenStore implements TokenStore {
   }
 
   async save(tokens: StoredOAuth2Tokens): Promise<void> {
-    await fs.mkdir(dirname(this.path), { recursive: true });
-    await fs.writeFile(this.path, JSON.stringify(tokens, null, 2), "utf-8");
+    // Ensure token directory + file are owner-only (defense-in-depth for shared machines).
+    await fs.mkdir(dirname(this.path), { recursive: true, mode: 0o700 });
+    await fs.writeFile(this.path, JSON.stringify(tokens, null, 2), {
+      encoding: "utf-8",
+      mode: 0o600,
+    });
+    // Some platforms ignore mode on write when file already exists; enforce explicitly.
+    try {
+      await fs.chmod(this.path, 0o600);
+    } catch {
+      // ignore
+    }
   }
 
   async clear(): Promise<void> {

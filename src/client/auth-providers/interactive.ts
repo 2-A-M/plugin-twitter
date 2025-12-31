@@ -53,6 +53,21 @@ export async function waitForLoopbackCallback(
   const path = url.pathname || "/";
 
   return await new Promise<OAuthCallbackResult>((resolve, reject) => {
+    let settled = false;
+
+    const finish = (err?: Error, value?: OAuthCallbackResult) => {
+      if (settled) return;
+      settled = true;
+      if (err) reject(err);
+      else if (value) resolve(value);
+      else reject(new Error("OAuth callback finished without result"));
+      try {
+        server.close();
+      } catch {
+        // ignore
+      }
+    };
+
     const server = createServer((req, res) => {
       try {
         const reqUrl = new URL(req.url ?? "", `http://${url.hostname}:${port}`);
@@ -70,42 +85,34 @@ export async function waitForLoopbackCallback(
         if (error) {
           res.writeHead(400, { "content-type": "text/plain" });
           res.end(`OAuth error: ${error}${errorDesc ? ` - ${errorDesc}` : ""}`);
-          reject(new Error(`OAuth error: ${error}${errorDesc ? ` - ${errorDesc}` : ""}`));
-          server.close();
+          finish(new Error(`OAuth error: ${error}${errorDesc ? ` - ${errorDesc}` : ""}`));
           return;
         }
 
         if (!code) {
           res.writeHead(400, { "content-type": "text/plain" });
           res.end("Missing code");
+          finish(new Error("Missing code"));
           return;
         }
 
         if (state && state !== expectedState) {
           res.writeHead(400, { "content-type": "text/plain" });
           res.end("State mismatch");
-          reject(new Error("OAuth state mismatch"));
-          server.close();
+          finish(new Error("OAuth state mismatch"));
           return;
         }
 
         res.writeHead(200, { "content-type": "text/plain" });
         res.end("Twitter auth completed. You can close this tab.");
-        resolve({ code, state });
-        server.close();
+        finish(undefined, { code, state });
       } catch (e) {
-        reject(e instanceof Error ? e : new Error(String(e)));
-        server.close();
+        finish(e instanceof Error ? e : new Error(String(e)));
       }
     });
 
     const timer = setTimeout(() => {
-      reject(new Error("Timed out waiting for Twitter OAuth callback"));
-      try {
-        server.close();
-      } catch {
-        // ignore
-      }
+      finish(new Error("Timed out waiting for Twitter OAuth callback"));
     }, timeoutMs);
 
     server.on("close", () => clearTimeout(timer));

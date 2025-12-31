@@ -67,6 +67,20 @@ describe("token-store", () => {
       expect(runtime.setCache).toHaveBeenCalled();
       expect(runtime.getCache).toHaveBeenCalled();
     });
+
+    it("clear removes the cached value (via undefined)", async () => {
+      const store = new RuntimeCacheTokenStore(runtime);
+      await store.save({
+        access_token: "a",
+        refresh_token: "r",
+        expires_at: 123,
+      });
+
+      await store.clear();
+      const loaded = await store.load();
+      expect(loaded).toBeNull();
+      expect(runtime.setCache).toHaveBeenCalledWith(expect.any(String), undefined);
+    });
   });
 });
 
