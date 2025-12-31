@@ -116,6 +116,11 @@ export async function waitForLoopbackCallback(
     }, timeoutMs);
 
     server.on("close", () => clearTimeout(timer));
+    server.once("error", (err: any) => {
+      // EADDRINUSE / EACCES / etc. should fail fast instead of hanging until timeout.
+      const code = err?.code ? ` (${err.code})` : "";
+      finish(new Error(`OAuth callback server error${code}: ${err?.message ?? String(err)}`));
+    });
     server.listen(port, url.hostname, () => {
       logger.info(
         `Twitter OAuth callback server listening on http://${url.hostname}:${port}${path}`,

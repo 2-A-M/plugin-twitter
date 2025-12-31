@@ -12,6 +12,29 @@ import { SearchMode } from "../client";
 export class TwitterPostService implements IPostService {
   constructor(private client: ClientBase) {}
 
+  private async safeParseJsonResponse(result: any): Promise<any | undefined> {
+    try {
+      // If this is a real Fetch Response, avoid consuming the original body.
+      if (result?.clone && typeof result.clone === "function") {
+        // If body is already used, clone() may throw; guard defensively.
+        if (result?.bodyUsed === true) return undefined;
+        const cloned = result.clone();
+        if (cloned?.json && typeof cloned.json === "function") {
+          return await cloned.json();
+        }
+        return undefined;
+      }
+
+      // Non-Response shapes (e.g. our internal wrappers) may expose json() but do not consume streams.
+      if (result?.json && typeof result.json === "function") {
+        return await result.json();
+      }
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   private extractRestId(result: any): string | undefined {
     return (
       result?.rest_id ??
@@ -30,18 +53,14 @@ export class TwitterPostService implements IPostService {
 
     // Some callers return a Response-like shape with a json() function.
     if (result?.json && typeof result.json === "function") {
-      try {
-        const body = await result.json();
-        return (
-          body?.id ??
-          body?.data?.id ??
-          body?.data?.data?.id ??
-          this.extractRestId(body) ??
-          undefined
-        );
-      } catch {
-        return undefined;
-      }
+      const body = await this.safeParseJsonResponse(result);
+      return (
+        body?.id ??
+        body?.data?.id ??
+        body?.data?.data?.id ??
+        this.extractRestId(body) ??
+        undefined
+      );
     }
 
     return undefined;
