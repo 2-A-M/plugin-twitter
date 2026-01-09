@@ -46,7 +46,7 @@ export async function* getFollowing(
     throw new Error("Not authenticated");
   }
 
-  const client = auth.getV2Client();
+  const client = await auth.getV2Client();
   let count = 0;
   let paginationToken: string | undefined;
 
@@ -108,7 +108,7 @@ export async function* getFollowers(
     throw new Error("Not authenticated");
   }
 
-  const client = auth.getV2Client();
+  const client = await auth.getV2Client();
   let count = 0;
   let paginationToken: string | undefined;
 
@@ -172,7 +172,7 @@ export async function fetchProfileFollowing(
     throw new Error("Not authenticated");
   }
 
-  const client = auth.getV2Client();
+  const client = await auth.getV2Client();
 
   try {
     const response = await client.v2.following(userId, {
@@ -227,7 +227,7 @@ export async function fetchProfileFollowers(
     throw new Error("Not authenticated");
   }
 
-  const client = auth.getV2Client();
+  const client = await auth.getV2Client();
 
   try {
     const response = await client.v2.followers(userId, {
@@ -278,7 +278,7 @@ export async function followUser(
     throw new Error("Not authenticated");
   }
 
-  const client = auth.getV2Client();
+  const client = await auth.getV2Client();
 
   try {
     // First get the user ID from username

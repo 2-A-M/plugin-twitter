@@ -94,6 +94,30 @@ describe("TwitterPostService", () => {
       });
     });
 
+    it("should not consume a Response-like body when extracting tweet id (uses clone)", async () => {
+      const body = { id: "tweet-999" };
+      const responseLike: any = {
+        bodyUsed: false,
+        clone: vi.fn(() => ({
+          json: vi.fn(async () => body),
+        })),
+        json: vi.fn(async () => body), // would consume in real Response; here we ensure clone() path is used
+      };
+
+      mockClient.twitterClient.sendTweet.mockResolvedValue(responseLike);
+
+      const options = {
+        agentId: "agent-123" as any,
+        roomId: "room-123" as any,
+        text: "Hello World!",
+      };
+
+      const post = await service.createPost(options);
+      expect(post.id).toBe("tweet-999");
+      expect(responseLike.clone).toHaveBeenCalled();
+      expect(responseLike.json).not.toHaveBeenCalled();
+    });
+
     it("should create a reply post", async () => {
       const mockResult = { id: "tweet-456" };
 

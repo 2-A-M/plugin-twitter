@@ -17,6 +17,11 @@ import {
 import { TwitterInteractionPayload } from "./types";
 import { getEpochMs } from "./utils/time";
 import { createMemorySafe } from "./utils/memory";
+import { getSetting } from "./utils/settings";
+import {
+  createTwitterAuthProvider,
+  getTwitterAuthMode,
+} from "./client/auth-providers/factory";
 
 interface TwitterUser {
   id_str: string;
@@ -253,19 +258,21 @@ export class ClientBase {
     this.runtime = runtime;
     this.state = state;
 
-    // Use API key as the identifier for client reuse
-    const apiKey =
-      state?.TWITTER_API_KEY ||
-      (runtime && typeof runtime.getSetting === "function"
-        ? runtime.getSetting("TWITTER_API_KEY")
-        : null) ||
-      process.env.TWITTER_API_KEY;
-    if (apiKey && ClientBase._twitterClients[apiKey]) {
-      this.twitterClient = ClientBase._twitterClients[apiKey];
+    // Use a stable identifier for client reuse per auth mode.
+    const mode = getTwitterAuthMode(runtime, state);
+    const reuseKey =
+      mode === "env"
+        ? state?.TWITTER_API_KEY ?? getSetting(runtime, "TWITTER_API_KEY")
+        : mode === "oauth"
+          ? state?.TWITTER_CLIENT_ID ?? getSetting(runtime, "TWITTER_CLIENT_ID")
+          : state?.TWITTER_BROKER_URL ?? getSetting(runtime, "TWITTER_BROKER_URL");
+
+    if (reuseKey && ClientBase._twitterClients[reuseKey]) {
+      this.twitterClient = ClientBase._twitterClients[reuseKey];
     } else {
       this.twitterClient = new Client();
-      if (apiKey) {
-        ClientBase._twitterClients[apiKey] = this.twitterClient;
+      if (reuseKey) {
+        ClientBase._twitterClients[reuseKey] = this.twitterClient;
       }
     }
   }
@@ -274,42 +281,7 @@ export class ClientBase {
     // First ensure the agent exists in the database
     // await this.runtime.ensureAgentExists(this.runtime.character);
 
-    const apiKey =
-      this.state?.TWITTER_API_KEY ||
-      (this.runtime && typeof this.runtime.getSetting === "function"
-        ? this.runtime.getSetting("TWITTER_API_KEY")
-        : null) ||
-      process.env.TWITTER_API_KEY;
-    const apiSecretKey =
-      this.state?.TWITTER_API_SECRET_KEY ||
-      (this.runtime && typeof this.runtime.getSetting === "function"
-        ? this.runtime.getSetting("TWITTER_API_SECRET_KEY")
-        : null) ||
-      process.env.TWITTER_API_SECRET_KEY;
-    const accessToken =
-      this.state?.TWITTER_ACCESS_TOKEN ||
-      (this.runtime && typeof this.runtime.getSetting === "function"
-        ? this.runtime.getSetting("TWITTER_ACCESS_TOKEN")
-        : null) ||
-      process.env.TWITTER_ACCESS_TOKEN;
-    const accessTokenSecret =
-      this.state?.TWITTER_ACCESS_TOKEN_SECRET ||
-      (this.runtime && typeof this.runtime.getSetting === "function"
-        ? this.runtime.getSetting("TWITTER_ACCESS_TOKEN_SECRET")
-        : null) ||
-      process.env.TWITTER_ACCESS_TOKEN_SECRET;
-
-    // Validate required credentials
-    if (!apiKey || !apiSecretKey || !accessToken || !accessTokenSecret) {
-      const missing = [];
-      if (!apiKey) missing.push("TWITTER_API_KEY");
-      if (!apiSecretKey) missing.push("TWITTER_API_SECRET_KEY");
-      if (!accessToken) missing.push("TWITTER_ACCESS_TOKEN");
-      if (!accessTokenSecret) missing.push("TWITTER_ACCESS_TOKEN_SECRET");
-      throw new Error(
-        `Missing required Twitter API credentials: ${missing.join(", ")}`,
-      );
-    }
+    const provider = createTwitterAuthProvider(this.runtime, this.state);
 
     const maxRetries = process.env.MAX_RETRIES
       ? parseInt(process.env.MAX_RETRIES)
@@ -320,16 +292,7 @@ export class ClientBase {
     while (retryCount < maxRetries) {
       try {
         logger.log("Initializing Twitter API v2 client");
-        await this.twitterClient.login(
-          "", // username not needed for API v2
-          "", // password not needed for API v2
-          "", // email not needed for API v2
-          "", // 2FA not needed for API v2
-          apiKey,
-          apiSecretKey,
-          accessToken,
-          accessTokenSecret,
-        );
+        await this.twitterClient.authenticate(provider);
 
         if (await this.twitterClient.isLoggedIn()) {
           logger.info("Successfully authenticated with Twitter API v2");

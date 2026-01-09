@@ -2,18 +2,27 @@
 
 ## Overview
 
-This guide explains how to test the refactored Twitter plugin after removing username/password authentication and Twitter Spaces functionality. The plugin now exclusively uses Twitter API v2 with developer credentials.
+This guide explains how to test the Twitter plugin after removing username/password authentication and Twitter Spaces functionality.
+
+The plugin supports multiple auth modes:
+- `TWITTER_AUTH_MODE=env` (legacy OAuth 1.0a keys/tokens)
+- `TWITTER_AUTH_MODE=oauth` (OAuth 2.0 Authorization Code + PKCE, interactive “login + approve”, no client secret)
+- `TWITTER_AUTH_MODE=broker` (stub only, not implemented yet)
 
 ## Prerequisites
 
 ### 1. Twitter Developer Account
 
-You need a Twitter Developer account with:
+You need a Twitter Developer account. Which credentials you need depends on auth mode:
 
-- API Key
-- API Secret Key
-- Access Token
-- Access Token Secret
+- For `TWITTER_AUTH_MODE=env` (E2E tests use this):
+  - API Key
+  - API Secret Key
+  - Access Token
+  - Access Token Secret
+- For `TWITTER_AUTH_MODE=oauth`:
+  - OAuth 2.0 Client ID (`TWITTER_CLIENT_ID`)
+  - Redirect URI (`TWITTER_REDIRECT_URI`)
 
 To get these credentials:
 
@@ -27,6 +36,7 @@ To get these credentials:
 Create a `.env.test` file in the plugin root directory:
 
 ```bash
+TWITTER_AUTH_MODE=env
 TWITTER_API_KEY=your_api_key_here
 TWITTER_API_SECRET_KEY=your_api_secret_key_here
 TWITTER_ACCESS_TOKEN=your_access_token_here

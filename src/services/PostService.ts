@@ -12,6 +12,60 @@ import { SearchMode } from "../client";
 export class TwitterPostService implements IPostService {
   constructor(private client: ClientBase) {}
 
+  private async safeParseJsonResponse(result: any): Promise<any | undefined> {
+    try {
+      // If this is a real Fetch Response, avoid consuming the original body.
+      if (result?.clone && typeof result.clone === "function") {
+        // If body is already used, clone() may throw; guard defensively.
+        if (result?.bodyUsed === true) return undefined;
+        const cloned = result.clone();
+        if (cloned?.json && typeof cloned.json === "function") {
+          return await cloned.json();
+        }
+        return undefined;
+      }
+
+      // Non-Response shapes (e.g. our internal wrappers) may expose json() but do not consume streams.
+      if (result?.json && typeof result.json === "function") {
+        return await result.json();
+      }
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private extractRestId(result: any): string | undefined {
+    return (
+      result?.rest_id ??
+      result?.data?.create_tweet?.tweet_results?.result?.rest_id ??
+      result?.data?.data?.create_tweet?.tweet_results?.result?.rest_id ??
+      undefined
+    );
+  }
+
+  private async extractTweetId(result: any): Promise<string | undefined> {
+    const direct =
+      result?.id ?? result?.data?.id ?? result?.data?.data?.id ?? undefined;
+    if (direct) return direct;
+    const restId = this.extractRestId(result);
+    if (restId) return restId;
+
+    // Some callers return a Response-like shape with a json() function.
+    if (result?.json && typeof result.json === "function") {
+      const body = await this.safeParseJsonResponse(result);
+      return (
+        body?.id ??
+        body?.data?.id ??
+        body?.data?.data?.id ??
+        this.extractRestId(body) ??
+        undefined
+      );
+    }
+
+    return undefined;
+  }
+
   async createPost(options: CreatePostOptions): Promise<Post> {
     try {
       // Handle media uploads if needed
@@ -28,7 +82,21 @@ export class TwitterPostService implements IPostService {
         // TODO: Add media support when available
       );
 
-      const tweetId = (result as any).id || Date.now().toString();
+      const tweetId = await this.extractTweetId(result);
+      if (!tweetId) {
+        const safeResult =
+          typeof result === "string"
+            ? result
+            : JSON.stringify(result, null, 2).slice(0, 8000);
+        logger.error(
+          "Twitter createPost: could not extract tweet id from API result",
+          { inReplyTo: options.inReplyTo, textLength: options.text?.length },
+          safeResult,
+        );
+        throw new Error(
+          "Twitter createPost failed: could not extract tweet id from API response. See logs for raw response.",
+        );
+      }
 
       const post: Post = {
         id: tweetId,

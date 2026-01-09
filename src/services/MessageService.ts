@@ -13,6 +13,40 @@ import { SearchMode } from "../client";
 export class TwitterMessageService implements IMessageService {
   constructor(private client: ClientBase) {}
 
+  private extractRestId(result: any): string | undefined {
+    return (
+      result?.rest_id ??
+      result?.data?.create_tweet?.tweet_results?.result?.rest_id ??
+      result?.data?.data?.create_tweet?.tweet_results?.result?.rest_id ??
+      undefined
+    );
+  }
+
+  private async extractResultId(result: any): Promise<string | undefined> {
+    const direct =
+      result?.id ?? result?.data?.id ?? result?.data?.data?.id ?? undefined;
+    if (direct) return direct;
+    const restId = this.extractRestId(result);
+    if (restId) return restId;
+
+    if (result?.json && typeof result.json === "function") {
+      try {
+        const body = await result.json();
+        return (
+          body?.id ??
+          body?.data?.id ??
+          body?.data?.data?.id ??
+          this.extractRestId(body) ??
+          undefined
+        );
+      } catch {
+        return undefined;
+      }
+    }
+
+    return undefined;
+  }
+
   async getMessages(options: GetMessagesOptions): Promise<Message[]> {
     try {
       // Twitter doesn't have a direct way to get messages by room ID
@@ -86,7 +120,7 @@ export class TwitterMessageService implements IMessageService {
       }
 
       const message: Message = {
-        id: result.id,
+        id: (await this.extractResultId(result)) || (result?.id as any),
         agentId: options.agentId,
         roomId: options.roomId,
         userId: this.client.profile?.id || "",

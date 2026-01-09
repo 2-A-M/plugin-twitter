@@ -22,6 +22,10 @@ describe("Environment Configuration", () => {
     vi.stubEnv("TWITTER_API_SECRET_KEY", "");
     vi.stubEnv("TWITTER_ACCESS_TOKEN", "");
     vi.stubEnv("TWITTER_ACCESS_TOKEN_SECRET", "");
+    vi.stubEnv("TWITTER_AUTH_MODE", "");
+    vi.stubEnv("TWITTER_CLIENT_ID", "");
+    vi.stubEnv("TWITTER_REDIRECT_URI", "");
+    vi.stubEnv("TWITTER_BROKER_URL", "");
   });
 
   describe("shouldTargetUser", () => {
@@ -87,7 +91,51 @@ describe("Environment Configuration", () => {
       mockRuntime.getSetting = vi.fn(() => undefined);
 
       await expect(validateTwitterConfig(mockRuntime)).rejects.toThrow(
-        "Twitter API credentials are required",
+        "Twitter env auth is selected",
+      );
+    });
+
+    it("should validate oauth mode without legacy env credentials", async () => {
+      mockRuntime.getSetting = vi.fn((key) => {
+        const settings: Record<string, string> = {
+          TWITTER_AUTH_MODE: "oauth",
+          TWITTER_CLIENT_ID: "client-id",
+          TWITTER_REDIRECT_URI: "http://127.0.0.1:8080/callback",
+        };
+        return settings[key];
+      });
+
+      const config = await validateTwitterConfig(mockRuntime);
+      expect(config.TWITTER_AUTH_MODE).toBe("oauth");
+      expect(config.TWITTER_CLIENT_ID).toBe("client-id");
+      expect(config.TWITTER_REDIRECT_URI).toBe("http://127.0.0.1:8080/callback");
+    });
+
+    it("should throw when oauth mode is missing required fields", async () => {
+      mockRuntime.getSetting = vi.fn((key) => {
+        const settings: Record<string, string> = {
+          TWITTER_AUTH_MODE: "oauth",
+          TWITTER_CLIENT_ID: "client-id",
+          // missing redirect uri
+        };
+        return settings[key];
+      });
+
+      await expect(validateTwitterConfig(mockRuntime)).rejects.toThrow(
+        "Twitter OAuth is selected",
+      );
+    });
+
+    it("should throw when broker mode is missing broker url", async () => {
+      mockRuntime.getSetting = vi.fn((key) => {
+        const settings: Record<string, string> = {
+          TWITTER_AUTH_MODE: "broker",
+        };
+        return settings[key];
+      });
+
+      await expect(validateTwitterConfig(mockRuntime)).rejects.toThrow(
+        "Twitter broker auth is selected",
       );
     });
 

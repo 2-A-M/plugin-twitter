@@ -33,7 +33,7 @@ export async function* searchTweets(
   searchMode: SearchMode,
   auth: TwitterAuth,
 ): AsyncGenerator<Tweet, void> {
-  const client = auth.getV2Client();
+  const client = await auth.getV2Client();
 
   // Build query based on search mode
   let finalQuery = query;
@@ -141,7 +141,7 @@ export async function* searchProfiles(
   maxProfiles: number,
   auth: TwitterAuth,
 ): AsyncGenerator<Profile, void> {
-  const client = auth.getV2Client();
+  const client = await auth.getV2Client();
   const userIds = new Set<string>();
   const profiles: Profile[] = [];
 

@@ -34,12 +34,13 @@ npm test -- --coverage
 
 ### End-to-End Tests
 
-E2E tests require real Twitter Developer API credentials.
+E2E tests require real Twitter Developer API credentials and currently exercise **TWITTER_AUTH_MODE=env** (OAuth 1.0a keys/tokens).
+The plugin also supports **TWITTER_AUTH_MODE=oauth** (OAuth 2.0 PKCE “login + approve”), but that flow is interactive and is not covered by these E2E tests.
 
 #### Prerequisites
 
 1. **Twitter Developer Account**: You need a Twitter Developer account with an app created
-2. **API Credentials**: You need all four credentials:
+2. **API Credentials (env mode)**: You need all four credentials:
    - API Key (Consumer Key)
    - API Secret Key (Consumer Secret)
    - Access Token
@@ -51,6 +52,7 @@ E2E tests require real Twitter Developer API credentials.
 
 ```env
 # Twitter API v2 Credentials
+TWITTER_AUTH_MODE=env
 TWITTER_API_KEY=your_api_key_here
 TWITTER_API_SECRET_KEY=your_api_secret_key_here
 TWITTER_ACCESS_TOKEN=your_access_token_here

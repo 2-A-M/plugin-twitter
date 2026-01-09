@@ -12,6 +12,15 @@ export default defineConfig({
     'dotenv', // Externalize dotenv to prevent bundling
     'fs', // Externalize fs to use Node.js built-in module
     'path', // Externalize other built-ins if necessary
+    // Also externalize node: prefixed built-ins (used by this plugin)
+    'node:fs',
+    'node:path',
+    'node:http',
+    'node:https',
+    'node:crypto',
+    'node:os',
+    'node:url',
+    'node:readline',
     '@reflink/reflink',
     '@node-llama-cpp',
     'https',

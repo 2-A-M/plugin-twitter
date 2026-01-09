@@ -8,11 +8,24 @@ import { z } from "zod";
  * All time intervals are in minutes for consistency
  */
 export const twitterEnvSchema = z.object({
+  // Auth mode (backward compatible default)
+  TWITTER_AUTH_MODE: z.enum(["env", "oauth", "broker"]).default("env"),
+
   // Required API credentials
-  TWITTER_API_KEY: z.string(),
-  TWITTER_API_SECRET_KEY: z.string(),
-  TWITTER_ACCESS_TOKEN: z.string(),
-  TWITTER_ACCESS_TOKEN_SECRET: z.string(),
+  TWITTER_API_KEY: z.string().default(""),
+  TWITTER_API_SECRET_KEY: z.string().default(""),
+  TWITTER_ACCESS_TOKEN: z.string().default(""),
+  TWITTER_ACCESS_TOKEN_SECRET: z.string().default(""),
+
+  // OAuth2 PKCE (3-legged) configuration
+  TWITTER_CLIENT_ID: z.string().default(""),
+  TWITTER_REDIRECT_URI: z.string().default(""),
+  TWITTER_SCOPES: z
+    .string()
+    .default("tweet.read tweet.write users.read offline.access"),
+
+  // Broker scaffolding (stub)
+  TWITTER_BROKER_URL: z.string().default(""),
 
   // Core configuration
   TWITTER_DRY_RUN: z.string().default("false"),
@@ -26,7 +39,7 @@ export const twitterEnvSchema = z.object({
   // Timing configuration (all in minutes)
   TWITTER_POST_INTERVAL: z.string().default("120"), // minutes between posts (deprecated, kept for backwards compatibility)
   TWITTER_POST_INTERVAL_MIN: z.string().default("90"), // minimum minutes between posts
-  TWITTER_POST_INTERVAL_MAX: z.string().default("150"), // maximum minutes between posts
+  TWITTER_POST_INTERVAL_MAX: z.string().default("180"), // maximum minutes between posts
   TWITTER_ENGAGEMENT_INTERVAL: z.string().default("30"), // minutes between all interactions (deprecated, kept for backwards compatibility)
   TWITTER_ENGAGEMENT_INTERVAL_MIN: z.string().default("20"), // minimum minutes between engagements
   TWITTER_ENGAGEMENT_INTERVAL_MAX: z.string().default("40"), // maximum minutes between engagements
@@ -108,7 +121,15 @@ export async function validateTwitterConfig(
   config: Partial<TwitterConfig> = {},
 ): Promise<TwitterConfig> {
   try {
+    const rawMode =
+      (config as any).TWITTER_AUTH_MODE ??
+      (getSetting(runtime, "TWITTER_AUTH_MODE") as any) ??
+      "env";
+    const normalizedMode =
+      typeof rawMode === "string" && rawMode.trim() ? rawMode.trim() : "env";
+
     const validatedConfig: TwitterConfig = {
+      TWITTER_AUTH_MODE: normalizedMode as any,
       TWITTER_API_KEY:
         config.TWITTER_API_KEY ?? getSetting(runtime, "TWITTER_API_KEY") ?? "",
       TWITTER_API_SECRET_KEY:
@@ -122,6 +143,22 @@ export async function validateTwitterConfig(
       TWITTER_ACCESS_TOKEN_SECRET:
         config.TWITTER_ACCESS_TOKEN_SECRET ??
         getSetting(runtime, "TWITTER_ACCESS_TOKEN_SECRET") ??
+        "",
+      TWITTER_CLIENT_ID:
+        (config as any).TWITTER_CLIENT_ID ??
+        getSetting(runtime, "TWITTER_CLIENT_ID") ??
+        "",
+      TWITTER_REDIRECT_URI:
+        (config as any).TWITTER_REDIRECT_URI ??
+        getSetting(runtime, "TWITTER_REDIRECT_URI") ??
+        "",
+      TWITTER_SCOPES:
+        (config as any).TWITTER_SCOPES ??
+        getSetting(runtime, "TWITTER_SCOPES") ??
+        "tweet.read tweet.write users.read offline.access",
+      TWITTER_BROKER_URL:
+        (config as any).TWITTER_BROKER_URL ??
+        getSetting(runtime, "TWITTER_BROKER_URL") ??
         "",
       TWITTER_DRY_RUN: String(
         (
@@ -173,7 +210,7 @@ export async function validateTwitterConfig(
         safeParseInt(
           config.TWITTER_POST_INTERVAL_MAX ??
             getSetting(runtime, "TWITTER_POST_INTERVAL_MAX"),
-          150,
+          180,
         ),
       ),
       TWITTER_ENGAGEMENT_INTERVAL: String(
@@ -235,21 +272,43 @@ export async function validateTwitterConfig(
     };
 
     // Validate required credentials
-    if (
-      !validatedConfig.TWITTER_API_KEY ||
-      !validatedConfig.TWITTER_API_SECRET_KEY ||
-      !validatedConfig.TWITTER_ACCESS_TOKEN ||
-      !validatedConfig.TWITTER_ACCESS_TOKEN_SECRET
-    ) {
+    const mode = (validatedConfig.TWITTER_AUTH_MODE || "env").toLowerCase();
+    if (mode === "env") {
+      if (
+        !validatedConfig.TWITTER_API_KEY ||
+        !validatedConfig.TWITTER_API_SECRET_KEY ||
+        !validatedConfig.TWITTER_ACCESS_TOKEN ||
+        !validatedConfig.TWITTER_ACCESS_TOKEN_SECRET
+      ) {
+        throw new Error(
+          "Twitter env auth is selected (TWITTER_AUTH_MODE=env). Please set TWITTER_API_KEY, TWITTER_API_SECRET_KEY, TWITTER_ACCESS_TOKEN, and TWITTER_ACCESS_TOKEN_SECRET",
+        );
+      }
+    } else if (mode === "oauth") {
+      if (!validatedConfig.TWITTER_CLIENT_ID || !validatedConfig.TWITTER_REDIRECT_URI) {
+        throw new Error(
+          "Twitter OAuth is selected (TWITTER_AUTH_MODE=oauth). Please set TWITTER_CLIENT_ID and TWITTER_REDIRECT_URI",
+        );
+      }
+    } else if (mode === "broker") {
+      if (!validatedConfig.TWITTER_BROKER_URL) {
+        throw new Error(
+          "Twitter broker auth is selected (TWITTER_AUTH_MODE=broker). Please set TWITTER_BROKER_URL",
+        );
+      }
+    } else {
       throw new Error(
-        "Twitter API credentials are required. Please set TWITTER_API_KEY, TWITTER_API_SECRET_KEY, TWITTER_ACCESS_TOKEN, and TWITTER_ACCESS_TOKEN_SECRET",
+        `Invalid TWITTER_AUTH_MODE=${validatedConfig.TWITTER_AUTH_MODE}. Expected env|oauth|broker.`,
       );
     }
 
     return twitterEnvSchema.parse(validatedConfig);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errorMessages = error.errors
+      const issues: Array<{ path: (string | number)[]; message: string }> =
+        // zod v3 uses `issues`; some builds also expose `errors`
+        ((error as any).issues ?? (error as any).errors ?? []) as any;
+      const errorMessages = issues
         .map((err) => `${err.path.join(".")}: ${err.message}`)
         .join(", ");
       throw new Error(
@@ -298,10 +357,17 @@ function getDefaultConfig(): TwitterConfig {
   };
 
   return {
+    TWITTER_AUTH_MODE: (getConfig("TWITTER_AUTH_MODE") as any) || "env",
     TWITTER_API_KEY: getConfig("TWITTER_API_KEY") || "",
     TWITTER_API_SECRET_KEY: getConfig("TWITTER_API_SECRET_KEY") || "",
     TWITTER_ACCESS_TOKEN: getConfig("TWITTER_ACCESS_TOKEN") || "",
     TWITTER_ACCESS_TOKEN_SECRET: getConfig("TWITTER_ACCESS_TOKEN_SECRET") || "",
+    TWITTER_CLIENT_ID: getConfig("TWITTER_CLIENT_ID") || "",
+    TWITTER_REDIRECT_URI: getConfig("TWITTER_REDIRECT_URI") || "",
+    TWITTER_SCOPES:
+      getConfig("TWITTER_SCOPES") ||
+      "tweet.read tweet.write users.read offline.access",
+    TWITTER_BROKER_URL: getConfig("TWITTER_BROKER_URL") || "",
     TWITTER_DRY_RUN: getConfig("TWITTER_DRY_RUN") || "false",
     TWITTER_TARGET_USERS: getConfig("TWITTER_TARGET_USERS") || "",
     TWITTER_ENABLE_POST: getConfig("TWITTER_ENABLE_POST") || "false",
@@ -309,7 +375,7 @@ function getDefaultConfig(): TwitterConfig {
     TWITTER_ENABLE_ACTIONS: getConfig("TWITTER_ENABLE_ACTIONS") || "false",
     TWITTER_POST_INTERVAL: getConfig("TWITTER_POST_INTERVAL") || "120",
     TWITTER_POST_INTERVAL_MIN: getConfig("TWITTER_POST_INTERVAL_MIN") || "90",
-    TWITTER_POST_INTERVAL_MAX: getConfig("TWITTER_POST_INTERVAL_MAX") || "150",
+    TWITTER_POST_INTERVAL_MAX: getConfig("TWITTER_POST_INTERVAL_MAX") || "180",
     TWITTER_ENGAGEMENT_INTERVAL:
       getConfig("TWITTER_ENGAGEMENT_INTERVAL") || "30",
     TWITTER_ENGAGEMENT_INTERVAL_MIN: getConfig("TWITTER_ENGAGEMENT_INTERVAL_MIN") || "20",
