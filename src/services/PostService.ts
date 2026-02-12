@@ -72,14 +72,32 @@ export class TwitterPostService implements IPostService {
       const mediaIds: string[] = [];
 
       if (options.media && options.media.length > 0) {
-        // TODO: Implement media upload when Twitter API v2 support is added
-        logger.warn("Media upload not currently supported with Twitter API v2");
+        logger.log(`Uploading ${options.media.length} media file(s)...`);
+
+        for (const media of options.media) {
+          try {
+            // Upload media using Twitter API v1 (v2 doesn't support media upload yet)
+            const mediaId = await this.client.twitterClient.v1.uploadMedia(media.data, {
+              mimeType: media.mediaType,
+            });
+
+            mediaIds.push(mediaId);
+            logger.log(`Media uploaded successfully. Media ID: ${mediaId}`);
+          } catch (error) {
+            logger.error("Error uploading media:", error);
+            // Continue with other media files even if one fails
+          }
+        }
+
+        logger.log(`Successfully uploaded ${mediaIds.length}/${options.media.length} media file(s)`);
       }
 
       const result = await this.client.twitterClient.sendTweet(
         options.text,
         options.inReplyTo,
-        // TODO: Add media support when available
+        options.media, // Keep for backward compatibility
+        false, // hideLinkPreview
+        mediaIds, // Pass uploaded media IDs
       );
 
       const tweetId = await this.extractTweetId(result);

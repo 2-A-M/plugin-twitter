@@ -131,6 +131,7 @@ export async function sendTweet(
   text: string,
   mediaData: MediaData[] = [],
   tweetToReplyTo?: string,
+  mediaIds?: string[],
 ): Promise<any> {
   const isNoteTweet = text.length > TWEET_MAX_LENGTH;
   const postText = isNoteTweet
@@ -144,6 +145,8 @@ export async function sendTweet(
       postText,
       tweetToReplyTo,
       mediaData,
+      false, // hideLinkPreview
+      mediaIds,
     );
     logger.log("Successfully posted Tweet");
   } catch (error) {

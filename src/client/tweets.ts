@@ -570,6 +570,7 @@ export async function createCreateTweetRequest(
   tweetId?: string,
   mediaData?: { data: Buffer; mediaType: string }[],
   hideLinkPreview = false,
+  mediaIds?: string[],
 ) {
   const v2client = await auth.getV2Client();
   if (!v2client) {
@@ -581,11 +582,11 @@ export async function createCreateTweetRequest(
       text,
     };
 
-    // Handle media uploads if provided
-    if (mediaData && mediaData.length > 0) {
-      // Note: Twitter API v2 media upload requires separate endpoint
-      // For now, we'll skip media upload as it requires additional implementation
-      console.warn("Media upload not yet implemented for Twitter API v2");
+    // Handle media IDs if provided (media should be uploaded beforehand)
+    if (mediaIds && mediaIds.length > 0) {
+      tweetConfig.media = {
+        media_ids: mediaIds,
+      };
     }
 
     // Handle reply

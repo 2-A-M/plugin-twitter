@@ -382,20 +382,27 @@ Generate a single tweet that sounds like YOU would actually write it:`;
       const mediaIds: string[] = [];
 
       if (mediaData && mediaData.length > 0) {
+        logger.log(`Uploading ${mediaData.length} media file(s)...`);
+
         for (const media of mediaData) {
           try {
-            // TODO: Media upload will need to be updated to use the new API
-            // For now, just log a warning that media upload is not supported
-            logger.warn(
-              "Media upload not currently supported with the modern Twitter API",
-            );
+            // Upload media using Twitter API v1 (v2 doesn't support media upload yet)
+            const mediaId = await this.client.twitterClient.v1.uploadMedia(media.data, {
+              mimeType: media.mediaType,
+            });
+
+            mediaIds.push(mediaId);
+            logger.log(`Media uploaded successfully. Media ID: ${mediaId}`);
           } catch (error) {
             logger.error("Error uploading media:", error);
+            // Continue with other media files even if one fails
           }
         }
+
+        logger.log(`Successfully uploaded ${mediaIds.length}/${mediaData.length} media file(s)`);
       }
 
-      const result = await sendTweet(this.client, text, mediaData);
+      const result = await sendTweet(this.client, text, mediaData, undefined, mediaIds);
 
       // Add to recent tweets cache to prevent future duplicates
       await addToRecentTweets(this.runtime, username, text);

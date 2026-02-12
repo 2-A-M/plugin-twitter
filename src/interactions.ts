@@ -499,6 +499,33 @@ Response (YES/NO):`;
       });
     }
 
+    // Check AUTO_RESPOND settings
+    const autoRespondMentions =
+      (getSetting(this.runtime, 'TWITTER_AUTO_RESPOND_MENTIONS') ??
+        process.env.TWITTER_AUTO_RESPOND_MENTIONS) !== 'false';
+
+    const autoRespondReplies =
+      (getSetting(this.runtime, 'TWITTER_AUTO_RESPOND_REPLIES') ??
+        process.env.TWITTER_AUTO_RESPOND_REPLIES) !== 'false';
+
+    // Filter based on AUTO_RESPOND settings
+    uniqueTweetCandidates = uniqueTweetCandidates.filter((tweet) => {
+      // Check if this is a reply to one of our tweets
+      const isReplyToUs = tweet.inReplyToStatusId !== undefined;
+
+      if (isReplyToUs && !autoRespondReplies) {
+        logger.log(`Skipping reply from @${tweet.username} - TWITTER_AUTO_RESPOND_REPLIES is disabled`);
+        return false;
+      }
+
+      if (!isReplyToUs && !autoRespondMentions) {
+        logger.log(`Skipping mention from @${tweet.username} - TWITTER_AUTO_RESPOND_MENTIONS is disabled`);
+        return false;
+      }
+
+      return true;
+    });
+
     // Get max interactions per run setting
     const maxInteractionsPerRun = parseInt(
       (getSetting(this.runtime, 'TWITTER_MAX_ENGAGEMENTS_PER_RUN') as string) ||
@@ -889,8 +916,14 @@ Response (YES/NO):`;
       },
     };
 
+    // Check if messageService is available
+    if (!this.runtime.messageService) {
+      logger.error('messageService is not available - cannot process mention');
+      return { text: '', actions: ['IGNORE'] };
+    }
+
     // Process message through message service
-    const result = await this.runtime.messageService!.handleMessage(
+    const result = await this.runtime.messageService.handleMessage(
       this.runtime,
       message,
       callback

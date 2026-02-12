@@ -485,6 +485,7 @@ export class Client {
     replyToTweetId?: string,
     mediaData?: { data: Buffer; mediaType: string }[],
     hideLinkPreview?: boolean,
+    mediaIds?: string[],
   ) {
     if (!text || text.trim().length === 0) {
       throw new Error("Text is required");
@@ -498,6 +499,7 @@ export class Client {
       replyToTweetId,
       mediaData,
       hideLinkPreview,
+      mediaIds,
     );
   }
 

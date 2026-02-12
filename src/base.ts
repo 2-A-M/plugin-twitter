@@ -297,6 +297,9 @@ export class ClientBase {
         if (await this.twitterClient.isLoggedIn()) {
           logger.info("Successfully authenticated with Twitter API v2");
           break;
+        } else {
+          // Authentication succeeded but verification failed - treat as auth failure
+          throw new Error("Authentication verification failed - credentials may be invalid");
         }
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
