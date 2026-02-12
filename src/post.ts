@@ -387,7 +387,7 @@ Generate a single tweet that sounds like YOU would actually write it:`;
         for (const media of mediaData) {
           try {
             // Upload media using Twitter API v1 (v2 doesn't support media upload yet)
-            const mediaId = await this.client.twitterClient.v1.uploadMedia(media.data, {
+            const mediaId = await this.client.twitterClient.uploadMedia(media.data, {
               mimeType: media.mediaType,
             });
 

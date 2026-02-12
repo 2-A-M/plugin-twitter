@@ -480,6 +480,20 @@ export class Client {
    * @returns
    */
 
+  /**
+   * Upload media to Twitter using API v1 (v2 doesn't support media upload)
+   * @param mediaData Buffer containing the media data
+   * @param options Media upload options including mimeType
+   * @returns The media ID string to attach to tweets
+   */
+  async uploadMedia(
+    mediaData: Buffer,
+    options: { mimeType: string },
+  ): Promise<string> {
+    const twitterApiClient = await this.auth.getV2Client();
+    return await twitterApiClient.v1.uploadMedia(mediaData, options);
+  }
+
   async sendTweet(
     text: string,
     replyToTweetId?: string,

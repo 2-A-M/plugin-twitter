@@ -510,8 +510,8 @@ Response (YES/NO):`;
 
     // Filter based on AUTO_RESPOND settings
     uniqueTweetCandidates = uniqueTweetCandidates.filter((tweet) => {
-      // Check if this is a reply to one of our tweets
-      const isReplyToUs = tweet.inReplyToStatusId !== undefined;
+      // Check if this is a reply to one of our tweets by verifying the parent tweet author
+      const isReplyToUs = tweet.inReplyToStatus?.userId === this.client.profile.id;
 
       if (isReplyToUs && !autoRespondReplies) {
         logger.log(`Skipping reply from @${tweet.username} - TWITTER_AUTO_RESPOND_REPLIES is disabled`);

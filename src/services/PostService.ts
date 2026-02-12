@@ -77,7 +77,7 @@ export class TwitterPostService implements IPostService {
         for (const media of options.media) {
           try {
             // Upload media using Twitter API v1 (v2 doesn't support media upload yet)
-            const mediaId = await this.client.twitterClient.v1.uploadMedia(media.data, {
+            const mediaId = await this.client.twitterClient.uploadMedia(media.data, {
               mimeType: media.mediaType,
             });
 
